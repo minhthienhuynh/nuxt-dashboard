@@ -11,3 +11,29 @@ generator client {
 datasource db {
   provider = "sqlite"
 }
+
+model PhpExtension {
+  id       Int                      @id @default(autoincrement())
+  name     String                   @unique
+  type     String                   // "bundled" | "pecl" | "custom" | "vendor"
+  versions PhpVersionSupport[]
+  specials SpecialRequirement[]
+}
+
+model PhpVersionSupport {
+  id          Int          @id @default(autoincrement())
+  extensionId Int
+  phpVersion  String       // e.g. "8.4", "8.3", "7.4"
+  extension   PhpExtension @relation(fields: [extensionId], references: [id], onDelete: Cascade)
+
+  @@unique([extensionId, phpVersion])
+}
+
+model SpecialRequirement {
+  id          Int          @id @default(autoincrement())
+  extensionId Int
+  requirement String       // e.g. "zts", "!jessie", "!alpine"
+  extension   PhpExtension @relation(fields: [extensionId], references: [id], onDelete: Cascade)
+
+  @@unique([extensionId, requirement])
+}
