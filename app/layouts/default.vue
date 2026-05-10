@@ -29,6 +29,13 @@ const links = [[{
     open.value = false
   }
 }, {
+  label: 'Websites',
+  icon: 'i-lucide-globe',
+  to: '/websites',
+  onSelect: () => {
+    open.value = false
+  }
+}, {
   label: 'Settings',
   to: '/settings',
   icon: 'i-lucide-settings',
