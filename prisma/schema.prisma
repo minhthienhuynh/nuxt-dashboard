@@ -18,6 +18,7 @@ model PhpExtension {
   type     String                   // "bundled" | "pecl" | "custom" | "vendor"
   versions PhpVersionSupport[]
   specials SpecialRequirement[]
+  websites WebsitePhpExtension[]
 }
 
 model PhpVersionSupport {
@@ -36,4 +37,29 @@ model SpecialRequirement {
   extension   PhpExtension @relation(fields: [extensionId], references: [id], onDelete: Cascade)
 
   @@unique([extensionId, requirement])
+}
+
+model Website {
+  id           Int                      @id @default(autoincrement())
+  name         String
+  domain       String                   @unique
+  port         Int                      @default(80)
+  documentRoot String
+  phpVersion   String                   // e.g. "8.4", "8.3", "7.4"
+  sslEnabled   Boolean                  @default(false)
+  status       String                   @default("stopped") // "running" | "stopped" | "error"
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+  extensions   WebsitePhpExtension[]
+}
+
+model WebsitePhpExtension {
+  id          Int          @id @default(autoincrement())
+  websiteId   Int
+  extensionId Int
+  enabled     Boolean      @default(true)
+  website     Website      @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  extension   PhpExtension @relation(fields: [extensionId], references: [id], onDelete: Cascade)
+
+  @@unique([websiteId, extensionId])
 }
