@@ -1,31 +1,27 @@
 <script setup lang="ts">
-import { resolveComponent, h } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import {
-  getCoreRowModel,
-  getPaginationRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  useVueTable
-} from '@tanstack/table-core'
+import { getPaginationRowModel } from '@tanstack/table-core'
 import type { Website } from '~/types'
 
-const { data: websites, refresh } = useFetch<Website[]>('/api/websites', {
-  lazy: true,
-  default: () => []
+const UBadge = resolveComponent('UBadge')
+const UButton = resolveComponent('UButton')
+const UDropdownMenu = resolveComponent('UDropdownMenu')
+const UIcon = resolveComponent('UIcon')
+
+const table = useTemplateRef('table')
+
+const columnFilters = ref([{
+  id: 'name',
+  value: ''
+}])
+const pagination = ref({
+  pageIndex: 0,
+  pageSize: 10
 })
 
-const search = ref('')
-const filterPhpVersion = ref('')
-const filterStatus = ref('')
-
-const phpVersions = ['8.4', '8.3', '8.2', '8.1', '8.0', '7.4', '7.3', '7.2', '7.1', '7.0', '5.6']
-const statusOptions = [
-  { label: 'All Status', value: '' },
-  { label: 'Running', value: 'running' },
-  { label: 'Stopped', value: 'stopped' },
-  { label: 'Error', value: 'error' }
-]
+const { data, status, refresh } = await useFetch<Website[]>('/api/websites', {
+  lazy: true
+})
 
 // Modals state
 const isAddModalOpen = ref(false)
@@ -48,55 +44,88 @@ function phpVersionColor(v: string) {
   return 'red'
 }
 
+function getRowActions(row: { original: Website }) {
+  return [
+    {
+      type: 'label' as const,
+      label: 'Actions'
+    },
+    {
+      label: 'Edit',
+      icon: 'i-lucide-pencil',
+      onSelect() {
+        editTarget.value = row.original
+        isAddModalOpen.value = true
+      }
+    },
+    {
+      label: 'Manage Extensions',
+      icon: 'i-lucide-puzzle',
+      onSelect() {
+        selectedWebsite.value = row.original
+        isExtensionsModalOpen.value = true
+      }
+    },
+    {
+      type: 'separator' as const
+    },
+    {
+      label: 'Delete',
+      icon: 'i-lucide-trash',
+      color: 'error' as const,
+      onSelect() {
+        selectedWebsite.value = row.original
+        isDeleteModalOpen.value = true
+      }
+    }
+  ]
+}
+
 const columns: TableColumn<Website>[] = [
   {
-    id: 'name',
+    accessorKey: 'name',
     header: 'Name',
-    accessorFn: (row) => row.name
+    filterFn: 'includesString'
   },
   {
-    id: 'domain',
+    accessorKey: 'domain',
     header: 'Domain',
-    accessorFn: (row) => row.domain,
     cell: ({ row }) =>
       h('div', { class: 'flex items-center gap-1.5' }, [
-        h(resolveComponent('UIcon'), { name: 'i-lucide-globe', class: 'size-4 text-(--ui-text-dimmed)' }),
+        h(UIcon, { name: 'i-lucide-globe', class: 'size-4 text-(--ui-text-dimmed)' }),
         h('span', row.original.domain)
       ])
   },
   {
-    id: 'phpVersion',
+    accessorKey: 'phpVersion',
     header: 'PHP',
-    accessorFn: (row) => row.phpVersion,
     cell: ({ row }) =>
-      h(resolveComponent('UBadge'), {
+      h(UBadge, {
         color: phpVersionColor(row.original.phpVersion),
         variant: 'subtle',
         size: 'sm'
       }, () => row.original.phpVersion)
   },
   {
-    id: 'port',
-    header: 'Port',
-    accessorFn: (row) => row.port
+    accessorKey: 'port',
+    header: 'Port'
   },
   {
-    id: 'ssl',
+    accessorKey: 'sslEnabled',
     header: 'SSL',
-    accessorFn: (row) => row.sslEnabled,
     cell: ({ row }) =>
-      h(resolveComponent('UBadge'), {
+      h(UBadge, {
         color: row.original.sslEnabled ? 'green' : 'gray',
         variant: 'subtle',
         size: 'sm'
       }, () => row.original.sslEnabled ? 'Enabled' : 'Disabled')
   },
   {
-    id: 'status',
+    accessorKey: 'status',
     header: 'Status',
-    accessorFn: (row) => row.status,
+    filterFn: 'equals',
     cell: ({ row }) =>
-      h(resolveComponent('UBadge'), {
+      h(UBadge, {
         color: statusColor[row.original.status],
         variant: 'subtle',
         size: 'sm'
@@ -107,7 +136,7 @@ const columns: TableColumn<Website>[] = [
     header: 'Extensions',
     accessorFn: (row) => row.extensions?.length ?? 0,
     cell: ({ row }) =>
-      h(resolveComponent('UButton'), {
+      h(UButton, {
         color: 'neutral',
         variant: 'ghost',
         size: 'xs',
@@ -122,67 +151,63 @@ const columns: TableColumn<Website>[] = [
     id: 'actions',
     header: '',
     cell: ({ row }) =>
-      h(resolveComponent('UDropdownMenu'), {
-        items: [
-          {
-            label: 'Edit',
-            icon: 'i-lucide-pencil',
-            onSelect: () => {
-              editTarget.value = row.original
-              isAddModalOpen.value = true
-            }
-          },
-          {
-            label: 'Manage Extensions',
-            icon: 'i-lucide-puzzle',
-            onSelect: () => {
-              selectedWebsite.value = row.original
-              isExtensionsModalOpen.value = true
-            }
-          },
-          {
-            label: 'Delete',
-            icon: 'i-lucide-trash',
-            color: 'error',
-            onSelect: () => {
-              selectedWebsite.value = row.original
-              isDeleteModalOpen.value = true
-            }
-          }
-        ]
-      })
+      h('div', { class: 'text-right' },
+        h(UDropdownMenu, {
+          content: { align: 'end' },
+          items: getRowActions(row)
+        }, () =>
+          h(UButton, {
+            icon: 'i-lucide-ellipsis-vertical',
+            color: 'neutral',
+            variant: 'ghost',
+            class: 'ml-auto'
+          })
+        )
+      )
   }
 ]
 
-// Filter data
-const filteredWebsites = computed(() => {
-  let result = websites.value ?? []
+// Status filter
+const statusFilter = ref('all')
 
-  if (search.value) {
-    const q = search.value.toLowerCase()
-    result = result.filter(
-      (w) => w.name.toLowerCase().includes(q) || w.domain.toLowerCase().includes(q)
-    )
+watch(() => statusFilter.value, (newVal) => {
+  if (!table?.value?.tableApi) return
+
+  const statusColumn = table.value.tableApi.getColumn('status')
+  if (!statusColumn) return
+
+  if (newVal === 'all') {
+    statusColumn.setFilterValue(undefined)
+  } else {
+    statusColumn.setFilterValue(newVal)
   }
-
-  if (filterPhpVersion.value) {
-    result = result.filter((w) => w.phpVersion === filterPhpVersion.value)
-  }
-
-  if (filterStatus.value) {
-    result = result.filter((w) => w.status === filterStatus.value)
-  }
-
-  return result
 })
 
-const table = useVueTable({
-  get data() { return filteredWebsites.value },
-  columns,
-  getCoreRowModel: getCoreRowModel(),
-  getPaginationRowModel: getPaginationRowModel(),
-  getFilteredRowModel: getFilteredRowModel(),
-  getSortedRowModel: getSortedRowModel()
+// PHP version filter
+const phpVersionFilter = ref('all')
+const phpVersions = ['8.4', '8.3', '8.2', '8.1', '8.0', '7.4', '7.3', '7.2', '7.1', '7.0', '5.6']
+
+watch(() => phpVersionFilter.value, (newVal) => {
+  if (!table?.value?.tableApi) return
+
+  const phpColumn = table.value.tableApi.getColumn('phpVersion')
+  if (!phpColumn) return
+
+  if (newVal === 'all') {
+    phpColumn.setFilterValue(undefined)
+  } else {
+    phpColumn.setFilterValue(newVal)
+  }
+})
+
+// Search filter
+const search = computed({
+  get: (): string => {
+    return (table.value?.tableApi?.getColumn('name')?.getFilterValue() as string) || ''
+  },
+  set: (value: string) => {
+    table.value?.tableApi?.getColumn('name')?.setFilterValue(value || undefined)
+  }
 })
 
 function onCreated() {
@@ -205,13 +230,25 @@ function onExtensionsUpdated() {
 </script>
 
 <template>
-  <UDashboardPanel id="websites" :growth="1">
+  <UDashboardPanel id="websites">
     <template #header>
       <UDashboardNavbar title="Websites">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-        <template #trailing>
+      </UDashboardNavbar>
+    </template>
+
+    <template #body>
+      <div class="flex flex-wrap items-center justify-between gap-1.5">
+        <UInput
+          v-model="search"
+          class="max-w-sm"
+          icon="i-lucide-search"
+          placeholder="Search websites..."
+        />
+
+        <div class="flex flex-wrap items-center gap-1.5">
           <UButton
             label="Add Website"
             icon="i-lucide-plus"
@@ -219,52 +256,59 @@ function onExtensionsUpdated() {
             size="sm"
             @click="isAddModalOpen = true"
           />
-        </template>
-      </UDashboardNavbar>
 
-      <UDashboardToolbar>
-        <template #default>
-          <UInput
-            v-model="search"
-            icon="i-lucide-search"
-            placeholder="Search websites..."
-            class="max-w-sm"
+          <USelect
+            v-model="statusFilter"
+            :items="[
+              { label: 'All Status', value: 'all' },
+              { label: 'Running', value: 'running' },
+              { label: 'Stopped', value: 'stopped' },
+              { label: 'Error', value: 'error' }
+            ]"
+            placeholder="Filter status"
+            class="min-w-28"
           />
           <USelect
-            v-model="filterStatus"
-            :items="statusOptions"
-            placeholder="Filter by status"
-            class="max-w-40"
+            v-model="phpVersionFilter"
+            :items="[{ label: 'All PHP versions', value: 'all' }, ...phpVersions.map(v => ({ label: `PHP ${v}`, value: v }))]"
+            placeholder="Filter PHP"
+            class="min-w-28"
           />
-          <USelect
-            v-model="filterPhpVersion"
-            :items="[{ label: 'All PHP versions', value: '' }, ...phpVersions.map(v => ({ label: `PHP ${v}`, value: v }))]"
-            placeholder="Filter by PHP"
-            class="max-w-44"
-          />
-        </template>
-      </UDashboardToolbar>
-    </template>
+        </div>
+      </div>
 
-    <template #body>
-      <div class="flex flex-col gap-4 p-4">
-        <UTable :table="table" />
+      <UTable
+        ref="table"
+        v-model:column-filters="columnFilters"
+        v-model:pagination="pagination"
+        :pagination-options="{
+          getPaginationRowModel: getPaginationRowModel()
+        }"
+        class="shrink-0"
+        :data="data"
+        :columns="columns"
+        :loading="status === 'pending'"
+        :ui="{
+          base: 'table-fixed border-separate border-spacing-0',
+          thead: '[&>tr]:bg-elevated/50 [&>tr]:after:content-none',
+          tbody: '[&>tr]:last:[&>td]:border-b-0',
+          th: 'py-2 first:rounded-l-lg last:rounded-r-lg border-y border-default first:border-l last:border-r',
+          td: 'border-b border-default',
+          separator: 'h-0'
+        }"
+      />
 
-        <div v-if="table.getRowCount() === 0" class="text-center py-8 text-(--ui-text-dimmed)">
-          No websites found.
+      <div class="flex items-center justify-between gap-3 border-t border-default pt-4 mt-auto">
+        <div class="text-sm text-muted">
+          {{ table?.tableApi?.getFilteredRowModel().rows.length || 0 }} website(s)
         </div>
 
-        <div
-          v-if="table.getPageCount() > 1"
-          class="flex items-center justify-between"
-        >
-          <span class="text-sm text-(--ui-text-dimmed)">
-            {{ table.getRowCount() }} website(s)
-          </span>
+        <div class="flex items-center gap-1.5">
           <UPagination
-            :page="table.getState().pagination.pageIndex + 1"
-            :total="table.getPageCount()"
-            @update:page="(p: number) => table.setPageIndex(p - 1)"
+            :default-page="(table?.tableApi?.getState().pagination.pageIndex || 0) + 1"
+            :items-per-page="table?.tableApi?.getState().pagination.pageSize"
+            :total="table?.tableApi?.getFilteredRowModel().rows.length"
+            @update:page="(p: number) => table?.tableApi?.setPageIndex(p - 1)"
           />
         </div>
       </div>
