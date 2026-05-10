@@ -254,7 +254,7 @@ function onExtensionsUpdated() {
             icon="i-lucide-plus"
             color="primary"
             size="sm"
-            @click="isAddModalOpen = true"
+            @click="editTarget = null; isAddModalOpen = true"
           />
 
           <USelect
