@@ -67,7 +67,16 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 }
 
 watch(open, () => {
-  if (!open.value) {
+  if (open.value) {
+    state.name = props.website?.name ?? ''
+    state.domain = props.website?.domain ?? ''
+    state.port = props.website?.port ?? 80
+    state.documentRoot = props.website?.documentRoot ?? ''
+    state.phpVersion = props.website?.phpVersion ?? '8.4'
+    state.sslEnabled = props.website?.sslEnabled ?? false
+    state.status = (props.website?.status as Schema['status']) ?? 'stopped'
+    error.value = null
+  } else {
     error.value = null
   }
 })
