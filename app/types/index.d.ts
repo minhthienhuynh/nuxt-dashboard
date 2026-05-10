@@ -58,3 +58,58 @@ export interface Range {
   start: Date
   end: Date
 }
+
+// Website management types
+export type WebsiteStatus = 'running' | 'stopped' | 'error'
+
+export interface Website {
+  id: number
+  name: string
+  domain: string
+  port: number
+  documentRoot: string
+  phpVersion: string
+  sslEnabled: boolean
+  status: WebsiteStatus
+  createdAt: string
+  updatedAt: string
+  extensions?: WebsitePhpExtension[]
+}
+
+export interface WebsitePhpExtension {
+  id: number
+  websiteId: number
+  extensionId: number
+  enabled: boolean
+  extension?: PhpExtensionInfo
+}
+
+export interface PhpExtensionInfo {
+  id: number
+  name: string
+  type: string
+}
+
+export interface CreateWebsiteInput {
+  name: string
+  domain: string
+  port?: number
+  documentRoot: string
+  phpVersion: string
+  sslEnabled?: boolean
+  status?: WebsiteStatus
+}
+
+export interface UpdateWebsiteInput {
+  name?: string
+  domain?: string
+  port?: number
+  documentRoot?: string
+  phpVersion?: string
+  sslEnabled?: boolean
+  status?: WebsiteStatus
+}
+
+export interface UpdateWebsiteExtensionsInput {
+  extensionIds: number[]
+}
