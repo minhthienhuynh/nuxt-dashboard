@@ -40,6 +40,7 @@ const state = reactive<Partial<Schema>>({
 
 const loading = ref(false)
 const error = ref<string | null>(null)
+const isBrowseOpen = ref(false)
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   loading.value = true
@@ -99,7 +100,10 @@ watch(open, () => {
         </div>
 
         <UFormField label="Document Root" name="documentRoot" required>
-          <UInput v-model="state.documentRoot" placeholder="/var/www/myapp" />
+          <div class="flex gap-2">
+            <UInput v-model="state.documentRoot" placeholder="/var/www/myapp" class="flex-1" />
+            <UButton icon="i-lucide-folder-open" variant="outline" @click="isBrowseOpen = true" />
+          </div>
         </UFormField>
 
         <div class="grid grid-cols-2 gap-4">
@@ -128,4 +132,9 @@ watch(open, () => {
       </UForm>
     </template>
   </UModal>
+
+  <WebsitesBrowsePathModal
+    v-model="state.documentRoot"
+    v-model:open="isBrowseOpen"
+  />
 </template>
