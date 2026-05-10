@@ -6,7 +6,7 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const prisma = new PrismaClient({
-  adapter: new PrismaBetterSqlite3({ url: process.env.DATABASE_URL! }),
+  adapter: new PrismaBetterSqlite3({ url: process.env.DATABASE_URL! })
 })
 
 const __filename = fileURLToPath(import.meta.url)
@@ -23,16 +23,16 @@ const BUNDLED = new Set([
   'pdo_odbc', 'pdo_pgsql', 'pdo_snowflake', 'pgsql', 'pspell',
   'recode', 'shmop', 'snmp', 'soap', 'sockets', 'sodium',
   'sybase_ct', 'sysvmsg', 'sysvsem', 'sysvshm', 'tidy', 'wddx',
-  'xmlrpc', 'xsl', 'zip',
+  'xmlrpc', 'xsl', 'zip'
 ])
 
 const VENDOR = new Set([
   'blackfire', 'ddtrace', 'ioncube_loader', 'newrelic', 'relay',
-  'sourceguardian',
+  'sourceguardian'
 ])
 
 const CUSTOM = new Set([
-  'cassandra', 'openswoole', 'phpy',
+  'cassandra', 'openswoole', 'phpy'
 ])
 
 function getType(name: string): string {
@@ -88,13 +88,13 @@ async function main() {
   for (const [name, phpVersions] of extMap) {
     const type = getType(name)
     const extension = await prisma.phpExtension.create({
-      data: { name, type },
+      data: { name, type }
     })
 
     // Insert PHP version supports
     for (const phpVersion of phpVersions) {
       await prisma.phpVersionSupport.create({
-        data: { extensionId: extension.id, phpVersion },
+        data: { extensionId: extension.id, phpVersion }
       })
       totalVersions++
     }
@@ -104,7 +104,7 @@ async function main() {
     if (reqs) {
       for (const requirement of reqs) {
         await prisma.specialRequirement.create({
-          data: { extensionId: extension.id, requirement },
+          data: { extensionId: extension.id, requirement }
         })
         totalSpecials++
       }
@@ -112,7 +112,7 @@ async function main() {
   }
 
   console.log(
-    `Seeded ${extMap.size} PHP extensions, ${totalVersions} version supports, ${totalSpecials} special requirements`,
+    `Seeded ${extMap.size} PHP extensions, ${totalVersions} version supports, ${totalSpecials} special requirements`
   )
 }
 
