@@ -36,6 +36,13 @@ const links = [[{
     open.value = false
   }
 }, {
+  label: 'Services',
+  icon: 'i-lucide-server',
+  to: '/services',
+  onSelect: () => {
+    open.value = false
+  }
+}, {
   label: 'Settings',
   to: '/settings',
   icon: 'i-lucide-settings',

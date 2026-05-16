@@ -71,6 +71,7 @@ export interface Website {
   phpVersion: string
   sslEnabled: boolean
   status: WebsiteStatus
+  buildHash: string | null
   createdAt: string
   updatedAt: string
   extensions?: WebsitePhpExtension[]
@@ -112,4 +113,114 @@ export interface UpdateWebsiteInput {
 
 export interface UpdateWebsiteExtensionsInput {
   extensionIds: number[]
+}
+
+// ── Service Management Types ──
+
+export type ServiceCategory = 'database' | 'cache' | 'search' | 'mail' | 'storage' | 'queue' | 'websocket' | 'testing'
+
+export type ProxyType = 'caddy' | 'traefik' | 'nginx'
+
+export type ServiceStatus = 'running' | 'stopped' | 'error'
+
+export interface ProxyConfig {
+  id: number
+  type: ProxyType
+  httpPort: number
+  httpsPort: number
+  adminPort: number
+  domain: string
+  updatedAt: string
+}
+
+export interface UpdateProxyInput {
+  type?: ProxyType
+  httpPort?: number
+  httpsPort?: number
+  adminPort?: number
+  domain?: string
+}
+
+export interface ServiceTypeInfo {
+  id: number
+  key: string
+  name: string
+  category: ServiceCategory
+  defaultImage: string | null
+  defaultPorts: ServicePortInfo[]
+  hasHealthcheck: boolean
+  hasPersistence: boolean
+}
+
+export interface ServicePortInfo {
+  hostPort: string
+  containerPort: string
+  protocol?: string
+}
+
+export interface InfrastructureService {
+  id: number
+  serviceTypeId: number
+  containerName: string
+  imageOverride: string | null
+  status: ServiceStatus
+  enabled: boolean
+  createdAt: string
+  updatedAt: string
+  serviceType?: ServiceTypeInfo
+  envVars?: ServiceEnvVar[]
+  ports?: ServicePort[]
+  volumes?: ServiceVolume[]
+}
+
+export interface ServiceEnvVar {
+  id: number
+  serviceId: number
+  key: string
+  value: string
+  isSecret: boolean
+}
+
+export interface ServicePort {
+  id: number
+  serviceId: number
+  hostPort: string
+  containerPort: string
+  protocol: string
+}
+
+export interface ServiceVolume {
+  id: number
+  serviceId: number
+  source: string
+  target: string
+}
+
+export interface CreateServiceInput {
+  serviceTypeKey: string
+  containerName?: string
+  envVars?: { key: string, value: string, isSecret?: boolean }[]
+  ports?: { hostPort: string, containerPort: string, protocol?: string }[]
+  volumes?: { source: string, target: string }[]
+}
+
+export interface UpdateServiceInput {
+  containerName?: string
+  envVars?: { key: string, value: string, isSecret?: boolean }[]
+  ports?: { hostPort: string, containerPort: string, protocol?: string }[]
+  volumes?: { source: string, target: string }[]
+  enabled?: boolean
+}
+
+export interface SyncResult {
+  updated: { containerName: string, oldStatus: string, newStatus: string }[]
+  missing: string[]
+  total: number
+}
+
+export interface DockerContainer {
+  name: string
+  image: string
+  state: string
+  status: string
 }

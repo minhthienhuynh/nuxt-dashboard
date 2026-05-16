@@ -48,6 +48,7 @@ model Website {
   phpVersion   String                   // e.g. "8.4", "8.3", "7.4"
   sslEnabled   Boolean                  @default(false)
   status       String                   @default("stopped") // "running" | "stopped" | "error"
+  buildHash    String?                  // SHA256(phpVersion + sorted extensionIds) — null = chua build
   createdAt    DateTime                 @default(now())
   updatedAt    DateTime                 @updatedAt
   extensions   WebsitePhpExtension[]
@@ -62,4 +63,72 @@ model WebsitePhpExtension {
   extension   PhpExtension @relation(fields: [extensionId], references: [id], onDelete: Cascade)
 
   @@unique([websiteId, extensionId])
+}
+
+model ProxyConfig {
+  id        Int      @id @default(autoincrement())
+  type      String   @default("caddy") // "caddy" | "traefik" | "nginx"
+  httpPort  Int      @default(80)
+  httpsPort Int      @default(443)
+  adminPort Int      @default(8080)
+  domain    String   @default("*.test")
+  updatedAt DateTime @updatedAt
+}
+
+model ServiceType {
+  id             Int                      @id @default(autoincrement())
+  key            String                   @unique
+  name           String
+  category       String                   // "database" | "cache" | "search" | "mail" | "storage" | "queue" | "websocket" | "testing"
+  defaultImage   String?
+  defaultPorts   String                   @default("[]")
+  hasHealthcheck Boolean                  @default(false)
+  hasPersistence Boolean                  @default(false)
+  createdAt      DateTime                 @default(now())
+  services       InfrastructureService[]
+}
+
+model InfrastructureService {
+  id            Int              @id @default(autoincrement())
+  serviceTypeId Int
+  containerName String
+  imageOverride String?
+  status        String           @default("stopped")
+  enabled       Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  serviceType   ServiceType      @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
+  envVars       ServiceEnvVar[]
+  ports         ServicePort[]
+  volumes       ServiceVolume[]
+
+  @@unique([serviceTypeId, containerName])
+}
+
+model ServiceEnvVar {
+  id        Int                   @id @default(autoincrement())
+  serviceId Int
+  key       String
+  value     String
+  isSecret  Boolean               @default(false)
+  service   InfrastructureService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceId, key])
+}
+
+model ServicePort {
+  id            Int                   @id @default(autoincrement())
+  serviceId     Int
+  hostPort      String
+  containerPort String
+  protocol      String                @default("tcp")
+  service       InfrastructureService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+}
+
+model ServiceVolume {
+  id        Int                   @id @default(autoincrement())
+  serviceId Int
+  source    String
+  target    String
+  service   InfrastructureService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 }
