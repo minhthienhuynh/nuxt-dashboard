@@ -12,7 +12,8 @@ const emit = defineEmits<{
 
 const { data: allExtensions } = useFetch<PhpExtensionInfo[]>('/api/php-extensions', {
   lazy: true,
-  default: () => []
+  default: () => [],
+  query: computed(() => ({ php: props.website?.phpVersion ?? '' }))
 })
 
 const enabledIds = ref<Set<number>>(new Set())
@@ -76,6 +77,7 @@ async function onSave() {
       <div class="space-y-4">
         <p class="text-sm text-(--ui-text-dimmed)">
           Configure extensions for <strong>{{ website?.name }}</strong>
+          (PHP {{ website?.phpVersion }})
         </p>
 
         <UInput
