@@ -46,7 +46,7 @@ export class DockerService {
 
     const buildArgs: string[] = [
       `PHP_TAG=${website.phpVersion}-fpm`,
-      `WORKDIR=/var/www/${website.name}`,
+      `WORKDIR=/var/www/${slugify(website.name)}`,
       'COMPOSER_VERSION=2',
       'NODE_VERSION=22',
       'WWWGROUP=${WWWGROUP:-1000}',
@@ -71,7 +71,7 @@ export class DockerService {
     }
 
     const context = path.resolve(process.cwd(), 'docker/php')
-    const buildArgFlags = buildArgs.map(a => `--build-arg ${a}`).join(' ')
+    const buildArgFlags = buildArgs.map(a => `--build-arg "${a}"`).join(' ')
 
     execSync(`docker build ${buildArgFlags} -t ${imageTag} ${context}`, {
       stdio: 'pipe'
@@ -168,6 +168,26 @@ export class DockerService {
     }
   }
 
+  static async stopContainer(name: string): Promise<void> {
+    const docker = await getDocker()
+    await docker.containerStop(name)
+  }
+
+  static async startContainer(name: string): Promise<void> {
+    const docker = await getDocker()
+    await docker.containerStart(name)
+  }
+
+  static async containerExists(name: string): Promise<boolean> {
+    const docker = await getDocker()
+    try {
+      await docker.containerInspect(name)
+      return true
+    } catch {
+      return false
+    }
+  }
+
   // ═══════════════════════════════════════════════════════════
   // Deploy
   // ═══════════════════════════════════════════════════════════
@@ -260,7 +280,7 @@ export class DockerService {
       image: tag,
       name: websiteContainerName(website.name),
       volumes: [
-        { source: website.documentRoot, target: `/var/www/${website.name}` }
+        { source: website.documentRoot, target: `/var/www/${slugify(website.name)}` }
       ]
     })
   }

@@ -8,7 +8,12 @@ export default eventHandler(async (event) => {
   try {
     const id = serviceIdSchema.parse(getRouterParam(event, 'id'))
     const service = await ServiceService.getById(id)
-    await DockerService.deployService(service as any)
+    const exists = await DockerService.containerExists(service.containerName)
+    if (exists) {
+      await DockerService.startContainer(service.containerName)
+    } else {
+      await DockerService.deployService(service as any)
+    }
     return { status: 'running', containerName: service.containerName }
   } catch (error) {
     return handleError(error)

@@ -9,7 +9,7 @@ const props = defineProps<{
 
 const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{
-  created: []
+  created: [id: number]
 }>()
 
 const isEditing = computed(() => !!props.website)
@@ -55,7 +55,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     const res = await $fetch<Website>(url, { method, body })
 
     if (res) {
-      emit('created')
+      open.value = false
+      emit('created', res.id)
     }
   } catch (e: any) {
     error.value = e?.data?.statusMessage ?? e?.message ?? 'Failed to save website'

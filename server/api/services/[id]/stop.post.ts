@@ -8,7 +8,7 @@ export default eventHandler(async (event) => {
   try {
     const id = serviceIdSchema.parse(getRouterParam(event, 'id'))
     const service = await ServiceService.getById(id)
-    await DockerService.stopAndRemoveContainer(service.containerName)
+    await DockerService.stopContainer(service.containerName)
     return { status: 'stopped', containerName: service.containerName }
   } catch (error) {
     return handleError(error)

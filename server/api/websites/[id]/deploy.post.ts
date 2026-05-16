@@ -9,8 +9,14 @@ export default eventHandler(async (event) => {
   try {
     const id = websiteIdSchema.parse(getRouterParam(event, 'id'))
     const website = await WebsiteService.getById(id)
-    await DockerService.deployWebsite(website as any)
-    return { status: 'running', containerName: websiteContainerName(website.name) }
+    const cName = websiteContainerName(website.name)
+    const exists = await DockerService.containerExists(cName)
+    if (exists) {
+      await DockerService.startContainer(cName)
+    } else {
+      await DockerService.deployWebsite(website as any)
+    }
+    return { status: 'running', containerName: cName }
   } catch (error) {
     return handleError(error)
   }

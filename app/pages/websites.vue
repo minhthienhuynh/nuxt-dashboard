@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { dash } from 'radash'
 import type { Website, SyncResult } from '~/types'
 
 const UBadge = resolveComponent('UBadge')
@@ -7,6 +8,22 @@ const UIcon = resolveComponent('UIcon')
 const UModal = resolveComponent('UModal')
 const UInput = resolveComponent('UInput')
 const USelect = resolveComponent('USelect')
+
+// ── Real-time Docker events ─────────────────────────────────
+
+const { connected, containerStates, connect, disconnect } = useDockerEvents()
+
+onMounted(() => connect('container'))
+onUnmounted(() => disconnect())
+
+function containerNameFromWebsite(name: string) {
+  return `website-${dash(name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').replace(/[^a-zA-Z0-9\s-]/g, ''))}`
+}
+
+function liveStatus(w: Website): string {
+  const cname = containerNameFromWebsite(w.name)
+  return containerStates.value[cname] || w.status
+}
 
 const { data, status: loading, refresh } = await useFetch<Website[]>('/api/websites', {
   lazy: true
@@ -47,7 +64,7 @@ watchEffect(() => {
 
 // ── Actions ────────────────────────────────────────────────
 
-const acting = ref(false)
+const deploying = ref<Set<number>>(new Set())
 const logsContent = ref('')
 const logsLoading = ref(false)
 const syncing = ref(false)
@@ -65,22 +82,26 @@ function phpBadgeColor(v: string) {
 }
 
 async function deployWebsite(w: Website) {
-  acting.value = true
+  deploying.value = new Set(deploying.value).add(w.id)
   try {
     await $fetch(`/api/websites/${w.id}/deploy`, { method: 'POST' })
-    refresh()
+    await refresh()
   } finally {
-    acting.value = false
+    const next = new Set(deploying.value)
+    next.delete(w.id)
+    deploying.value = next
   }
 }
 
 async function stopWebsite(w: Website) {
-  acting.value = true
+  deploying.value = new Set(deploying.value).add(w.id)
   try {
     await $fetch(`/api/websites/${w.id}/stop`, { method: 'POST' })
-    refresh()
+    await refresh()
   } finally {
-    acting.value = false
+    const next = new Set(deploying.value)
+    next.delete(w.id)
+    deploying.value = next
   }
 }
 
@@ -120,10 +141,22 @@ function openExtensions(w: Website) {
   isExtensionsModalOpen.value = true
 }
 
-function onCreated() {
+async function onCreated(id: number) {
   isAddModalOpen.value = false
   editTarget.value = null
-  refresh()
+  deploying.value = new Set(deploying.value).add(id)
+  await refresh()
+  // Auto-deploy the newly created website
+  const w = data.value?.find(w => w.id === id)
+  if (w) {
+    try {
+      await $fetch(`/api/websites/${id}/deploy`, { method: 'POST' })
+      await refresh()
+    } catch { /* deploy failed — user can retry manually */ }
+  }
+  const next = new Set(deploying.value)
+  next.delete(id)
+  deploying.value = next
 }
 
 function onDeleted() {
@@ -183,6 +216,11 @@ async function syncContainers() {
               size="xs"
             />
             <div class="flex gap-1.5">
+              <div
+                class="size-2 rounded-full shrink-0 self-center"
+                :class="connected ? 'bg-green-500' : 'bg-gray-300'"
+                :title="connected ? 'Live' : 'Disconnected'"
+              />
               <UButton
                 size="xs"
                 variant="ghost"
@@ -219,7 +257,16 @@ async function syncContainers() {
             >
               <div class="flex-1 min-w-0 px-3 py-2.5">
                 <div class="flex items-center gap-2">
-                  <span class="size-2 rounded-full shrink-0" :class="statusColor(w.status)" />
+                  <UIcon
+                    v-if="deploying.has(w.id)"
+                    name="i-lucide-loader-circle"
+                    class="size-3.5 shrink-0 text-primary animate-spin"
+                  />
+                  <span
+                    v-else
+                    class="size-2 rounded-full shrink-0"
+                    :class="statusColor(liveStatus(w))"
+                  />
                   <span class="text-sm font-medium truncate">{{ w.name }}</span>
                 </div>
                 <div class="text-xs text-muted truncate ml-4 mt-0.5">
@@ -228,7 +275,7 @@ async function syncContainers() {
               </div>
               <div class="flex items-center shrink-0 pr-2 gap-0.5" @click.stop>
                 <UButton
-                  v-if="w.status === 'running'"
+                  v-if="liveStatus(w) === 'running' && !deploying.has(w.id)"
                   size="xs"
                   variant="ghost"
                   icon="i-lucide-link"
@@ -236,24 +283,24 @@ async function syncContainers() {
                   @click="openInTab(`http://${w.domain}`)"
                 />
                 <UButton
-                  v-if="w.status !== 'running'"
-                  size="xs"
-                  color="green"
-                  variant="ghost"
-                  icon="i-lucide-play"
-                  class="cursor-pointer"
-                  :loading="acting && selectedId === w.id"
-                  @click="deployWebsite(w)"
-                />
-                <UButton
-                  v-else
+                  v-if="liveStatus(w) === 'running'"
                   size="xs"
                   color="amber"
                   variant="ghost"
                   icon="i-lucide-square"
                   class="cursor-pointer"
-                  :loading="acting && selectedId === w.id"
+                  :loading="deploying.has(w.id)"
                   @click="stopWebsite(w)"
+                />
+                <UButton
+                  v-else
+                  size="xs"
+                  color="green"
+                  variant="ghost"
+                  icon="i-lucide-play"
+                  class="cursor-pointer"
+                  :loading="deploying.has(w.id)"
+                  @click="deployWebsite(w)"
                 />
                 <UButton
                   size="xs"
@@ -282,11 +329,23 @@ async function syncContainers() {
                 <div class="flex items-center gap-3">
                   <h2 class="text-lg font-semibold">{{ selectedWebsite.name }}</h2>
                   <UBadge
-                    :color="selectedWebsite.status === 'running' ? 'green' : selectedWebsite.status === 'error' ? 'red' : 'gray'"
+                    v-if="deploying.has(selectedWebsite.id)"
+                    color="primary"
                     variant="subtle"
                     size="sm"
                   >
-                    {{ selectedWebsite.status }}
+                    <span class="inline-flex items-center gap-1">
+                      <UIcon name="i-lucide-loader-circle" class="size-3 animate-spin" />
+                      Deploying...
+                    </span>
+                  </UBadge>
+                  <UBadge
+                    v-else
+                    :color="liveStatus(selectedWebsite) === 'running' ? 'green' : liveStatus(selectedWebsite) === 'error' ? 'red' : 'gray'"
+                    variant="subtle"
+                    size="sm"
+                  >
+                    {{ liveStatus(selectedWebsite) }}
                   </UBadge>
                 </div>
                 <div class="flex items-center gap-1.5">
