@@ -24,8 +24,8 @@ watch(open, () => {
   if (open.value && props.website?.extensions) {
     enabledIds.value = new Set(
       props.website.extensions
-        .filter((e) => e.enabled)
-        .map((e) => e.extensionId)
+        .filter(e => e.enabled)
+        .map(e => e.extensionId)
     )
   }
 })
@@ -33,7 +33,7 @@ watch(open, () => {
 const filteredExtensions = computed(() => {
   if (!searchExt.value) return allExtensions.value ?? []
   const q = searchExt.value.toLowerCase()
-  return (allExtensions.value ?? []).filter((ext) =>
+  return (allExtensions.value ?? []).filter(ext =>
     ext.name.toLowerCase().includes(q)
   )
 })
@@ -49,7 +49,7 @@ function toggleExtension(id: number) {
 }
 
 function selectAll() {
-  enabledIds.value = new Set((allExtensions.value ?? []).map((e) => e.id))
+  enabledIds.value = new Set((allExtensions.value ?? []).map(e => e.id))
 }
 
 function deselectAll() {
@@ -87,8 +87,18 @@ async function onSave() {
         />
 
         <div class="flex gap-2">
-          <UButton size="xs" variant="outline" label="Select All" @click="selectAll" />
-          <UButton size="xs" variant="outline" label="Deselect All" @click="deselectAll" />
+          <UButton
+            size="xs"
+            variant="outline"
+            label="Select All"
+            @click="selectAll"
+          />
+          <UButton
+            size="xs"
+            variant="outline"
+            label="Deselect All"
+            @click="deselectAll"
+          />
         </div>
 
         <div class="max-h-72 overflow-y-auto space-y-1">

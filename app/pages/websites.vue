@@ -1,42 +1,62 @@
 <script setup lang="ts">
-import type { TableColumn } from '@nuxt/ui'
-import { getPaginationRowModel } from '@tanstack/table-core'
-import type { Website } from '~/types'
+import type { Website, SyncResult } from '~/types'
 
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
-const UDropdownMenu = resolveComponent('UDropdownMenu')
 const UIcon = resolveComponent('UIcon')
+const UModal = resolveComponent('UModal')
+const UInput = resolveComponent('UInput')
+const USelect = resolveComponent('USelect')
 
-const table = useTemplateRef('table')
-
-const columnFilters = ref([{
-  id: 'name',
-  value: ''
-}])
-const pagination = ref({
-  pageIndex: 0,
-  pageSize: 10
-})
-
-const { data, status, refresh } = await useFetch<Website[]>('/api/websites', {
+const { data, status: loading, refresh } = await useFetch<Website[]>('/api/websites', {
   lazy: true
 })
 
-// Modals state
-const isAddModalOpen = ref(false)
-const isDeleteModalOpen = ref(false)
-const isExtensionsModalOpen = ref(false)
-const selectedWebsite = ref<Website | null>(null)
-const editTarget = ref<Website | null>(null)
+// ── Filters ────────────────────────────────────────────────
 
-const statusColor: Record<string, 'green' | 'gray' | 'red'> = {
-  running: 'green',
-  stopped: 'gray',
-  error: 'red'
+const searchQuery = ref('')
+const phpVersionFilter = ref('all')
+const phpVersions = ['8.4', '8.3', '8.2', '8.1', '8.0', '7.4', '7.3', '7.2', '7.1', '7.0', '5.6']
+
+const filteredWebsites = computed(() => {
+  let list = data.value ?? []
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase()
+    list = list.filter(w => w.name.toLowerCase().includes(q) || w.domain.toLowerCase().includes(q))
+  }
+  if (phpVersionFilter.value !== 'all') {
+    list = list.filter(w => w.phpVersion === phpVersionFilter.value)
+  }
+  return list
+})
+
+// ── Selection ─────────────────────────────────────────────
+
+const selectedId = ref<number | null>(null)
+
+const selectedWebsite = computed(() =>
+  data.value?.find(w => w.id === selectedId.value) ?? null
+)
+
+// Auto-select first website
+watchEffect(() => {
+  if (!selectedId.value && filteredWebsites.value.length > 0 && filteredWebsites.value[0]) {
+    selectedId.value = filteredWebsites.value[0].id
+  }
+})
+
+// ── Actions ────────────────────────────────────────────────
+
+const acting = ref(false)
+const logsContent = ref('')
+const logsLoading = ref(false)
+const syncing = ref(false)
+
+function statusColor(s: string) {
+  return s === 'running' ? 'text-green-500' : s === 'error' ? 'text-red-500' : 'text-gray-400'
 }
 
-function phpVersionColor(v: string) {
+function phpBadgeColor(v: string) {
   const major = Number(v.split('.')[0])
   const minor = Number(v.split('.')[1])
   if (major >= 8) return 'green'
@@ -44,171 +64,61 @@ function phpVersionColor(v: string) {
   return 'red'
 }
 
-function getRowActions(row: { original: Website }) {
-  return [
-    {
-      type: 'label' as const,
-      label: 'Actions'
-    },
-    {
-      label: 'Edit',
-      icon: 'i-lucide-pencil',
-      onSelect() {
-        editTarget.value = row.original
-        isAddModalOpen.value = true
-      }
-    },
-    {
-      label: 'Manage Extensions',
-      icon: 'i-lucide-puzzle',
-      onSelect() {
-        selectedWebsite.value = row.original
-        isExtensionsModalOpen.value = true
-      }
-    },
-    {
-      type: 'separator' as const
-    },
-    {
-      label: 'Delete',
-      icon: 'i-lucide-trash',
-      color: 'error' as const,
-      onSelect() {
-        selectedWebsite.value = row.original
-        isDeleteModalOpen.value = true
-      }
-    }
-  ]
+async function deployWebsite(w: Website) {
+  acting.value = true
+  try {
+    await $fetch(`/api/websites/${w.id}/deploy`, { method: 'POST' })
+    refresh()
+  } finally {
+    acting.value = false
+  }
 }
 
-const columns: TableColumn<Website>[] = [
-  {
-    accessorKey: 'name',
-    header: 'Name',
-    filterFn: 'includesString'
-  },
-  {
-    accessorKey: 'domain',
-    header: 'Domain',
-    cell: ({ row }) =>
-      h('div', { class: 'flex items-center gap-1.5' }, [
-        h(UIcon, { name: 'i-lucide-globe', class: 'size-4 text-(--ui-text-dimmed)' }),
-        h('span', row.original.domain)
-      ])
-  },
-  {
-    accessorKey: 'phpVersion',
-    header: 'PHP',
-    cell: ({ row }) =>
-      h(UBadge, {
-        color: phpVersionColor(row.original.phpVersion),
-        variant: 'subtle',
-        size: 'sm'
-      }, () => row.original.phpVersion)
-  },
-  {
-    accessorKey: 'port',
-    header: 'Port'
-  },
-  {
-    accessorKey: 'sslEnabled',
-    header: 'SSL',
-    cell: ({ row }) =>
-      h(UBadge, {
-        color: row.original.sslEnabled ? 'green' : 'gray',
-        variant: 'subtle',
-        size: 'sm'
-      }, () => row.original.sslEnabled ? 'Enabled' : 'Disabled')
-  },
-  {
-    accessorKey: 'status',
-    header: 'Status',
-    filterFn: 'equals',
-    cell: ({ row }) =>
-      h(UBadge, {
-        color: statusColor[row.original.status],
-        variant: 'subtle',
-        size: 'sm'
-      }, () => row.original.status)
-  },
-  {
-    id: 'extensions',
-    header: 'Extensions',
-    accessorFn: (row) => row.extensions?.length ?? 0,
-    cell: ({ row }) =>
-      h(UButton, {
-        color: 'neutral',
-        variant: 'ghost',
-        size: 'xs',
-        label: `${row.original.extensions?.length ?? 0} extensions`,
-        onClick: () => {
-          selectedWebsite.value = row.original
-          isExtensionsModalOpen.value = true
-        }
-      })
-  },
-  {
-    id: 'actions',
-    header: '',
-    cell: ({ row }) =>
-      h('div', { class: 'text-right' },
-        h(UDropdownMenu, {
-          content: { align: 'end' },
-          items: getRowActions(row)
-        }, () =>
-          h(UButton, {
-            icon: 'i-lucide-ellipsis-vertical',
-            color: 'neutral',
-            variant: 'ghost',
-            class: 'ml-auto'
-          })
-        )
-      )
+async function stopWebsite(w: Website) {
+  acting.value = true
+  try {
+    await $fetch(`/api/websites/${w.id}/stop`, { method: 'POST' })
+    refresh()
+  } finally {
+    acting.value = false
   }
-]
+}
 
-// Status filter
-const statusFilter = ref('all')
+function openInTab(url: string) {
+  window.open(url, '_blank')
+}
 
-watch(() => statusFilter.value, (newVal) => {
-  if (!table?.value?.tableApi) return
-
-  const statusColumn = table.value.tableApi.getColumn('status')
-  if (!statusColumn) return
-
-  if (newVal === 'all') {
-    statusColumn.setFilterValue(undefined)
-  } else {
-    statusColumn.setFilterValue(newVal)
+async function viewLogs(w: Website) {
+  logsLoading.value = true
+  try {
+    const result = await $fetch<{ logs: string }>(`/api/websites/${w.id}/logs`)
+    logsContent.value = result.logs || '(no logs)'
+  } catch {
+    logsContent.value = '(failed to fetch logs)'
+  } finally {
+    logsLoading.value = false
   }
-})
+}
 
-// PHP version filter
-const phpVersionFilter = ref('all')
-const phpVersions = ['8.4', '8.3', '8.2', '8.1', '8.0', '7.4', '7.3', '7.2', '7.1', '7.0', '5.6']
+// ── Modals ─────────────────────────────────────────────────
 
-watch(() => phpVersionFilter.value, (newVal) => {
-  if (!table?.value?.tableApi) return
+const isAddModalOpen = ref(false)
+const isDeleteModalOpen = ref(false)
+const isExtensionsModalOpen = ref(false)
+const editTarget = ref<Website | null>(null)
 
-  const phpColumn = table.value.tableApi.getColumn('phpVersion')
-  if (!phpColumn) return
+function openEdit(w: Website) {
+  editTarget.value = w
+  isAddModalOpen.value = true
+}
 
-  if (newVal === 'all') {
-    phpColumn.setFilterValue(undefined)
-  } else {
-    phpColumn.setFilterValue(newVal)
-  }
-})
+function openDelete(w: Website) {
+  isDeleteModalOpen.value = true
+}
 
-// Search filter
-const search = computed({
-  get: (): string => {
-    return (table.value?.tableApi?.getColumn('name')?.getFilterValue() as string) || ''
-  },
-  set: (value: string) => {
-    table.value?.tableApi?.getColumn('name')?.setFilterValue(value || undefined)
-  }
-})
+function openExtensions(w: Website) {
+  isExtensionsModalOpen.value = true
+}
 
 function onCreated() {
   isAddModalOpen.value = false
@@ -218,14 +128,29 @@ function onCreated() {
 
 function onDeleted() {
   isDeleteModalOpen.value = false
-  selectedWebsite.value = null
+  selectedId.value = null
   refresh()
 }
 
 function onExtensionsUpdated() {
   isExtensionsModalOpen.value = false
-  selectedWebsite.value = null
   refresh()
+}
+
+async function syncContainers() {
+  syncing.value = true
+  try {
+    const result = await $fetch<SyncResult>('/api/containers/sync', { method: 'POST' })
+    const toast = useToast()
+    toast.add({
+      title: 'Sync completed',
+      description: `${result.running.length} running, ${result.stopped.length} stopped, ${result.missing.length} missing`,
+      color: result.missing.length > 0 ? 'warning' : 'success'
+    })
+    refresh()
+  } finally {
+    syncing.value = false
+  }
 }
 </script>
 
@@ -240,81 +165,242 @@ function onExtensionsUpdated() {
     </template>
 
     <template #body>
-      <div class="flex flex-wrap items-center justify-between gap-1.5">
-        <UInput
-          v-model="search"
-          class="max-w-sm"
-          icon="i-lucide-search"
-          placeholder="Search websites..."
-        />
+      <div class="flex h-full">
+        <!-- ═══ Left: Website List ═══ -->
+        <div class="w-64 shrink-0 border-r border-default flex flex-col">
+          <!-- Toolbar -->
+          <div class="p-3 space-y-2 border-b border-default">
+            <UInput
+              v-model="searchQuery"
+              icon="i-lucide-search"
+              placeholder="Search..."
+              size="xs"
+            />
+            <USelect
+              v-model="phpVersionFilter"
+              :items="[{ label: 'All PHP', value: 'all' }, ...phpVersions.map(v => ({ label: `PHP ${v}`, value: v }))]"
+              placeholder="Filter PHP"
+              size="xs"
+            />
+            <div class="flex gap-1.5">
+              <UButton
+                size="xs"
+                variant="ghost"
+                icon="i-lucide-refresh-cw"
+                :label="syncing ? '...' : 'Sync'"
+                :disabled="syncing"
+                @click="syncContainers"
+              />
+              <UButton
+                label="Add"
+                icon="i-lucide-plus"
+                color="primary"
+                size="xs"
+                class="flex-1"
+                @click="editTarget = null; isAddModalOpen = true"
+              />
+            </div>
+          </div>
 
-        <div class="flex flex-wrap items-center gap-1.5">
-          <UButton
-            label="Add Website"
-            icon="i-lucide-plus"
-            color="primary"
-            size="sm"
-            @click="editTarget = null; isAddModalOpen = true"
-          />
+          <!-- List -->
+          <div class="flex-1 overflow-y-auto">
+            <div v-if="loading === 'pending'" class="p-4 text-sm text-muted text-center">
+              Loading...
+            </div>
+            <div v-else-if="!filteredWebsites.length" class="p-4 text-sm text-muted text-center">
+              No websites
+            </div>
+            <div
+              v-for="w in filteredWebsites"
+              :key="w.id"
+              class="flex items-center border-b border-default/50 hover:bg-elevated/50 transition-colors cursor-pointer"
+              :class="selectedId === w.id ? 'bg-elevated border-r-2 border-r-primary' : ''"
+              @click="selectedId = w.id"
+            >
+              <div class="flex-1 min-w-0 px-3 py-2.5">
+                <div class="flex items-center gap-2">
+                  <span class="size-2 rounded-full shrink-0" :class="statusColor(w.status)" />
+                  <span class="text-sm font-medium truncate">{{ w.name }}</span>
+                </div>
+                <div class="text-xs text-muted truncate ml-4 mt-0.5">
+                  {{ w.name.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') }}:php-{{ w.phpVersion }}-fpm
+                </div>
+              </div>
+              <div class="flex items-center shrink-0 pr-2 gap-0.5" @click.stop>
+                <UButton
+                  v-if="w.status === 'running'"
+                  size="xs"
+                  variant="ghost"
+                  icon="i-lucide-link"
+                  class="cursor-pointer"
+                  @click="openInTab(`http://${w.domain}`)"
+                />
+                <UButton
+                  v-if="w.status !== 'running'"
+                  size="xs"
+                  color="green"
+                  variant="ghost"
+                  icon="i-lucide-play"
+                  class="cursor-pointer"
+                  :loading="acting && selectedId === w.id"
+                  @click="deployWebsite(w)"
+                />
+                <UButton
+                  v-else
+                  size="xs"
+                  color="amber"
+                  variant="ghost"
+                  icon="i-lucide-square"
+                  class="cursor-pointer"
+                  :loading="acting && selectedId === w.id"
+                  @click="stopWebsite(w)"
+                />
+                <UButton
+                  size="xs"
+                  variant="ghost"
+                  icon="i-lucide-trash"
+                  color="error"
+                  class="cursor-pointer"
+                  @click="selectedId = w.id; openDelete(w)"
+                />
+              </div>
+            </div>
+          </div>
 
-          <USelect
-            v-model="statusFilter"
-            :items="[
-              { label: 'All Status', value: 'all' },
-              { label: 'Running', value: 'running' },
-              { label: 'Stopped', value: 'stopped' },
-              { label: 'Error', value: 'error' }
-            ]"
-            placeholder="Filter status"
-            class="min-w-28"
-          />
-          <USelect
-            v-model="phpVersionFilter"
-            :items="[{ label: 'All PHP versions', value: 'all' }, ...phpVersions.map(v => ({ label: `PHP ${v}`, value: v }))]"
-            placeholder="Filter PHP"
-            class="min-w-28"
-          />
+          <!-- Count -->
+          <div class="p-2 border-t border-default text-xs text-muted text-center">
+            {{ filteredWebsites.length }} website(s)
+          </div>
         </div>
-      </div>
 
-      <UTable
-        ref="table"
-        v-model:column-filters="columnFilters"
-        v-model:pagination="pagination"
-        :pagination-options="{
-          getPaginationRowModel: getPaginationRowModel()
-        }"
-        class="shrink-0"
-        :data="data"
-        :columns="columns"
-        :loading="status === 'pending'"
-        :ui="{
-          base: 'table-fixed border-separate border-spacing-0',
-          thead: '[&>tr]:bg-elevated/50 [&>tr]:after:content-none',
-          tbody: '[&>tr]:last:[&>td]:border-b-0',
-          th: 'py-2 first:rounded-l-lg last:rounded-r-lg border-y border-default first:border-l last:border-r',
-          td: 'border-b border-default',
-          separator: 'h-0'
-        }"
-      />
+        <!-- ═══ Right: Detail ═══ -->
+        <div class="flex-1 overflow-y-auto">
+          <template v-if="selectedWebsite">
+            <div class="p-6">
+              <!-- Header -->
+              <div class="flex items-center justify-between mb-5">
+                <div class="flex items-center gap-3">
+                  <h2 class="text-lg font-semibold">{{ selectedWebsite.name }}</h2>
+                  <UBadge
+                    :color="selectedWebsite.status === 'running' ? 'green' : selectedWebsite.status === 'error' ? 'red' : 'gray'"
+                    variant="subtle"
+                    size="sm"
+                  >
+                    {{ selectedWebsite.status }}
+                  </UBadge>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <UButton
+                    size="xs"
+                    variant="outline"
+                    icon="i-lucide-file-text"
+                    label="Logs"
+                    class="cursor-pointer"
+                    @click="viewLogs(selectedWebsite)"
+                  />
+                  <UButton
+                    size="xs"
+                    variant="ghost"
+                    icon="i-lucide-pencil"
+                    class="cursor-pointer"
+                    @click="openEdit(selectedWebsite)"
+                  />
+                  <UButton
+                    size="xs"
+                    variant="ghost"
+                    icon="i-lucide-puzzle"
+                    class="cursor-pointer"
+                    @click="openExtensions(selectedWebsite)"
+                  />
+                </div>
+              </div>
 
-      <div class="flex items-center justify-between gap-3 border-t border-default pt-4 mt-auto">
-        <div class="text-sm text-muted">
-          {{ table?.tableApi?.getFilteredRowModel().rows.length || 0 }} website(s)
-        </div>
+              <!-- Info Grid -->
+              <div class="grid grid-cols-2 gap-x-6 gap-y-3 mb-6">
+                <div>
+                  <div class="text-xs text-muted mb-0.5">Domain</div>
+                  <div class="text-sm font-medium flex items-center gap-1.5">
+                    <UIcon name="i-lucide-globe" class="size-3.5 text-muted" />
+                    {{ selectedWebsite.domain }}
+                  </div>
+                </div>
+                <div>
+                  <div class="text-xs text-muted mb-0.5">Port</div>
+                  <div class="text-sm font-medium">{{ selectedWebsite.port }}</div>
+                </div>
+                <div>
+                  <div class="text-xs text-muted mb-0.5">PHP Version</div>
+                  <UBadge
+                    :color="phpBadgeColor(selectedWebsite.phpVersion)"
+                    variant="subtle"
+                    size="xs"
+                  >
+                    {{ selectedWebsite.phpVersion }}
+                  </UBadge>
+                </div>
+                <div>
+                  <div class="text-xs text-muted mb-0.5">SSL</div>
+                  <UBadge
+                    :color="selectedWebsite.sslEnabled ? 'green' : 'gray'"
+                    variant="subtle"
+                    size="xs"
+                  >
+                    {{ selectedWebsite.sslEnabled ? 'Enabled' : 'Disabled' }}
+                  </UBadge>
+                </div>
+                <div class="col-span-2">
+                  <div class="text-xs text-muted mb-0.5">Document Root</div>
+                  <div class="text-sm font-mono text-sm bg-default/50 rounded px-2 py-1">
+                    {{ selectedWebsite.documentRoot }}
+                  </div>
+                </div>
+                <div>
+                  <div class="text-xs text-muted mb-0.5">Extensions</div>
+                  <div class="text-sm font-medium">
+                    {{ selectedWebsite.extensions?.filter(e => e.enabled).length ?? 0 }} active
+                    <span class="text-muted">/ {{ selectedWebsite.extensions?.length ?? 0 }} total</span>
+                  </div>
+                </div>
+              </div>
 
-        <div class="flex items-center gap-1.5">
-          <UPagination
-            :default-page="(table?.tableApi?.getState().pagination.pageIndex || 0) + 1"
-            :items-per-page="table?.tableApi?.getState().pagination.pageSize"
-            :total="table?.tableApi?.getFilteredRowModel().rows.length"
-            @update:page="(p: number) => table?.tableApi?.setPageIndex(p - 1)"
-          />
+              <!-- Logs inline -->
+              <div class="border-t border-default pt-4">
+                <div class="flex items-center justify-between mb-2">
+                  <h4 class="text-sm font-semibold">Recent Logs</h4>
+                  <UButton
+                    size="xs"
+                    variant="ghost"
+                    icon="i-lucide-refresh-cw"
+                    label="Refresh"
+                    @click="viewLogs(selectedWebsite)"
+                  />
+                </div>
+                <div class="bg-default/20 rounded-lg p-3 max-h-60 overflow-auto">
+                  <div v-if="logsLoading" class="text-sm text-muted text-center py-4">
+                    Loading...
+                  </div>
+                  <pre v-else-if="logsContent" class="text-xs whitespace-pre-wrap break-all">{{ logsContent }}</pre>
+                  <div v-else class="text-sm text-muted text-center py-4">
+                    Click "Logs" or "Refresh" to load logs
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- No selection placeholder -->
+          <div v-else class="flex items-center justify-center h-full">
+            <div class="text-center text-muted">
+              <UIcon name="i-lucide-monitor" class="size-12 mx-auto mb-3 opacity-30" />
+              <p class="text-sm">Select a website to view details</p>
+            </div>
+          </div>
         </div>
       </div>
     </template>
   </UDashboardPanel>
 
+  <!-- Modals -->
   <WebsitesAddModal
     v-model:open="isAddModalOpen"
     :website="editTarget"
@@ -332,4 +418,5 @@ function onExtensionsUpdated() {
     :website="selectedWebsite"
     @updated="onExtensionsUpdated"
   />
+
 </template>

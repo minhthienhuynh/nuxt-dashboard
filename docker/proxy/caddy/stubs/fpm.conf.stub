@@ -1,0 +1,11 @@
+{{DOMAIN}} {
+    root * /var/www/{{SERVICE}}/public
+    encode gzip
+
+    php_fastcgi {{SERVICE}}:9000 {
+        index index.php
+    }
+
+    file_server
+}
+

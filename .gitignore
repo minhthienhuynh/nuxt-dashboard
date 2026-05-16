@@ -28,3 +28,8 @@ logs
 
 /app/generated/prisma
 *.db*
+
+# Generated proxy config
+docker/proxy/caddy/sites/*.conf
+docker/proxy/traefik/dynamic/*.yml
+docker/proxy/nginx/sites/*.conf

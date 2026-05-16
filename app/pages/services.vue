@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InfrastructureService, ServiceTypeInfo, ProxyConfig } from '~/types'
+import type { InfrastructureService, ServiceTypeInfo, ProxyConfig, SyncResult, ServiceStatus } from '~/types'
 
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
@@ -21,7 +21,28 @@ const statusColor: Record<string, 'green' | 'gray' | 'red'> = {
   error: 'red'
 }
 
-const proxyTypes = ['caddy', 'traefik', 'nginx']
+const proxyTypes = ['caddy']
+
+const proxyMeta = computed(() => {
+  const t = proxy.value?.type
+  if (t === 'caddy') {
+    return { label: 'Caddy', icon: 'i-lucide-globe', desc: 'Caddy v2 — auto HTTPS, Caddyfile', adminPort: 2019 }
+  }
+  return { label: 'Caddy', icon: 'i-lucide-globe', desc: 'Caddy v2 — auto HTTPS, Caddyfile', adminPort: 2019 }
+})
+
+const proxyTypeOptions = computed(() => [
+  { label: 'Caddy', value: 'caddy' }
+])
+
+function getProxyDesc(t: string) {
+  switch (t) {
+    case 'caddy': return 'Caddy v2 — auto HTTPS, Caddyfile'
+    case 'traefik': return 'Traefik v3 — dynamic YAML, dashboard'
+    case 'nginx': return 'Nginx — fastcgi_pass + proxy_pass'
+    default: return ''
+  }
+}
 
 function openProxyEdit() {
   if (proxy.value) {
@@ -41,11 +62,47 @@ function onServiceAdded() {
   refresh()
 }
 
-async function syncContainers() {
-  const result = await $fetch('/api/containers/sync', { method: 'POST' })
-  if ((result as any).updated.length > 0 || (result as any).missing.length > 0) {
-    alert(`Synced: ${(result as any).updated.length} updated, ${(result as any).missing.length} missing`)
+const proxyStatus = computed<ServiceStatus>(() =>
+  (proxy.value as any)?.status || 'stopped'
+)
+
+const proxyLogsOpen = ref(false)
+const proxyLogsContent = ref('')
+const proxyLogsLoading = ref(false)
+
+async function viewProxyLogs() {
+  proxyLogsOpen.value = true
+  proxyLogsLoading.value = true
+  try {
+    const result = await $fetch<{ logs: string }>('/api/proxy/logs')
+    proxyLogsContent.value = result.logs || '(no logs)'
+  } catch {
+    proxyLogsContent.value = '(failed to fetch logs)'
+  } finally {
+    proxyLogsLoading.value = false
   }
+}
+
+async function deployProxy() {
+  await $fetch('/api/proxy/deploy', { method: 'POST' })
+  refreshProxy()
+  refresh()
+}
+
+async function stopProxy() {
+  await $fetch('/api/proxy/stop', { method: 'POST' })
+  refreshProxy()
+  refresh()
+}
+
+async function syncContainers() {
+  const result = await $fetch<SyncResult>('/api/containers/sync', { method: 'POST' })
+  const toast = useToast()
+  toast.add({
+    title: 'Sync completed',
+    description: `${result.running.length} running, ${result.stopped.length} stopped, ${result.missing.length} missing`,
+    color: result.missing.length > 0 ? 'warning' : 'success'
+  })
   refresh()
 }
 
@@ -80,24 +137,55 @@ async function deleteService(id: number) {
       <div class="mb-6 p-4 rounded-lg border border-default bg-elevated/30">
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-network" class="size-5 text-primary" />
-            <h3 class="text-sm font-semibold">
-              Reverse Proxy
-            </h3>
+            <UIcon :name="proxyMeta.icon" class="size-5 text-primary" />
+            <h3 class="text-sm font-semibold">Web Server / Proxy — {{ proxyMeta.label }}</h3>
+            <UBadge :color="statusColor[proxyStatus]" variant="subtle" size="xs">
+              {{ proxyStatus }}
+            </UBadge>
           </div>
-          <UButton
-            size="xs"
-            variant="outline"
-            label="Configure"
-            icon="i-lucide-settings"
-            @click="openProxyEdit"
-          />
+          <div class="flex items-center gap-1.5">
+            <UButton
+              v-if="proxyStatus !== 'running'"
+              size="xs"
+              color="green"
+              icon="i-lucide-play"
+              label="Deploy"
+              class="cursor-pointer"
+              @click="deployProxy"
+            />
+            <UButton
+              v-else
+              size="xs"
+              color="amber"
+              icon="i-lucide-square"
+              label="Stop"
+              class="cursor-pointer"
+              @click="stopProxy"
+            />
+            <UButton
+              size="xs"
+              variant="outline"
+              icon="i-lucide-file-text"
+              label="Logs"
+              class="cursor-pointer"
+              @click="viewProxyLogs"
+            />
+            <UButton
+              size="xs"
+              variant="ghost"
+              label="Configure"
+              icon="i-lucide-settings"
+              class="cursor-pointer"
+              @click="openProxyEdit"
+            />
+          </div>
         </div>
-        <div class="flex items-center gap-4 text-sm text-muted">
-          <span>Type: <strong class="text-default">{{ proxy?.type || 'caddy' }}</strong></span>
-          <span>HTTP: <strong class="text-default">{{ proxy?.httpPort || 80 }}</strong></span>
-          <span>HTTPS: <strong class="text-default">{{ proxy?.httpsPort || 443 }}</strong></span>
-          <span>Domain: <strong class="text-default">{{ proxy?.domain || '*.test' }}</strong></span>
+        <div class="text-xs text-muted mb-2">{{ proxyMeta.desc }}</div>
+        <div class="flex items-center gap-4 text-sm">
+          <span class="text-muted">Domain: <strong class="text-default">{{ proxy?.domain || '*.test' }}</strong></span>
+          <span class="text-muted">HTTP: <strong class="text-default">{{ proxy?.httpPort || 80 }}</strong></span>
+          <span class="text-muted">HTTPS: <strong class="text-default">{{ proxy?.httpsPort || 443 }}</strong></span>
+          <span v-if="proxyMeta.adminPort" class="text-muted">Admin: <strong class="text-default">{{ proxy?.adminPort || proxyMeta.adminPort }}</strong></span>
         </div>
       </div>
 
@@ -112,6 +200,7 @@ async function deleteService(id: number) {
             variant="ghost"
             icon="i-lucide-refresh-cw"
             label="Sync"
+            class="cursor-pointer"
             @click="syncContainers"
           />
           <UButton
@@ -119,6 +208,7 @@ async function deleteService(id: number) {
             label="Add Service"
             icon="i-lucide-plus"
             color="primary"
+            class="cursor-pointer"
             @click="isAddModalOpen = true"
           />
         </div>
@@ -160,6 +250,7 @@ async function deleteService(id: number) {
                 color="green"
                 variant="ghost"
                 icon="i-lucide-play"
+                class="cursor-pointer"
                 @click="startService(svc)"
               />
               <UButton
@@ -168,6 +259,7 @@ async function deleteService(id: number) {
                 color="amber"
                 variant="ghost"
                 icon="i-lucide-square"
+                class="cursor-pointer"
                 @click="stopService(svc)"
               />
               <UButton
@@ -175,6 +267,7 @@ async function deleteService(id: number) {
                 variant="ghost"
                 icon="i-lucide-trash"
                 color="error"
+                class="cursor-pointer"
                 @click="deleteService(svc.id)"
               />
             </div>
@@ -190,7 +283,10 @@ async function deleteService(id: number) {
       <div class="space-y-3 p-4">
         <div>
           <label class="text-sm font-medium">Proxy Type</label>
-          <USelect v-model="editingProxy.type" :items="proxyTypes" class="mt-1" />
+          <USelect v-model="editingProxy.type" :items="proxyTypeOptions" class="mt-1" />
+        </div>
+        <div class="text-xs text-muted">
+          {{ getProxyDesc(editingProxy.type) }}
         </div>
         <div class="grid grid-cols-3 gap-2">
           <div>
@@ -208,7 +304,7 @@ async function deleteService(id: number) {
         </div>
         <div>
           <label class="text-sm font-medium">Domain</label>
-          <UInput v-model="editingProxy.domain" class="mt-1" />
+          <UInput v-model="editingProxy.domain" class="mt-1" placeholder="*.test" />
         </div>
       </div>
     </template>
@@ -222,4 +318,21 @@ async function deleteService(id: number) {
 
   <!-- Add Service Modal -->
   <ServicesAddModal v-model:open="isAddModalOpen" :service-types="serviceTypes" @added="onServiceAdded" />
+
+  <!-- Proxy Logs Modal -->
+  <UModal v-model:open="proxyLogsOpen" :title="`Logs: ${proxy?.type || 'caddy'}`">
+    <template #body>
+      <div class="p-4">
+        <div v-if="proxyLogsLoading" class="text-sm text-muted text-center py-8">
+          Loading logs...
+        </div>
+        <pre v-else class="text-xs bg-default/50 rounded-lg p-3 max-h-96 overflow-auto whitespace-pre-wrap break-all">{{ proxyLogsContent }}</pre>
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex justify-end gap-2 p-4">
+        <UButton label="Close" variant="outline" @click="proxyLogsOpen = false" />
+      </div>
+    </template>
+  </UModal>
 </template>

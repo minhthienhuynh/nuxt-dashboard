@@ -5,3 +5,4 @@ ignoredBuiltDependencies:
   - maplibre-gl
   - unrs-resolver
   - vue-demi
+onlyBuiltDependencies: '[]'

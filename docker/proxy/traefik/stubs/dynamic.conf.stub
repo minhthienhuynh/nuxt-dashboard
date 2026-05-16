@@ -1,0 +1,11 @@
+http:
+  routers:
+    {{SERVICE}}-router:
+      rule: "Host(`{{DOMAIN}}`)"
+      service: {{SERVICE}}-service
+
+  services:
+    {{SERVICE}}-service:
+      loadBalancer:
+        servers:
+          - url: "http://{{SERVICE}}:{{PORT}}"

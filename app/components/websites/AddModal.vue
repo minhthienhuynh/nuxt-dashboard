@@ -20,8 +20,7 @@ const schema = z.object({
   port: z.coerce.number().int().min(1).max(65535).default(80),
   documentRoot: z.string().min(1, 'Document root is required'),
   phpVersion: z.string().min(1, 'PHP version is required'),
-  sslEnabled: z.boolean().default(false),
-  status: z.enum(['running', 'stopped', 'error']).default('stopped')
+  sslEnabled: z.boolean().default(false)
 })
 
 type Schema = z.output<typeof schema>
@@ -34,8 +33,7 @@ const state = reactive<Partial<Schema>>({
   port: props.website?.port ?? 80,
   documentRoot: props.website?.documentRoot ?? '',
   phpVersion: props.website?.phpVersion ?? '8.4',
-  sslEnabled: props.website?.sslEnabled ?? false,
-  status: (props.website?.status as Schema['status']) ?? 'stopped'
+  sslEnabled: props.website?.sslEnabled ?? false
 })
 
 const loading = ref(false)
@@ -74,7 +72,6 @@ watch(open, () => {
     state.documentRoot = props.website?.documentRoot ?? ''
     state.phpVersion = props.website?.phpVersion ?? '8.4'
     state.sslEnabled = props.website?.sslEnabled ?? false
-    state.status = (props.website?.status as Schema['status']) ?? 'stopped'
     error.value = null
   } else {
     error.value = null
@@ -85,7 +82,12 @@ watch(open, () => {
 <template>
   <UModal v-model:open="open" :title="isEditing ? 'Edit Website' : 'Add Website'">
     <template #body>
-      <UForm :schema="schema" :state="state" @submit="onSubmit" class="space-y-4">
+      <UForm
+        :schema="schema"
+        :state="state"
+        class="space-y-4"
+        @submit="onSubmit"
+      >
         <UFormField label="Name" name="name" required>
           <UInput v-model="state.name" placeholder="My Website" />
         </UFormField>
@@ -116,27 +118,23 @@ watch(open, () => {
         </UFormField>
 
         <div class="grid grid-cols-2 gap-4">
-          <UFormField label="Status" name="status">
-            <USelect
-              v-model="state.status"
-              :items="[
-                { label: 'Stopped', value: 'stopped' },
-                { label: 'Running', value: 'running' },
-                { label: 'Error', value: 'error' }
-              ]"
-            />
-          </UFormField>
-
           <UFormField label="SSL" name="sslEnabled" class="flex items-end pb-2">
             <USwitch v-model="state.sslEnabled" />
           </UFormField>
         </div>
 
-        <div v-if="error" class="text-(--ui-error) text-sm">{{ error }}</div>
+        <div v-if="error" class="text-(--ui-error) text-sm">
+          {{ error }}
+        </div>
 
         <div class="flex justify-end gap-3 pt-4">
           <UButton variant="outline" label="Cancel" @click="open = false" />
-          <UButton type="submit" :label="isEditing ? 'Save Changes' : 'Create Website'" :loading="loading" color="primary" />
+          <UButton
+            type="submit"
+            :label="isEditing ? 'Save Changes' : 'Create Website'"
+            :loading="loading"
+            color="primary"
+          />
         </div>
       </UForm>
     </template>

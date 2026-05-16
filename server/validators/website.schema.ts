@@ -6,8 +6,7 @@ export const websiteCreateSchema = z.object({
   port: z.coerce.number().int().min(1).max(65535).default(80),
   documentRoot: z.string().min(1, 'Document root is required'),
   phpVersion: z.string().min(1, 'PHP version is required'),
-  sslEnabled: z.boolean().default(false),
-  status: z.enum(['running', 'stopped', 'error']).default('stopped')
+  sslEnabled: z.boolean().default(false)
 })
 
 export const websiteUpdateSchema = z.object({
@@ -16,13 +15,11 @@ export const websiteUpdateSchema = z.object({
   port: z.coerce.number().int().min(1).max(65535).optional(),
   documentRoot: z.string().min(1).optional(),
   phpVersion: z.string().min(1).optional(),
-  sslEnabled: z.boolean().optional(),
-  status: z.enum(['running', 'stopped', 'error']).optional()
+  sslEnabled: z.boolean().optional()
 })
 
 export const websiteQuerySchema = z.object({
   phpVersion: z.string().optional(),
-  status: z.string().optional(),
   search: z.string().optional()
 })
 

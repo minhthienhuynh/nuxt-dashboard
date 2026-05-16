@@ -1,9 +1,13 @@
 import { createHash } from 'node:crypto'
 import { execSync } from 'node:child_process'
-import { Writable, PassThrough } from 'node:stream'
+import path from 'node:path'
+import { PassThrough } from 'node:stream'
 import { getDocker } from '../utils/docker'
 import { ServiceRepository } from '../repositories/service.repository'
+import { WebsiteRepository } from '../repositories/website.repository'
 import type { InfrastructureService, Website } from '~/types'
+
+import { slugify, websiteContainerName } from '../utils/slugify'
 
 const LARDO_NETWORK = 'lardo'
 
@@ -34,7 +38,7 @@ export class DockerService {
   }
 
   static buildPhpImage(website: Website): string {
-    const imageTag = `website-${website.name}:latest`
+    const imageTag = `${slugify(website.name)}:php-${website.phpVersion}-fpm`
 
     const extensionNames = website.extensions
       ?.filter((e: any) => e.enabled)
@@ -66,7 +70,7 @@ export class DockerService {
       buildArgs.push(`${DockerService.extensionToBuildArg(name)}=true`)
     }
 
-    const context = process.env.LARDO_PHP_PATH || '/Users/huynhminhthien/Workspaces/lardo/php'
+    const context = path.resolve(process.cwd(), 'docker/php')
     const buildArgFlags = buildArgs.map(a => `--build-arg ${a}`).join(' ')
 
     execSync(`docker build ${buildArgFlags} -t ${imageTag} ${context}`, {
@@ -98,7 +102,7 @@ export class DockerService {
       })
       return { tag, rebuilt: true }
     }
-    return { tag: `website-${website.name}:latest`, rebuilt: false }
+    return { tag: `${slugify(website.name)}:php-${website.phpVersion}-fpm`, rebuilt: false }
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -152,11 +156,6 @@ export class DockerService {
     )
 
     await docker.containerStart(config.name)
-
-    await prisma.infrastructureService.updateMany({
-      where: { containerName: config.name },
-      data: { status: 'running' }
-    })
   }
 
   static async stopAndRemoveContainer(name: string): Promise<void> {
@@ -167,15 +166,71 @@ export class DockerService {
     } catch {
       // Container co the da bi xoa tu ben ngoai
     }
-    await prisma.infrastructureService.updateMany({
-      where: { containerName: name },
-      data: { status: 'stopped' }
-    })
   }
 
   // ═══════════════════════════════════════════════════════════
   // Deploy
   // ═══════════════════════════════════════════════════════════
+
+  static async deployProxy(proxy: { type: string, httpPort: number, httpsPort: number, adminPort: number }): Promise<void> {
+    const proxyBase = path.resolve(process.cwd(), 'docker/proxy', proxy.type)
+    const imageMap: Record<string, string> = {
+      caddy: 'caddy:2-alpine',
+      traefik: 'traefik:v3',
+      nginx: 'nginx:alpine'
+    }
+    const image = imageMap[proxy.type] || 'caddy:2-alpine'
+    await DockerService.pullImage(image)
+
+    const name = proxy.type
+
+    // Stop + remove existing container first
+    try {
+      const docker = await getDocker()
+      await docker.containerStop(name)
+      await docker.containerDelete(name)
+    } catch {}
+
+    const volumes: { source: string, target: string }[] = []
+    const portMappings = [
+      { host: String(proxy.httpPort), container: '80', proto: 'tcp' },
+      { host: String(proxy.httpsPort), container: '443', proto: 'tcp' }
+    ]
+
+    if (proxy.type === 'caddy') {
+      volumes.push(
+        { source: path.join(proxyBase, 'Caddyfile'), target: '/etc/caddy/Caddyfile' },
+        { source: path.join(proxyBase, 'sites'), target: '/etc/caddy/sites' }
+      )
+      if (proxy.adminPort) {
+        portMappings.push({ host: String(proxy.adminPort), container: '2019', proto: 'tcp' })
+      }
+    } else if (proxy.type === 'traefik') {
+      volumes.push(
+        { source: path.join(proxyBase, 'traefik.yml'), target: '/etc/traefik/traefik.yml' },
+        { source: path.join(proxyBase, 'dynamic'), target: '/etc/traefik/dynamic' }
+      )
+      if (proxy.adminPort) {
+        portMappings.push({ host: String(proxy.adminPort), container: '8080', proto: 'tcp' })
+      }
+    } else if (proxy.type === 'nginx') {
+      volumes.push(
+        { source: path.join(proxyBase, 'nginx.conf'), target: '/etc/nginx/nginx.conf' },
+        { source: path.join(proxyBase, 'sites'), target: '/etc/nginx/sites-enabled' }
+      )
+    }
+
+    await DockerService.createAndStartContainer({
+      image,
+      name,
+      ports: portMappings,
+      volumes
+    })
+  }
+
+  static async stopProxy(type: string): Promise<void> {
+    await DockerService.stopAndRemoveContainer(type)
+  }
 
   static async deployService(svc: InfrastructureService): Promise<void> {
     const type = svc.serviceType!
@@ -199,13 +254,11 @@ export class DockerService {
   static async deployWebsite(website: Website): Promise<void> {
     const { tag } = await DockerService.ensurePhpImage(website)
 
+    // Website containers communicate internally via lardo network.
+    // Only the reverse proxy exposes ports to the host.
     await DockerService.createAndStartContainer({
       image: tag,
-      name: `website-${website.name}`,
-      ports: [
-        { host: String(website.port), container: '80', proto: 'tcp' },
-        ...(website.sslEnabled ? [{ host: '443', container: '443', proto: 'tcp' }] : [])
-      ],
+      name: websiteContainerName(website.name),
       volumes: [
         { source: website.documentRoot, target: `/var/www/${website.name}` }
       ]
@@ -255,51 +308,69 @@ export class DockerService {
       }))
   }
 
+  static async getContainerStatuses(): Promise<Map<string, 'running' | 'stopped'>> {
+    const result = new Map<string, 'running' | 'stopped'>()
+    try {
+      const docker = await getDocker()
+      const containers = await docker.containerList({ all: true })
+      for (const c of containers) {
+        const name = (c as any).Names?.[0]?.replace('/', '')
+        if (name) {
+          result.set(name, (c as any).State === 'running' ? 'running' : 'stopped')
+        }
+      }
+    } catch {
+      // Docker not available — return empty map
+    }
+    return result
+  }
+
   // ═══════════════════════════════════════════════════════════
-  // Sync: so sanh Docker state thuc te voi DB, cap nhat DB
+  // Sync: so sanh Docker state thuc te voi DB
   // ═══════════════════════════════════════════════════════════
 
   static async syncContainersWithDB(): Promise<{
-    updated: { containerName: string, oldStatus: string, newStatus: string }[]
+    running: { containerName: string, state: string }[]
+    stopped: { containerName: string, state: string }[]
     missing: string[]
     total: number
   }> {
     const docker = await getDocker()
     const containers = await docker.containerList({ all: true })
 
-    const dockerState = new Map<string, string>()
+    const dockerState = new Map<string, { state: string, status: string }>()
     for (const c of containers) {
       const name = (c as any).Names?.[0]?.replace('/', '')
       if (name) {
-        const state = (c as any).State
-        dockerState.set(name, state === 'running' ? 'running' : 'stopped')
+        dockerState.set(name, {
+          state: (c as any).State,
+          status: (c as any).Status
+        })
       }
     }
 
     const services = await ServiceRepository.findAllServices()
-    const updated: { containerName: string, oldStatus: string, newStatus: string }[] = []
+    const websites = await WebsiteRepository.findAll({})
+    const running: { containerName: string, state: string }[] = []
+    const stopped: { containerName: string, state: string }[] = []
     const missing: string[] = []
 
-    for (const svc of services) {
-      const dockerStatus = dockerState.get(svc.containerName)
-      if (!dockerStatus) {
-        if (svc.status !== 'error') {
-          missing.push(svc.containerName)
-          await prisma.infrastructureService.update({
-            where: { id: svc.id },
-            data: { status: 'error' }
-          })
-          updated.push({ containerName: svc.containerName, oldStatus: svc.status, newStatus: 'error' })
-        }
-      } else if (dockerStatus !== svc.status) {
-        await prisma.infrastructureService.update({
-          where: { id: svc.id },
-          data: { status: dockerStatus as 'running' | 'stopped' }
-        })
-        updated.push({ containerName: svc.containerName, oldStatus: svc.status, newStatus: dockerStatus })
+    const expectedNames = [
+      ...services.map(s => s.containerName),
+      ...websites.map(w => websiteContainerName(w.name))
+    ]
+
+    for (const name of expectedNames) {
+      const ds = dockerState.get(name)
+      if (!ds) {
+        missing.push(name)
+      } else if (ds.state === 'running') {
+        running.push({ containerName: name, state: ds.state })
+      } else {
+        stopped.push({ containerName: name, state: ds.state })
       }
     }
 
-    return { updated, missing, total: services.length }
+    return { running, stopped, missing, total: expectedNames.length }
   }
 }

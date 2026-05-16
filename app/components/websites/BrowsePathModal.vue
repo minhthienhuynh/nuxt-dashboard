@@ -16,7 +16,7 @@ const selectedPath = ref('')
 async function browsePath(path: string) {
   loading.value = true
   try {
-    const data = await $fetch<{ path: string; parentPath: string; entries: DirEntry[] }>(
+    const data = await $fetch<{ path: string, parentPath: string, entries: DirEntry[] }>(
       '/api/browse-path',
       { query: { path } }
     )

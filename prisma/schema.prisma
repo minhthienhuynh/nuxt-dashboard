@@ -47,7 +47,6 @@ model Website {
   documentRoot String
   phpVersion   String                   // e.g. "8.4", "8.3", "7.4"
   sslEnabled   Boolean                  @default(false)
-  status       String                   @default("stopped") // "running" | "stopped" | "error"
   buildHash    String?                  // SHA256(phpVersion + sorted extensionIds) — null = chua build
   createdAt    DateTime                 @default(now())
   updatedAt    DateTime                 @updatedAt
@@ -93,7 +92,6 @@ model InfrastructureService {
   serviceTypeId Int
   containerName String
   imageOverride String?
-  status        String           @default("stopped")
   enabled       Boolean          @default(true)
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt

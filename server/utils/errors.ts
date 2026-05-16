@@ -12,7 +12,7 @@ export class AppError extends Error {
 
 export function handleError(error: unknown) {
   if (error instanceof ZodError) {
-    const messages = error.issues.map((i) => `${i.path.join('.')}: ${i.message}`)
+    const messages = error.issues.map(i => `${i.path.join('.')}: ${i.message}`)
     throw createError({
       statusCode: 400,
       statusMessage: `Validation failed: ${messages.join('; ')}`

@@ -11,12 +11,11 @@ const EXTENSIONS_INCLUDE = {
 } as const
 
 export class WebsiteRepository {
-  static findAll(filters: { phpVersion?: string; status?: string; search?: string }) {
+  static findAll(filters: { phpVersion?: string, search?: string }) {
     return prisma.website.findMany({
       include: EXTENSIONS_INCLUDE,
       where: {
         ...(filters.phpVersion ? { phpVersion: filters.phpVersion } : {}),
-        ...(filters.status ? { status: filters.status } : {}),
         ...(filters.search
           ? {
               OR: [
@@ -64,7 +63,7 @@ export class WebsiteRepository {
     await prisma.websitePhpExtension.deleteMany({ where: { websiteId } })
     if (extensionIds.length > 0) {
       await prisma.websitePhpExtension.createMany({
-        data: extensionIds.map((extensionId) => ({
+        data: extensionIds.map(extensionId => ({
           websiteId,
           extensionId,
           enabled: true
@@ -82,6 +81,6 @@ export class WebsiteRepository {
       where: { id: { in: extensionIds } },
       select: { id: true }
     })
-    return new Set(existing.map((e) => e.id))
+    return new Set(existing.map(e => e.id))
   }
 }

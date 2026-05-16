@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const updateProxySchema = z.object({
-  type: z.enum(['caddy', 'traefik', 'nginx']).optional(),
+  type: z.enum(['caddy']).optional(),
   httpPort: z.coerce.number().int().min(1).max(65535).optional(),
   httpsPort: z.coerce.number().int().min(1).max(65535).optional(),
   adminPort: z.coerce.number().int().min(1).max(65535).optional(),

@@ -98,7 +98,6 @@ export interface CreateWebsiteInput {
   documentRoot: string
   phpVersion: string
   sslEnabled?: boolean
-  status?: WebsiteStatus
 }
 
 export interface UpdateWebsiteInput {
@@ -108,7 +107,6 @@ export interface UpdateWebsiteInput {
   documentRoot?: string
   phpVersion?: string
   sslEnabled?: boolean
-  status?: WebsiteStatus
 }
 
 export interface UpdateWebsiteExtensionsInput {
@@ -119,7 +117,7 @@ export interface UpdateWebsiteExtensionsInput {
 
 export type ServiceCategory = 'database' | 'cache' | 'search' | 'mail' | 'storage' | 'queue' | 'websocket' | 'testing'
 
-export type ProxyType = 'caddy' | 'traefik' | 'nginx'
+export type ProxyType = 'caddy'
 
 export type ServiceStatus = 'running' | 'stopped' | 'error'
 
@@ -213,7 +211,8 @@ export interface UpdateServiceInput {
 }
 
 export interface SyncResult {
-  updated: { containerName: string, oldStatus: string, newStatus: string }[]
+  running: { containerName: string, state: string }[]
+  stopped: { containerName: string, state: string }[]
   missing: string[]
   total: number
 }

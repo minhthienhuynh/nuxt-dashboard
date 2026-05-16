@@ -58,7 +58,7 @@ export class WebsiteService {
     }
     if (input.extensionIds.length > 0) {
       const validIds = await WebsiteRepository.verifyExtensionIdsExist(input.extensionIds)
-      const invalidIds = input.extensionIds.filter((eid) => !validIds.has(eid))
+      const invalidIds = input.extensionIds.filter(eid => !validIds.has(eid))
       if (invalidIds.length > 0) {
         throw new AppError(`Invalid extension IDs: ${invalidIds.join(', ')}`, 400)
       }

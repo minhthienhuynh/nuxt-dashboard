@@ -25,7 +25,7 @@ export default eventHandler(async (event) => {
           return { name, isDirectory: false }
         }
       })
-      .filter((e) => e.isDirectory)
+      .filter(e => e.isDirectory)
       .sort((a, b) => a.name.localeCompare(b.name))
 
     const parentPath = join(resolved, '..')
