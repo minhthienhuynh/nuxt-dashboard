@@ -1,11 +1,12 @@
-import { websiteIdSchema } from '~~/server/validators/website.schema'
+import { websiteCreateSchema } from '~~/server/validators/website.schema'
 import { WebsiteService } from '~~/server/services/website.service'
 import { handleError } from '~~/server/utils/errors'
 
 export default eventHandler(async (event) => {
   try {
-    const id = websiteIdSchema.parse(getRouterParam(event, 'id'))
-    return await WebsiteService.remove(id)
+    const body = await readBody(event)
+    const validated = websiteCreateSchema.parse(body)
+    return await WebsiteService.create(validated)
   } catch (error) {
     throw handleError(error)
   }
