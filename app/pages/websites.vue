@@ -521,14 +521,6 @@ async function syncContainers() {
                     {{ selectedWebsite.sslEnabled ? 'Enabled' : 'Disabled' }}
                   </UBadge>
                 </div>
-                <div class="col-span-2">
-                  <div class="text-xs text-muted mb-0.5">
-                    Document Root
-                  </div>
-                  <div class="text-sm font-mono text-sm bg-default/50 rounded px-2 py-1">
-                    {{ selectedWebsite.documentRoot }}
-                  </div>
-                </div>
                 <div>
                   <div class="text-xs text-muted mb-0.5">
                     Extensions
@@ -546,6 +538,14 @@ async function syncContainers() {
                   </div>
                   <div v-else class="text-sm text-muted">
                     None
+                  </div>
+                </div>
+                <div class="col-span-2">
+                  <div class="text-xs text-muted mb-0.5">
+                    Document Root
+                  </div>
+                  <div class="text-sm font-mono text-sm bg-default/50 rounded px-2 py-1">
+                    {{ selectedWebsite.documentRoot }}
                   </div>
                 </div>
               </div>

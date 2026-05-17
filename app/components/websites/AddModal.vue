@@ -111,8 +111,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     const res = await $fetch<Website>(url, { method, body })
 
     if (res) {
-      // Set extensions after create
-      if (!isEditing.value && enabledIds.value.size > 0) {
+      // Sync extensions for both create and edit
+      if (isEditing.value || enabledIds.value.size > 0) {
         await $fetch(`/api/websites/${res.id}/extensions`, {
           method: 'PUT',
           body: { extensionIds: [...enabledIds.value] }
