@@ -8,4 +8,9 @@ export const updateProxySchema = z.object({
   domain: z.string().min(1).optional()
 })
 
+export const updateCaddyfileSchema = z.object({
+  content: z.string().min(1, 'Caddyfile content is required')
+})
+
+export type UpdateCaddyfileInput = z.output<typeof updateCaddyfileSchema>
 export type UpdateProxyInput = z.output<typeof updateProxySchema>

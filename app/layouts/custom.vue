@@ -21,7 +21,7 @@ const links = [[{
     open.value = false
   }
 }, {
-  label: 'Services',
+  label: 'Web Server',
   icon: 'i-lucide-server',
   to: '/services',
   onSelect: () => {
