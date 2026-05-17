@@ -1,6 +1,5 @@
 {{DOMAIN}} {
-    tls internal
-
+{{TLS}}
     log {
         output stdout
     }

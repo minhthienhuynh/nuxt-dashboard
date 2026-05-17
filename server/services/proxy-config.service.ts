@@ -11,6 +11,7 @@ interface WebsiteForProxy {
   domain: string
   port: number
   documentRoot: string
+  sslEnabled: boolean
 }
 
 const STUB_DIR = {
@@ -28,7 +29,8 @@ export class ProxyConfigService {
       name: w.name,
       domain: w.domain,
       port: w.port,
-      documentRoot: w.documentRoot
+      documentRoot: w.documentRoot,
+      sslEnabled: w.sslEnabled
     }))
 
     switch (proxy.type) {
@@ -69,8 +71,11 @@ export class ProxyConfigService {
   private static writeCaddySite(site: WebsiteForProxy): void {
     const stub = fs.readFileSync(path.join(STUB_DIR.caddy, 'fpm.conf.stub'), 'utf-8')
     const dirName = path.basename(site.documentRoot)
+    const scheme = site.sslEnabled ? '' : 'http://'
+    const tls = site.sslEnabled ? '    tls internal\n' : ''
     const content = stub
-      .replace(/\{\{DOMAIN\}\}/g, site.domain)
+      .replace(/\{\{DOMAIN\}\}/g, `${scheme}${site.domain}`)
+      .replace(/\{\{TLS\}\}/g, tls)
       .replace(/\{\{SERVICE\}\}/g, websiteContainerName(site.name))
       .replace(/\{\{DIR_NAME\}\}/g, dirName)
       .replace(/\{\{PORT\}\}/g, '9000')
