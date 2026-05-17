@@ -1,19 +1,70 @@
 <script setup lang="ts">
-import type { InfrastructureService, ServiceTypeInfo, ProxyConfig, SyncResult, ServiceStatus } from '~/types'
+import type { ProxyConfig, ServiceStatus } from '~/types'
 
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
 const UIcon = resolveComponent('UIcon')
 const USelect = resolveComponent('USelect')
 const UInput = resolveComponent('UInput')
+const UTextarea = resolveComponent('UTextarea')
 
-const { data: services, status, refresh } = await useFetch<InfrastructureService[]>('/api/services', { lazy: true })
-const { data: serviceTypes } = await useFetch<ServiceTypeInfo[]>('/api/services?types=only', { lazy: true })
+const toast = useToast()
+
 const { data: proxy, refresh: refreshProxy } = await useFetch<ProxyConfig>('/api/proxy', { lazy: true })
 
-const isAddModalOpen = ref(false)
+// ── Caddyfile ──────────────────────────────────────────────
+
+const caddyfileContent = ref('')
+const caddyfileLoaded = ref(false)
+const caddyfileEditOpen = ref(false)
+const editingCaddyfile = ref('')
+const savingCaddyfile = ref(false)
+
+async function loadCaddyfile() {
+  try {
+    const result = await $fetch<{ content: string, exists: boolean }>('/api/proxy/caddyfile')
+    caddyfileContent.value = result.exists ? result.content : ''
+    caddyfileLoaded.value = true
+  } catch {
+    caddyfileContent.value = ''
+    caddyfileLoaded.value = true
+  }
+}
+
+function openCaddyfileEdit() {
+  editingCaddyfile.value = caddyfileContent.value
+  caddyfileEditOpen.value = true
+}
+
+async function saveCaddyfile() {
+  savingCaddyfile.value = true
+  try {
+    await $fetch('/api/proxy/caddyfile', {
+      method: 'PUT',
+      body: { content: editingCaddyfile.value }
+    })
+    caddyfileContent.value = editingCaddyfile.value
+    caddyfileEditOpen.value = false
+    toast.add({ title: 'Caddyfile saved', color: 'success' })
+  } catch {
+    toast.add({ title: 'Failed to save Caddyfile', color: 'error' })
+  } finally {
+    savingCaddyfile.value = false
+  }
+}
+
+// ── Proxy settings ─────────────────────────────────────────
+
 const proxyEditOpen = ref(false)
-const editingProxy = reactive({ type: 'caddy', httpPort: 80, httpsPort: 443, adminPort: 8080, domain: '*.test' } as ProxyConfig)
+const editingProxy = reactive<ProxyConfig>({
+  id: 0,
+  type: 'caddy',
+  httpPort: 80,
+  httpsPort: 443,
+  adminPort: 2019,
+  domain: '*.test',
+  updatedAt: ''
+})
 
 const statusColor: Record<string, 'green' | 'gray' | 'red'> = {
   running: 'green',
@@ -21,28 +72,14 @@ const statusColor: Record<string, 'green' | 'gray' | 'red'> = {
   error: 'red'
 }
 
-const proxyTypes = ['caddy']
-
-const proxyMeta = computed(() => {
-  const t = proxy.value?.type
-  if (t === 'caddy') {
-    return { label: 'Caddy', icon: 'i-lucide-globe', desc: 'Caddy v2 — auto HTTPS, Caddyfile', adminPort: 2019 }
-  }
-  return { label: 'Caddy', icon: 'i-lucide-globe', desc: 'Caddy v2 — auto HTTPS, Caddyfile', adminPort: 2019 }
-})
-
 const proxyTypeOptions = computed(() => [
   { label: 'Caddy', value: 'caddy' }
 ])
 
-function getProxyDesc(t: string) {
-  switch (t) {
-    case 'caddy': return 'Caddy v2 — auto HTTPS, Caddyfile'
-    case 'traefik': return 'Traefik v3 — dynamic YAML, dashboard'
-    case 'nginx': return 'Nginx — fastcgi_pass + proxy_pass'
-    default: return ''
-  }
-}
+const proxyStatus = computed<ServiceStatus>(() => {
+  const p = proxy.value as (ProxyConfig & { status?: ServiceStatus }) | null
+  return p?.status || 'stopped'
+})
 
 function openProxyEdit() {
   if (proxy.value) {
@@ -57,21 +94,24 @@ async function saveProxy() {
   proxyEditOpen.value = false
 }
 
-function onServiceAdded() {
-  isAddModalOpen.value = false
-  refresh()
+async function deployProxy() {
+  await $fetch('/api/proxy/deploy', { method: 'POST' })
+  await refreshProxy()
+  if (proxyLogsOpen.value) {
+    proxyLogConnect('/api/proxy/logs/stream')
+  }
 }
 
-const proxyStatus = computed<ServiceStatus>(() =>
-  (proxy.value as any)?.status || 'stopped'
-)
+async function stopProxy() {
+  await $fetch('/api/proxy/stop', { method: 'POST' })
+  await refreshProxy()
+}
+
+// ── Logs ───────────────────────────────────────────────────
 
 const { lines: proxyLogLines, connected: proxyLogConnected, connect: proxyLogConnect, disconnect: proxyLogDisconnect } = useContainerLogs()
 
 const proxyLogsOpen = ref(false)
-const serviceLogsOpen = ref(false)
-const serviceLogTarget = ref<InfrastructureService | null>(null)
-const { lines: svcLogLines, connected: svcLogConnected, connect: svcLogConnect, disconnect: svcLogDisconnect } = useContainerLogs()
 
 function openProxyLogs() {
   proxyLogsOpen.value = true
@@ -83,67 +123,13 @@ function closeProxyLogs() {
   proxyLogDisconnect()
 }
 
-function openServiceLogs(svc: InfrastructureService) {
-  serviceLogTarget.value = svc
-  serviceLogsOpen.value = true
-  svcLogConnect(`/api/services/${svc.id}/logs/stream`)
-}
-
-function closeServiceLogs() {
-  serviceLogsOpen.value = false
-  serviceLogTarget.value = null
-  svcLogDisconnect()
-}
-
-async function deployProxy() {
-  await $fetch('/api/proxy/deploy', { method: 'POST' })
-  refreshProxy()
-  refresh()
-  if (proxyLogsOpen.value) {
-    proxyLogConnect('/api/proxy/logs/stream')
-  }
-}
-
-async function stopProxy() {
-  await $fetch('/api/proxy/stop', { method: 'POST' })
-  refreshProxy()
-  refresh()
-}
-
-async function syncContainers() {
-  const result = await $fetch<SyncResult>('/api/containers/sync', { method: 'POST' })
-  const toast = useToast()
-  toast.add({
-    title: 'Sync completed',
-    description: `${result.running.length} running, ${result.stopped.length} stopped, ${result.missing.length} missing`,
-    color: result.missing.length > 0 ? 'warning' : 'success'
-  })
-  refresh()
-}
-
-async function startService(service: InfrastructureService) {
-  await $fetch(`/api/services/${service.id}/start`, { method: 'POST' })
-  refresh()
-  if (serviceLogsOpen.value && serviceLogTarget.value?.id === service.id) {
-    svcLogConnect(`/api/services/${service.id}/logs/stream`)
-  }
-}
-
-async function stopService(service: InfrastructureService) {
-  await $fetch(`/api/services/${service.id}/stop`, { method: 'POST' })
-  refresh()
-}
-
-async function deleteService(id: number) {
-  await $fetch(`/api/services/${id}`, { method: 'DELETE' })
-  refresh()
-}
+onMounted(() => loadCaddyfile())
 </script>
 
 <template>
   <UDashboardPanel id="services">
     <template #header>
-      <UDashboardNavbar title="Services">
+      <UDashboardNavbar title="Web Server">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -151,13 +137,13 @@ async function deleteService(id: number) {
     </template>
 
     <template #body>
-      <!-- Proxy section -->
+      <!-- Caddy Status Banner -->
       <div class="mb-6 p-4 rounded-lg border border-default bg-elevated/30">
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center gap-2">
-            <UIcon :name="proxyMeta.icon" class="size-5 text-primary" />
+            <UIcon name="i-lucide-globe" class="size-5 text-primary" />
             <h3 class="text-sm font-semibold">
-              Web Server / Proxy — {{ proxyMeta.label }}
+              Caddy Web Server
             </h3>
             <UBadge :color="statusColor[proxyStatus]" variant="subtle" size="xs">
               {{ proxyStatus }}
@@ -170,7 +156,6 @@ async function deleteService(id: number) {
               color="green"
               icon="i-lucide-play"
               label="Deploy"
-              class="cursor-pointer"
               @click="deployProxy"
             />
             <UButton
@@ -179,7 +164,6 @@ async function deleteService(id: number) {
               color="amber"
               icon="i-lucide-square"
               label="Stop"
-              class="cursor-pointer"
               @click="stopProxy"
             />
             <UButton
@@ -187,135 +171,67 @@ async function deleteService(id: number) {
               variant="outline"
               icon="i-lucide-file-text"
               label="Logs"
-              class="cursor-pointer"
               @click="openProxyLogs"
             />
             <UButton
               size="xs"
               variant="ghost"
-              label="Configure"
               icon="i-lucide-settings"
-              class="cursor-pointer"
+              label="Settings"
               @click="openProxyEdit"
             />
           </div>
         </div>
         <div class="text-xs text-muted mb-2">
-          {{ proxyMeta.desc }}
+          Caddy v2 — auto HTTPS, reverse proxy, Caddyfile configuration
         </div>
         <div class="flex items-center gap-4 text-sm">
           <span class="text-muted">Domain: <strong class="text-default">{{ proxy?.domain || '*.test' }}</strong></span>
           <span class="text-muted">HTTP: <strong class="text-default">{{ proxy?.httpPort || 80 }}</strong></span>
           <span class="text-muted">HTTPS: <strong class="text-default">{{ proxy?.httpsPort || 443 }}</strong></span>
-          <span v-if="proxyMeta.adminPort" class="text-muted">Admin: <strong class="text-default">{{ proxy?.adminPort || proxyMeta.adminPort }}</strong></span>
+          <span class="text-muted">Admin: <strong class="text-default">{{ proxy?.adminPort || 2019 }}</strong></span>
         </div>
       </div>
 
-      <!-- Add Service + Sync buttons -->
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-sm font-semibold">
-          Infrastructure Services
+      <!-- Caddyfile Section -->
+      <div class="mb-6">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-semibold">
+            Caddyfile
+          </h3>
+          <UButton
+            size="xs"
+            variant="outline"
+            icon="i-lucide-pencil"
+            label="Edit"
+            @click="openCaddyfileEdit"
+          />
+        </div>
+        <div v-if="!caddyfileLoaded" class="text-sm text-muted">
+          Loading Caddyfile...
+        </div>
+        <pre v-else class="text-xs bg-default/50 rounded-lg p-3 max-h-96 overflow-auto whitespace-pre-wrap break-all font-mono">{{ caddyfileContent || 'No Caddyfile configured yet.' }}</pre>
+      </div>
+
+      <!-- Site Configs Section -->
+      <div>
+        <h3 class="text-sm font-semibold mb-3">
+          Site Configs
         </h3>
-        <div class="flex items-center gap-2">
-          <UButton
-            size="xs"
-            variant="ghost"
-            icon="i-lucide-refresh-cw"
-            label="Sync"
-            class="cursor-pointer"
-            @click="syncContainers"
-          />
-          <UButton
-            size="xs"
-            label="Add Service"
-            icon="i-lucide-plus"
-            color="primary"
-            class="cursor-pointer"
-            @click="isAddModalOpen = true"
-          />
-        </div>
-      </div>
-
-      <!-- Services list -->
-      <div v-if="status === 'pending'" class="text-sm text-muted">
-        Loading...
-      </div>
-      <div v-else-if="!services?.length" class="text-sm text-muted p-4 text-center border rounded-lg border-dashed">
-        No infrastructure services added yet. Click "Add Service" to add one.
-      </div>
-      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        <div
-          v-for="svc in services"
-          :key="svc.id"
-          class="p-3 rounded-lg border border-default hover:border-primary/50 transition-colors"
-        >
-          <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center gap-2">
-              <UIcon :name="svc.serviceType?.category === 'database' ? 'i-lucide-database' : 'i-lucide-box'" class="size-4 text-muted" />
-              <span class="text-sm font-medium">{{ svc.containerName }}</span>
-            </div>
-            <UBadge :color="statusColor[svc.status]" variant="subtle" size="xs">
-              {{ svc.status }}
-            </UBadge>
-          </div>
-          <div class="text-xs text-muted mb-2">
-            {{ svc.serviceType?.name }}
-          </div>
-          <div v-if="svc.ports?.length" class="text-xs text-muted mb-2">
-            Ports: {{ svc.ports.map((p: any) => `${p.hostPort}:${p.containerPort}`).join(', ') }}
-          </div>
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-1">
-              <UButton
-                v-if="svc.status !== 'running'"
-                size="xs"
-                color="green"
-                variant="ghost"
-                icon="i-lucide-play"
-                class="cursor-pointer"
-                @click="startService(svc)"
-              />
-              <UButton
-                v-else
-                size="xs"
-                color="amber"
-                variant="ghost"
-                icon="i-lucide-square"
-                class="cursor-pointer"
-                @click="stopService(svc)"
-              />
-              <UButton
-                size="xs"
-                variant="ghost"
-                icon="i-lucide-file-text"
-                class="cursor-pointer"
-                @click="openServiceLogs(svc)"
-              />
-              <UButton
-                size="xs"
-                variant="ghost"
-                icon="i-lucide-trash"
-                color="error"
-                class="cursor-pointer"
-                @click="deleteService(svc.id)"
-              />
-            </div>
-          </div>
-        </div>
+        <p class="text-sm text-muted">
+          Site configurations are auto-generated from Websites. Manage sites via the <NuxtLink to="/websites" class="text-primary hover:underline">Websites</NuxtLink> page.
+        </p>
       </div>
     </template>
   </UDashboardPanel>
 
-  <!-- Proxy Edit Modal -->
+  <!-- Proxy Settings Modal -->
   <UModal v-model:open="proxyEditOpen" title="Proxy Settings">
     <template #body>
       <div class="space-y-3 p-4">
         <div>
           <label class="text-sm font-medium">Proxy Type</label>
           <USelect v-model="editingProxy.type" :items="proxyTypeOptions" class="mt-1" />
-        </div>
-        <div class="text-xs text-muted">
-          {{ getProxyDesc(editingProxy.type) }}
         </div>
         <div class="grid grid-cols-3 gap-2">
           <div>
@@ -345,11 +261,32 @@ async function deleteService(id: number) {
     </template>
   </UModal>
 
-  <!-- Add Service Modal -->
-  <ServicesAddModal v-model:open="isAddModalOpen" :service-types="serviceTypes" @added="onServiceAdded" />
+  <!-- Caddyfile Edit Modal -->
+  <UModal v-model:open="caddyfileEditOpen" title="Edit Caddyfile">
+    <template #body>
+      <div class="p-4">
+        <UTextarea
+          v-model="editingCaddyfile"
+          :rows="20"
+          class="font-mono text-xs"
+        />
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex justify-end gap-2 p-4">
+        <UButton label="Cancel" variant="outline" @click="caddyfileEditOpen = false" />
+        <UButton
+          label="Save & Reload"
+          color="primary"
+          :loading="savingCaddyfile"
+          @click="saveCaddyfile"
+        />
+      </div>
+    </template>
+  </UModal>
 
   <!-- Proxy Logs Modal -->
-  <UModal v-model:open="proxyLogsOpen" :title="`Logs: ${proxy?.type || 'caddy'}`" @close="closeProxyLogs">
+  <UModal v-model:open="proxyLogsOpen" title="Proxy Logs" @close="closeProxyLogs">
     <template #body>
       <div class="p-4">
         <div class="flex items-center gap-2 mb-3">
@@ -363,25 +300,6 @@ async function deleteService(id: number) {
     <template #footer>
       <div class="flex justify-end gap-2 p-4">
         <UButton label="Close" variant="outline" @click="closeProxyLogs" />
-      </div>
-    </template>
-  </UModal>
-
-  <!-- Service Logs Modal -->
-  <UModal v-model:open="serviceLogsOpen" :title="`Logs: ${serviceLogTarget?.containerName || ''}`" @close="closeServiceLogs">
-    <template #body>
-      <div class="p-4">
-        <div class="flex items-center gap-2 mb-3">
-          <UBadge :color="svcLogConnected ? 'green' : 'gray'" variant="subtle" size="xs">
-            {{ svcLogConnected ? 'Live' : 'Connecting...' }}
-          </UBadge>
-        </div>
-        <pre class="text-xs bg-default/50 rounded-lg p-3 max-h-96 overflow-auto whitespace-pre-wrap break-all font-mono">{{ svcLogLines.join('\n') || 'Waiting for logs...' }}</pre>
-      </div>
-    </template>
-    <template #footer>
-      <div class="flex justify-end gap-2 p-4">
-        <UButton label="Close" variant="outline" @click="closeServiceLogs" />
       </div>
     </template>
   </UModal>
