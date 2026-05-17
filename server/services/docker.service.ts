@@ -2,27 +2,33 @@ import { createHash } from 'node:crypto'
 import { execSync } from 'node:child_process'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
+import type { Writable } from 'node:stream'
 import { getDocker } from '../utils/docker'
-import { ServiceRepository } from '../repositories/service.repository'
-import { WebsiteRepository } from '../repositories/website.repository'
-import type { InfrastructureService, Website } from '~/types'
+import type { InfrastructureService, Website, WebsitePhpExtension } from '~/types'
 
-import { slugify, websiteContainerName } from '../utils/slugify'
+import { websiteContainerName } from '../utils/slugify'
 import { getWebsiteTypeConfig, imageTagForType, DEFAULT_WEBSITE_TYPE } from '../utils/website-types'
 
 const APP_NAME = process.env.APP_NAME || 'lardo'
 const LARDO_NETWORK = `${APP_NAME}_proxy`
 
-export class DockerService {
+interface DockerSdkContainer {
+  Names?: string[]
+  Image?: string
+  State?: string
+  Status?: string
+}
+
+export const DockerService = {
   // ═══════════════════════════════════════════════════════════
   // Case 1: Pull pre-built image tu registry (MySQL, Redis, ...)
   // ═══════════════════════════════════════════════════════════
 
-  static async pullImage(image: string): Promise<void> {
+  async pullImage(image: string): Promise<void> {
     const docker = await getDocker()
     const [fromImage, tag = 'latest'] = image.split(':')
     await docker.imageCreate({ fromImage, tag })
-  }
+  },
 
   // ═══════════════════════════════════════════════════════════
   // Case 2 & 3: Build PHP image + hash cache
@@ -30,22 +36,22 @@ export class DockerService {
   // yeu cau tar stream — CLI don gian hon.
   // ═══════════════════════════════════════════════════════════
 
-  static computeBuildHash(type: string, phpVersion: string, extensionNames: string[], documentRoot: string): string {
+  computeBuildHash(type: string, phpVersion: string, extensionNames: string[], documentRoot: string): string {
     const sorted = [...extensionNames].sort()
     const dirName = path.basename(documentRoot)
     return createHash('sha256').update(`${type}:${phpVersion}:${sorted.join(',')}:${dirName}`).digest('hex')
-  }
+  },
 
-  static buildPhpImage(website: Website): string {
-    const type = (website as any).type || DEFAULT_WEBSITE_TYPE
+  buildPhpImage(website: Website): string {
+    const type = website.type || DEFAULT_WEBSITE_TYPE
     const config = getWebsiteTypeConfig(type)
     const phpTag = config.phpTag(website.phpVersion)
     const imageTag = imageTagForType(website.name, website.phpVersion, type)
     const dirName = path.basename(website.documentRoot)
 
     const extensionNames = website.extensions
-      ?.filter((e: any) => e.enabled)
-      .map((e: any) => e.extension!.name) ?? []
+      ?.filter((e: WebsitePhpExtension) => e.enabled)
+      .map((e: WebsitePhpExtension) => e.extension!.name) ?? []
 
     const buildArgs: string[] = [
       `PHP_TAG=${phpTag}`,
@@ -66,25 +72,25 @@ export class DockerService {
     })
 
     return imageTag
-  }
+  },
 
-  static needRebuild(website: Website): boolean {
-    const type = (website as any).type || DEFAULT_WEBSITE_TYPE
+  needRebuild(website: Website): boolean {
+    const type = website.type || DEFAULT_WEBSITE_TYPE
     const extensionNames = website.extensions
-      ?.filter((e: any) => e.enabled)
-      .map((e: any) => e.extension!.name) ?? []
+      ?.filter((e: WebsitePhpExtension) => e.enabled)
+      .map((e: WebsitePhpExtension) => e.extension!.name) ?? []
 
     const newHash = DockerService.computeBuildHash(type, website.phpVersion, extensionNames, website.documentRoot)
-    return (website as any).buildHash !== newHash
-  }
+    return website.buildHash !== newHash
+  },
 
-  static async ensurePhpImage(website: Website): Promise<{ tag: string, rebuilt: boolean }> {
+  async ensurePhpImage(website: Website): Promise<{ tag: string, rebuilt: boolean }> {
     if (DockerService.needRebuild(website)) {
       const tag = DockerService.buildPhpImage(website)
-      const type = (website as any).type || DEFAULT_WEBSITE_TYPE
+      const type = website.type || DEFAULT_WEBSITE_TYPE
       const extensionNames = website.extensions
-        ?.filter((e: any) => e.enabled)
-        .map((e: any) => e.extension!.name) ?? []
+        ?.filter((e: WebsitePhpExtension) => e.enabled)
+        .map((e: WebsitePhpExtension) => e.extension!.name) ?? []
       const newHash = DockerService.computeBuildHash(type, website.phpVersion, extensionNames, website.documentRoot)
       await prisma.website.update({
         where: { id: website.id },
@@ -92,15 +98,15 @@ export class DockerService {
       })
       return { tag, rebuilt: true }
     }
-    const type = (website as any).type || DEFAULT_WEBSITE_TYPE
+    const type = website.type || DEFAULT_WEBSITE_TYPE
     return { tag: imageTagForType(website.name, website.phpVersion, type), rebuilt: false }
-  }
+  },
 
   // ═══════════════════════════════════════════════════════════
   // Container orchestration
   // ═══════════════════════════════════════════════════════════
 
-  static async createAndStartContainer(config: {
+  async createAndStartContainer(config: {
     image: string
     name: string
     env?: Record<string, string>
@@ -145,14 +151,14 @@ export class DockerService {
           Binds: binds,
           NetworkMode: config.network || LARDO_NETWORK
         }
-      } as any,
+      } as unknown as Record<string, unknown>,
       { name: config.name }
     )
 
     await docker.containerStart(config.name)
-  }
+  },
 
-  static async stopAndRemoveContainer(name: string): Promise<void> {
+  async stopAndRemoveContainer(name: string): Promise<void> {
     const docker = await getDocker()
     try {
       await docker.containerStop(name)
@@ -160,26 +166,28 @@ export class DockerService {
     } catch {
       // Container co the da bi xoa tu ben ngoai
     }
-  }
+  },
 
-  static async stopContainer(name: string): Promise<void> {
+  async stopContainer(name: string): Promise<void> {
     const docker = await getDocker()
     await docker.containerStop(name)
-  }
+  },
 
-  static async startContainer(name: string): Promise<void> {
+  async startContainer(name: string): Promise<void> {
     const docker = await getDocker()
     await docker.containerStart(name)
-  }
+  },
 
-  static async restartContainer(name: string): Promise<void> {
+  async restartContainer(name: string): Promise<void> {
     const docker = await getDocker()
     await docker.containerRestart(name)
-  }
+  },
 
-  static async rebuildWebsite(website: Website): Promise<void> {
+  async rebuildWebsite(website: Website): Promise<void> {
     const cName = websiteContainerName(website.name)
-    try { await DockerService.stopAndRemoveContainer(cName) } catch { /* ok */ }
+    try {
+      await DockerService.stopAndRemoveContainer(cName)
+    } catch { /* ok */ }
     // Reset build hash de force rebuild
     await prisma.website.update({
       where: { id: website.id },
@@ -187,9 +195,9 @@ export class DockerService {
     })
     website.buildHash = null
     await DockerService.deployWebsite(website)
-  }
+  },
 
-  static async containerExists(name: string): Promise<boolean> {
+  async containerExists(name: string): Promise<boolean> {
     const docker = await getDocker()
     try {
       await docker.containerInspect(name)
@@ -197,13 +205,13 @@ export class DockerService {
     } catch {
       return false
     }
-  }
+  },
 
   // ═══════════════════════════════════════════════════════════
   // Deploy
   // ═══════════════════════════════════════════════════════════
 
-  static async deployProxy(proxy: { type: string, httpPort: number, httpsPort: number, adminPort: number }): Promise<void> {
+  async deployProxy(proxy: { type: string, httpPort: number, httpsPort: number, adminPort: number }): Promise<void> {
     const proxyBase = path.resolve(process.cwd(), 'docker/proxy', proxy.type)
     const imageMap: Record<string, string> = {
       caddy: 'caddy:2-alpine',
@@ -220,7 +228,7 @@ export class DockerService {
       const docker = await getDocker()
       await docker.containerStop(name)
       await docker.containerDelete(name)
-    } catch {}
+    } catch { /* container may already be removed */ }
 
     const volumes: { source: string, target: string }[] = []
     const portMappings = [
@@ -258,13 +266,13 @@ export class DockerService {
       ports: portMappings,
       volumes
     })
-  }
+  },
 
-  static async stopProxy(type: string): Promise<void> {
+  async stopProxy(type: string): Promise<void> {
     await DockerService.stopAndRemoveContainer(type)
-  }
+  },
 
-  static async deployService(svc: InfrastructureService): Promise<void> {
+  async deployService(svc: InfrastructureService): Promise<void> {
     const type = svc.serviceType!
     const image = svc.imageOverride || type.defaultImage!
 
@@ -281,16 +289,16 @@ export class DockerService {
       })),
       volumes: (svc.volumes || []).map(v => ({ source: v.source, target: v.target }))
     })
-  }
+  },
 
-  static async deployWebsite(website: Website): Promise<void> {
+  async deployWebsite(website: Website): Promise<void> {
     const { tag } = await DockerService.ensurePhpImage(website)
 
     const dirName = path.basename(website.documentRoot)
-    const type = (website as any).type || DEFAULT_WEBSITE_TYPE
+    const type = website.type || DEFAULT_WEBSITE_TYPE
     const config = getWebsiteTypeConfig(type)
 
-    const ports = []
+    const ports: { host: string, container: string, proto: string }[] = []
     if (website.port && website.port > 0) {
       ports.push({
         host: String(website.port),
@@ -309,13 +317,13 @@ export class DockerService {
         { source: website.documentRoot, target: `/var/www/${dirName}` }
       ]
     })
-  }
+  },
 
   // ═══════════════════════════════════════════════════════════
   // Monitor: logs, container list
   // ═══════════════════════════════════════════════════════════
 
-  static async* getLogStream(
+  async* getLogStream(
     containerName: string,
     tail = 100,
     signal?: AbortSignal
@@ -324,7 +332,7 @@ export class DockerService {
     const pt = new PassThrough()
 
     // Fire-and-forget — streams indefinitely with follow:true
-    docker.containerLogs(containerName, pt as any, pt as any, {
+    docker.containerLogs(containerName, pt as unknown as Writable, pt as unknown as Writable, {
       stdout: true,
       stderr: true,
       tail: String(tail),
@@ -337,7 +345,9 @@ export class DockerService {
 
     let buffer = ''
     let resolve: (value: IteratorResult<string>) => void
-    let promise = new Promise<IteratorResult<string>>((r) => { resolve = r })
+    let promise = new Promise<IteratorResult<string>>((r) => {
+      resolve = r
+    })
     let done = false
 
     const onData = (chunk: Buffer) => {
@@ -346,7 +356,9 @@ export class DockerService {
       buffer = lines.pop() || ''
       for (const line of lines) {
         resolve({ value: line, done: false })
-        promise = new Promise<IteratorResult<string>>((r) => { resolve = r })
+        promise = new Promise<IteratorResult<string>>((r) => {
+          resolve = r
+        })
       }
     }
 
@@ -358,7 +370,7 @@ export class DockerService {
 
     const onError = () => {
       done = true
-      resolve({ value: undefined as any, done: true })
+      resolve({ value: undefined as unknown as string, done: true })
     }
 
     pt.on('data', onData)
@@ -377,9 +389,9 @@ export class DockerService {
       pt.off('error', onError)
       if (!done) pt.destroy()
     }
-  }
+  },
 
-  static async getLogs(containerName: string, tail = 100): Promise<string> {
+  async getLogs(containerName: string, tail = 100): Promise<string> {
     try {
       const docker = await getDocker()
       // containerLogs(id, stdout, stderr, options) — 4 args
@@ -389,7 +401,7 @@ export class DockerService {
       stdout.on('data', (chunk: Buffer) => chunks.push(chunk))
       stderr.on('data', (chunk: Buffer) => chunks.push(chunk))
 
-      await docker.containerLogs(containerName, stdout as any, stderr as any, {
+      await docker.containerLogs(containerName, stdout as unknown as Writable, stderr as unknown as Writable, {
         stdout: true,
         stderr: true,
         tail: String(tail)
@@ -399,88 +411,40 @@ export class DockerService {
     } catch {
       return ''
     }
-  }
+  },
 
-  static async listLardoContainers() {
+  async listLardoContainers() {
     const docker = await getDocker()
     const containers = await docker.containerList({ all: true })
     return containers
-      .filter((c: any) =>
+      .filter((c: DockerSdkContainer) =>
         c.Names?.some((n: string) =>
           n.includes('website-') || n.includes('caddy') || n.includes('traefik') || n.includes('nginx')
         )
       )
-      .map((c: any) => ({
+      .map((c: DockerSdkContainer) => ({
         name: c.Names?.[0]?.replace('/', ''),
-        image: c.Image,
-        state: c.State,
-        status: c.Status
+        image: c.Image ?? '',
+        state: c.State ?? '',
+        status: c.Status ?? ''
       }))
-  }
+  },
 
-  static async getContainerStatuses(): Promise<Map<string, 'running' | 'stopped'>> {
+  async getContainerStatuses(): Promise<Map<string, 'running' | 'stopped'>> {
     const result = new Map<string, 'running' | 'stopped'>()
     try {
       const docker = await getDocker()
       const containers = await docker.containerList({ all: true })
       for (const c of containers) {
-        const name = (c as any).Names?.[0]?.replace('/', '')
+        const container = c as unknown as DockerSdkContainer
+        const name = container.Names?.[0]?.replace('/', '')
         if (name) {
-          result.set(name, (c as any).State === 'running' ? 'running' : 'stopped')
+          result.set(name, container.State === 'running' ? 'running' : 'stopped')
         }
       }
     } catch {
       // Docker not available — return empty map
     }
     return result
-  }
-
-  // ═══════════════════════════════════════════════════════════
-  // Sync: so sanh Docker state thuc te voi DB
-  // ═══════════════════════════════════════════════════════════
-
-  static async syncContainersWithDB(): Promise<{
-    running: { containerName: string, state: string }[]
-    stopped: { containerName: string, state: string }[]
-    missing: string[]
-    total: number
-  }> {
-    const docker = await getDocker()
-    const containers = await docker.containerList({ all: true })
-
-    const dockerState = new Map<string, { state: string, status: string }>()
-    for (const c of containers) {
-      const name = (c as any).Names?.[0]?.replace('/', '')
-      if (name) {
-        dockerState.set(name, {
-          state: (c as any).State,
-          status: (c as any).Status
-        })
-      }
-    }
-
-    const services = await ServiceRepository.findAllServices()
-    const websites = await WebsiteRepository.findAll({})
-    const running: { containerName: string, state: string }[] = []
-    const stopped: { containerName: string, state: string }[] = []
-    const missing: string[] = []
-
-    const expectedNames = [
-      ...services.map(s => s.containerName),
-      ...websites.map(w => websiteContainerName(w.name))
-    ]
-
-    for (const name of expectedNames) {
-      const ds = dockerState.get(name)
-      if (!ds) {
-        missing.push(name)
-      } else if (ds.state === 'running') {
-        running.push({ containerName: name, state: ds.state })
-      } else {
-        stopped.push({ containerName: name, state: ds.state })
-      }
-    }
-
-    return { running, stopped, missing, total: expectedNames.length }
   }
 }

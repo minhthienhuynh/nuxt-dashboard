@@ -12,7 +12,7 @@ export default eventHandler(async (event) => {
     if (exists) {
       await DockerService.startContainer(service.containerName)
     } else {
-      await DockerService.deployService(service as any)
+      await DockerService.deployService(service as unknown as import('~/types').InfrastructureService)
     }
     return { status: 'running', containerName: service.containerName }
   } catch (error) {

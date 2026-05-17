@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { dash } from 'radash'
-import type { Website, SyncResult } from '~/types'
+import type { Website } from '~/types'
 import { getTypeLabel, getTypeColor } from '~/constants/website-types'
 
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
 const UIcon = resolveComponent('UIcon')
-const UModal = resolveComponent('UModal')
 const UInput = resolveComponent('UInput')
 const USelect = resolveComponent('USelect')
 
@@ -67,7 +66,6 @@ watchEffect(() => {
 
 const deploying = ref<Set<number>>(new Set())
 const { lines: logLines, connected: logConnected, connect: logConnect, disconnect: logDisconnect } = useContainerLogs()
-const syncing = ref(false)
 
 function statusColor(s: string) {
   return s === 'running' ? 'text-green-500' : s === 'error' ? 'text-red-500' : 'text-gray-400'
@@ -172,7 +170,7 @@ function openEdit(w: Website) {
   isAddModalOpen.value = true
 }
 
-function openDelete(w: Website) {
+function openDelete(_w: Website) {
   isDeleteModalOpen.value = true
 }
 
@@ -198,22 +196,6 @@ function onDeleted() {
   isDeleteModalOpen.value = false
   selectedId.value = null
   refresh()
-}
-
-async function syncContainers() {
-  syncing.value = true
-  try {
-    const result = await $fetch<SyncResult>('/api/containers/sync', { method: 'POST' })
-    const toast = useToast()
-    toast.add({
-      title: 'Sync completed',
-      description: `${result.running.length} running, ${result.stopped.length} stopped, ${result.missing.length} missing`,
-      color: result.missing.length > 0 ? 'warning' : 'success'
-    })
-    refresh()
-  } finally {
-    syncing.value = false
-  }
 }
 </script>
 
@@ -250,14 +232,6 @@ async function syncContainers() {
                 class="size-2 rounded-full shrink-0 self-center"
                 :class="connected ? 'bg-green-500' : 'bg-gray-300'"
                 :title="connected ? 'Live' : 'Disconnected'"
-              />
-              <UButton
-                size="xs"
-                variant="ghost"
-                icon="i-lucide-refresh-cw"
-                :label="syncing ? '...' : 'Sync'"
-                :disabled="syncing"
-                @click="syncContainers"
               />
               <UButton
                 label="Add"

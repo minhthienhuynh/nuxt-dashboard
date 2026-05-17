@@ -12,9 +12,9 @@ export default eventHandler(async (event) => {
     const statuses = await DockerService.getContainerStatuses()
     const dockerStatus = statuses.get(websiteContainerName(website.name))
     if (dockerStatus) {
-      ;(website as any).status = dockerStatus
+      ;(website as unknown as { status: string }).status = dockerStatus
     }
-    return website as any as import('~/types').Website
+    return website as unknown as import('~/types').Website
   } catch (error) {
     throw handleError(error)
   }

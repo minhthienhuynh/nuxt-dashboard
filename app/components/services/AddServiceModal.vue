@@ -47,8 +47,9 @@ async function handleAdd() {
     selectedTypeKey.value = ''
     containerName.value = ''
     emit('added')
-  } catch (e: any) {
-    error.value = e?.statusMessage || e?.message || 'Failed to add service'
+  } catch (e: unknown) {
+    const err = e as { statusMessage?: string, message?: string }
+    error.value = err?.statusMessage || err?.message || 'Failed to add service'
   } finally {
     isSubmitting.value = false
   }

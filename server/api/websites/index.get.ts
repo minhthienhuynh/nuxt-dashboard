@@ -14,10 +14,10 @@ export default eventHandler(async (event) => {
     for (const w of websites) {
       const dockerStatus = statuses.get(websiteContainerName(w.name))
       if (dockerStatus) {
-        ;(w as any).status = dockerStatus
+        ;(w as unknown as { status: string }).status = dockerStatus
       }
     }
-    return websites as any as import('~/types').Website[]
+    return websites as unknown as import('~/types').Website[]
   } catch (error) {
     throw handleError(error)
   }

@@ -1,11 +1,11 @@
 import type { UpdateProxyInput } from '../validators/proxy.schema'
 
-export class ProxyRepository {
-  static get() {
+export const ProxyRepository = {
+  get() {
     return prisma.proxyConfig.findFirst()
-  }
+  },
 
-  static async getOrCreate() {
+  async getOrCreate() {
     let config = await prisma.proxyConfig.findFirst()
     if (!config) {
       config = await prisma.proxyConfig.create({
@@ -13,9 +13,9 @@ export class ProxyRepository {
       })
     }
     return config
-  }
+  },
 
-  static async update(data: UpdateProxyInput) {
+  async update(data: UpdateProxyInput) {
     const config = await ProxyRepository.getOrCreate()
     return prisma.proxyConfig.update({
       where: { id: config.id },

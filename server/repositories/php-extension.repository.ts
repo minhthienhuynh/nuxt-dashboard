@@ -3,8 +3,8 @@ const EXTENSION_INCLUDE = {
   specials: { select: { requirement: true } }
 } as const
 
-export class PhpExtensionRepository {
-  static findAll(filters?: { php?: string; type?: string; search?: string }) {
+export const PhpExtensionRepository = {
+  findAll(filters?: { php?: string, type?: string, search?: string }) {
     return prisma.phpExtension.findMany({
       include: EXTENSION_INCLUDE,
       where: {

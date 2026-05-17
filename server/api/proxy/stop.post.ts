@@ -2,7 +2,7 @@ import { ProxyRepository } from '~~/server/repositories/proxy.repository'
 import { DockerService } from '~~/server/services/docker.service'
 import { handleError } from '~~/server/utils/errors'
 
-export default eventHandler(async (event) => {
+export default eventHandler(async (_event) => {
   try {
     const proxy = await ProxyRepository.getOrCreate()
     await DockerService.stopProxy(proxy.type)

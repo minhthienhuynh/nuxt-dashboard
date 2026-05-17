@@ -14,7 +14,7 @@ export default eventHandler(async (event) => {
     if (exists) {
       await DockerService.startContainer(cName)
     } else {
-      await DockerService.deployWebsite(website as any)
+      await DockerService.deployWebsite(website as unknown as import('~/types').Website)
     }
     return { status: 'running', containerName: cName }
   } catch (error) {

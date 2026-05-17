@@ -121,8 +121,9 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       open.value = false
       emit('created', res.id)
     }
-  } catch (e: any) {
-    error.value = e?.data?.statusMessage ?? e?.message ?? 'Failed to save website'
+  } catch (e: unknown) {
+    const err = e as { data?: { statusMessage?: string }, message?: string }
+    error.value = err?.data?.statusMessage ?? err?.message ?? 'Failed to save website'
   } finally {
     loading.value = false
   }

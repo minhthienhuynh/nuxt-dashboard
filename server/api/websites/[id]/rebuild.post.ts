@@ -8,7 +8,7 @@ export default eventHandler(async (event) => {
   try {
     const id = websiteIdSchema.parse(getRouterParam(event, 'id'))
     const website = await WebsiteService.getById(id)
-    await DockerService.rebuildWebsite(website as any)
+    await DockerService.rebuildWebsite(website as unknown as import('~/types').Website)
     return { status: 'running' }
   } catch (error) {
     throw handleError(error)

@@ -10,8 +10,8 @@ const EXTENSIONS_INCLUDE = {
   }
 } as const
 
-export class WebsiteRepository {
-  static findAll(filters: { phpVersion?: string, search?: string }) {
+export const WebsiteRepository = {
+  findAll(filters: { phpVersion?: string, search?: string }) {
     return prisma.website.findMany({
       include: EXTENSIONS_INCLUDE,
       where: {
@@ -27,39 +27,39 @@ export class WebsiteRepository {
       },
       orderBy: { createdAt: 'desc' }
     })
-  }
+  },
 
-  static findById(id: number) {
+  findById(id: number) {
     return prisma.website.findUnique({
       where: { id },
       include: EXTENSIONS_INCLUDE
     })
-  }
+  },
 
-  static findByDomain(domain: string) {
+  findByDomain(domain: string) {
     return prisma.website.findUnique({ where: { domain } })
-  }
+  },
 
-  static create(data: CreateWebsiteInput) {
+  create(data: CreateWebsiteInput) {
     return prisma.website.create({
       data,
       include: EXTENSIONS_INCLUDE
     })
-  }
+  },
 
-  static update(id: number, data: UpdateWebsiteInput) {
+  update(id: number, data: UpdateWebsiteInput) {
     return prisma.website.update({
       where: { id },
       data,
       include: EXTENSIONS_INCLUDE
     })
-  }
+  },
 
-  static remove(id: number) {
+  remove(id: number) {
     return prisma.website.delete({ where: { id } })
-  }
+  },
 
-  static async replaceExtensions(websiteId: number, extensionIds: number[]) {
+  async replaceExtensions(websiteId: number, extensionIds: number[]) {
     await prisma.websitePhpExtension.deleteMany({ where: { websiteId } })
     if (extensionIds.length > 0) {
       await prisma.websitePhpExtension.createMany({
@@ -74,9 +74,9 @@ export class WebsiteRepository {
       where: { id: websiteId },
       include: EXTENSIONS_INCLUDE
     })
-  }
+  },
 
-  static async verifyExtensionIdsExist(extensionIds: number[]) {
+  async verifyExtensionIdsExist(extensionIds: number[]) {
     const existing = await prisma.phpExtension.findMany({
       where: { id: { in: extensionIds } },
       select: { id: true }

@@ -214,13 +214,6 @@ export interface UpdateServiceInput {
   enabled?: boolean
 }
 
-export interface SyncResult {
-  running: { containerName: string, state: string }[]
-  stopped: { containerName: string, state: string }[]
-  missing: string[]
-  total: number
-}
-
 export interface DockerContainer {
   name: string
   image: string

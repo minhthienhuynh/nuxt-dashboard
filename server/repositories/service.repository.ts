@@ -1,4 +1,4 @@
-import type { CreateServiceInput, UpdateServiceInput } from '../validators/service.schema'
+import type { UpdateServiceInput } from '../validators/service.schema'
 
 const SERVICE_INCLUDE = {
   serviceType: true,
@@ -7,36 +7,36 @@ const SERVICE_INCLUDE = {
   volumes: true
 } as const
 
-export class ServiceRepository {
-  static findAllTypes() {
+export const ServiceRepository = {
+  findAllTypes() {
     return prisma.serviceType.findMany({ orderBy: { category: 'asc' } })
-  }
+  },
 
-  static findTypeByKey(key: string) {
+  findTypeByKey(key: string) {
     return prisma.serviceType.findUnique({ where: { key } })
-  }
+  },
 
-  static findAllServices() {
+  findAllServices() {
     return prisma.infrastructureService.findMany({
       include: SERVICE_INCLUDE,
       orderBy: { createdAt: 'desc' }
     })
-  }
+  },
 
-  static findServiceById(id: number) {
+  findServiceById(id: number) {
     return prisma.infrastructureService.findUnique({
       where: { id },
       include: SERVICE_INCLUDE
     })
-  }
+  },
 
-  static findServiceByName(serviceTypeId: number, containerName: string) {
+  findServiceByName(serviceTypeId: number, containerName: string) {
     return prisma.infrastructureService.findUnique({
       where: { serviceTypeId_containerName: { serviceTypeId, containerName } }
     })
-  }
+  },
 
-  static createService(data: {
+  createService(data: {
     serviceTypeId: number
     containerName: string
     envVars?: { key: string, value: string, isSecret?: boolean }[]
@@ -59,9 +59,9 @@ export class ServiceRepository {
       },
       include: SERVICE_INCLUDE
     })
-  }
+  },
 
-  static async updateService(id: number, data: UpdateServiceInput) {
+  async updateService(id: number, data: UpdateServiceInput) {
     if (data.envVars) {
       await prisma.serviceEnvVar.deleteMany({ where: { serviceId: id } })
       if (data.envVars.length > 0) {
@@ -95,9 +95,9 @@ export class ServiceRepository {
       },
       include: SERVICE_INCLUDE
     })
-  }
+  },
 
-  static deleteService(id: number) {
+  deleteService(id: number) {
     return prisma.infrastructureService.delete({ where: { id } })
   }
 }

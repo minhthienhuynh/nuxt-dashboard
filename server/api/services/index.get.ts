@@ -14,10 +14,10 @@ export default eventHandler(async (event) => {
     for (const svc of services) {
       const dockerStatus = statuses.get(svc.containerName)
       if (dockerStatus) {
-        ;(svc as any).status = dockerStatus
+        ;(svc as unknown as { status: string }).status = dockerStatus
       }
     }
-    return services as any as import('~/types').InfrastructureService[]
+    return services as unknown as import('~/types').InfrastructureService[]
   } catch (error) {
     throw handleError(error)
   }
