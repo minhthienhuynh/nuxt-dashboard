@@ -3,6 +3,8 @@ import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { Website } from '~/types'
 
+import { dash } from 'radash'
+
 const props = defineProps<{
   website?: Website | null
 }>()
@@ -78,6 +80,11 @@ watch(open, () => {
     error.value = null
   }
 })
+
+function onNameInput(value: string) {
+  state.name = value
+  state.domain = value ? dash(value) + '.local' : ''
+}
 </script>
 
 <template>
@@ -90,7 +97,11 @@ watch(open, () => {
         @submit="onSubmit"
       >
         <UFormField label="Name" name="name" required>
-          <UInput v-model="state.name" placeholder="My Website" />
+          <UInput
+            :model-value="state.name"
+            placeholder="My Website"
+            @update:model-value="onNameInput"
+          />
         </UFormField>
 
         <UFormField label="Domain" name="domain" required>
