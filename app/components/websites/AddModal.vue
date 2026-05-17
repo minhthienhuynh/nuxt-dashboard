@@ -4,6 +4,7 @@ import type { FormSubmitEvent } from '@nuxt/ui'
 import type { Website } from '~/types'
 
 import { dash } from 'radash'
+import { WEBSITE_TYPE_OPTIONS } from '~/constants/website-types'
 
 const props = defineProps<{
   website?: Website | null
@@ -19,6 +20,7 @@ const isEditing = computed(() => !!props.website)
 const schema = z.object({
   name: z.string().min(1, 'Name is required'),
   domain: z.string().min(1, 'Domain is required'),
+  type: z.enum(['php-fpm', 'php-serve', 'php-octane']).default('php-fpm'),
   port: z.coerce.number().int().min(1).max(65535).default(80),
   documentRoot: z.string().min(1, 'Document root is required'),
   phpVersion: z.string().min(1, 'PHP version is required'),
@@ -32,6 +34,7 @@ const phpVersions = ['8.4', '8.3', '8.2', '8.1', '8.0', '7.4', '7.3', '7.2', '7.
 const state = reactive<Partial<Schema>>({
   name: props.website?.name ?? '',
   domain: props.website?.domain ?? '',
+  type: props.website?.type ?? 'php-fpm',
   port: props.website?.port ?? 80,
   documentRoot: props.website?.documentRoot ?? '',
   phpVersion: props.website?.phpVersion ?? '8.4',
@@ -71,6 +74,7 @@ watch(open, () => {
   if (open.value) {
     state.name = props.website?.name ?? ''
     state.domain = props.website?.domain ?? ''
+    state.type = props.website?.type ?? 'php-fpm'
     state.port = props.website?.port ?? 80
     state.documentRoot = props.website?.documentRoot ?? ''
     state.phpVersion = props.website?.phpVersion ?? '8.4'
@@ -108,7 +112,15 @@ function onNameInput(value: string) {
           <UInput v-model="state.domain" placeholder="myapp.test" />
         </UFormField>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-3 gap-4">
+          <UFormField label="Type" name="type" required>
+            <USelect
+              v-model="state.type"
+              :items="WEBSITE_TYPE_OPTIONS"
+              placeholder="Select type"
+            />
+          </UFormField>
+
           <UFormField label="Port" name="port">
             <UInput v-model.number="state.port" type="number" placeholder="80" />
           </UFormField>
