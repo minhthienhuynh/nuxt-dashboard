@@ -43,11 +43,12 @@ model Website {
   id           Int                      @id @default(autoincrement())
   name         String
   domain       String                   @unique
+  type         String                   @default("php-fpm") // "php-fpm" | "php-serve" | "php-octane"
   port         Int                      @default(80)
   documentRoot String
   phpVersion   String                   // e.g. "8.4", "8.3", "7.4"
   sslEnabled   Boolean                  @default(false)
-  buildHash    String?                  // SHA256(phpVersion + sorted extensionIds) — null = chua build
+  buildHash    String?                  // SHA256(type + phpVersion + sorted extensionIds) — null = chua build
   createdAt    DateTime                 @default(now())
   updatedAt    DateTime                 @updatedAt
   extensions   WebsitePhpExtension[]
