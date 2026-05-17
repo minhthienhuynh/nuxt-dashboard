@@ -60,12 +60,14 @@ export interface Range {
 }
 
 // Website management types
+export type WebsiteType = 'php-fpm' | 'php-serve' | 'php-octane'
 export type WebsiteStatus = 'running' | 'stopped' | 'error'
 
 export interface Website {
   id: number
   name: string
   domain: string
+  type: WebsiteType
   port: number
   documentRoot: string
   phpVersion: string
@@ -94,6 +96,7 @@ export interface PhpExtensionInfo {
 export interface CreateWebsiteInput {
   name: string
   domain: string
+  type?: WebsiteType
   port?: number
   documentRoot: string
   phpVersion: string
@@ -103,6 +106,7 @@ export interface CreateWebsiteInput {
 export interface UpdateWebsiteInput {
   name?: string
   domain?: string
+  type?: WebsiteType
   port?: number
   documentRoot?: string
   phpVersion?: string
