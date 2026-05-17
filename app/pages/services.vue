@@ -128,6 +128,8 @@ const { lines: proxyLogLines, connected: proxyLogConnected, connect: proxyLogCon
 
 const proxyLogsOpen = ref(false)
 
+const { data: siteConfigs } = await useFetch<{ sites: { name: string; content: string }[] }>('/api/proxy/sites', { lazy: true })
+
 function openProxyLogs() {
   proxyLogsOpen.value = true
   proxyLogConnect('/api/proxy/logs/stream')
@@ -230,12 +232,27 @@ onMounted(() => loadCaddyfile())
 
       <!-- Site Configs Section -->
       <div>
-        <h3 class="text-sm font-semibold mb-3">
+        <h3 class="text-sm font-semibold mb-3 flex items-center gap-2">
           Site Configs
+          <UBadge size="xs" variant="subtle">{{ siteConfigs?.sites?.length ?? 0 }}</UBadge>
         </h3>
-        <p class="text-sm text-muted">
-          Site configurations are auto-generated from Websites. Manage sites via the <NuxtLink to="/websites" class="text-primary hover:underline">Websites</NuxtLink> page.
-        </p>
+        <div v-if="!siteConfigs?.sites?.length" class="text-sm text-muted">
+          No site configs yet. Add a website from the
+          <NuxtLink to="/websites" class="text-primary hover:underline">Websites</NuxtLink> page.
+        </div>
+        <div v-else class="space-y-2">
+          <div
+            v-for="site in siteConfigs.sites"
+            :key="site.name"
+            class="p-3 rounded-lg border border-default hover:border-primary/50 transition-colors"
+          >
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm font-medium">{{ site.name }}</span>
+              <UBadge size="xs" variant="subtle">.conf</UBadge>
+            </div>
+            <pre class="text-xs font-mono whitespace-pre-wrap break-all bg-default/30 rounded p-2 max-h-32 overflow-auto">{{ site.content }}</pre>
+          </div>
+        </div>
       </div>
     </template>
   </UDashboardPanel>
