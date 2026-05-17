@@ -5,6 +5,7 @@ export interface WebsiteTypeConfig {
   label: string
   phpTag: (phpVersion: string) => string
   supervisorCommand: (dirName: string) => string
+  supervisorUser: string
   proxyPort: string
   proxyStub: string
 }
@@ -15,6 +16,7 @@ export const WEBSITE_TYPE_CONFIGS: Record<string, WebsiteTypeConfig> = {
     label: 'PHP-FPM',
     phpTag: (v) => `${v}-fpm`,
     supervisorCommand: () => 'php-fpm -F',
+    supervisorUser: 'root',
     proxyPort: '9000',
     proxyStub: 'fpm'
   },
@@ -23,6 +25,7 @@ export const WEBSITE_TYPE_CONFIGS: Record<string, WebsiteTypeConfig> = {
     label: 'PHP Serve',
     phpTag: (v) => `${v}-cli`,
     supervisorCommand: () => 'php artisan serve --host=0.0.0.0 --port=8000',
+    supervisorUser: 'sail',
     proxyPort: '8000',
     proxyStub: 'cli'
   },
@@ -31,6 +34,7 @@ export const WEBSITE_TYPE_CONFIGS: Record<string, WebsiteTypeConfig> = {
     label: 'Octane',
     phpTag: (v) => `${v}-cli`,
     supervisorCommand: () => 'php artisan octane:start --server=swoole --host=0.0.0.0 --port=8000',
+    supervisorUser: 'sail',
     proxyPort: '8000',
     proxyStub: 'cli'
   }

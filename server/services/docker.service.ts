@@ -51,6 +51,7 @@ export class DockerService {
       `PHP_TAG=${phpTag}`,
       `WORKDIR=/var/www/${dirName}`,
       `SUPERVISOR_PHP_COMMAND=${config.supervisorCommand(dirName)}`,
+      `SUPERVISOR_PHP_USER=${config.supervisorUser}`,
       'COMPOSER_VERSION=2',
       'NODE_VERSION=22',
       'WWWGROUP=${WWWGROUP:-1000}',
