@@ -10,7 +10,8 @@ import type { InfrastructureService, Website } from '~/types'
 import { slugify, websiteContainerName } from '../utils/slugify'
 import { getWebsiteTypeConfig, imageTagForType, DEFAULT_WEBSITE_TYPE } from '../utils/website-types'
 
-const LARDO_NETWORK = 'lardo'
+const APP_NAME = process.env.APP_NAME || 'lardo'
+const LARDO_NETWORK = `${APP_NAME}_proxy`
 
 export class DockerService {
   // ═══════════════════════════════════════════════════════════
@@ -35,10 +36,6 @@ export class DockerService {
     return createHash('sha256').update(`${type}:${phpVersion}:${sorted.join(',')}:${dirName}`).digest('hex')
   }
 
-  static extensionToBuildArg(extName: string): string {
-    return `INSTALL_${extName.toUpperCase().replace(/-/g, '_')}`
-  }
-
   static buildPhpImage(website: Website): string {
     const type = (website as any).type || DEFAULT_WEBSITE_TYPE
     const config = getWebsiteTypeConfig(type)
@@ -57,25 +54,8 @@ export class DockerService {
       'COMPOSER_VERSION=2',
       'NODE_VERSION=22',
       'WWWGROUP=${WWWGROUP:-1000}',
-      'INSTALL_BCMATH=false',
-      'INSTALL_GD=false',
-      'INSTALL_GRPC=false',
-      'INSTALL_PCNTL=false',
-      'INSTALL_PDO_MYSQL=false',
-      'INSTALL_REDIS=false',
-      'INSTALL_SOCKETS=false',
-      'INSTALL_SWOOLE=false',
-      'INSTALL_XDEBUG=false',
-      'INSTALL_ZIP=false',
-      'INSTALL_IMAGICK=false',
-      'INSTALL_MEMCACHED=false',
-      'INSTALL_MONGODB=false',
-      'INSTALL_PDO_PGSQL=false',
-      'INSTALL_SQLSRV=false'
+      `PHP_EXTENSIONS=${extensionNames.join(' ')}`
     ]
-    for (const name of extensionNames) {
-      buildArgs.push(`${DockerService.extensionToBuildArg(name)}=true`)
-    }
 
     const context = path.resolve(process.cwd(), 'docker/php')
     const buildArgFlags = buildArgs.map(a => `--build-arg "${a}"`).join(' ')
@@ -156,6 +136,9 @@ export class DockerService {
         Image: config.image,
         Env: env,
         ExposedPorts: exposedPorts,
+        Labels: {
+          'com.docker.compose.project': APP_NAME
+        },
         HostConfig: {
           PortBindings: portBindings,
           Binds: binds,

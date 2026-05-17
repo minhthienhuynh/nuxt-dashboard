@@ -1,6 +1,8 @@
 import { ServiceRepository } from '~~/server/repositories/service.repository'
 import { ProxyRepository } from '~~/server/repositories/proxy.repository'
 
+const APP_NAME = process.env.APP_NAME || 'lardo'
+
 export default eventHandler(async () => {
   const [services, proxy] = await Promise.all([
     ServiceRepository.findAllServices(),
@@ -26,7 +28,7 @@ export default eventHandler(async () => {
       vols.length ? '    volumes:' : null,
       ...vols,
       '    networks:',
-      '      - lardo'
+      `      - ${APP_NAME}_proxy`
     ].filter(Boolean).join('\n')
   })
 
@@ -38,8 +40,8 @@ export default eventHandler(async () => {
     ...blocks,
     '',
     'networks:',
-    '  lardo:',
-    '    name: lardo'
+    `  ${APP_NAME}_proxy:`,
+    `    name: ${APP_NAME}_proxy`
   ].join('\n')
 
   return { yaml }

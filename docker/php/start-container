@@ -9,10 +9,12 @@ if [ ! -z "$WWWUSER" ]; then
     usermod -u $WWWUSER sail
 fi
 
-if [ "$(stat -c '%U:%G' $WORKDIR)" != "sail:sail" ]; then
-    chown -R sail:sail $WORKDIR
-    chown -R 777 $WORKDIR/bootstrap/cache
-    chown -R 777 $WORKDIR/storage
+chmod -R 775 $WORKDIR/bootstrap/cache
+chmod -R 775 $WORKDIR/storage
+
+if [ "$SUPERVISOR_PHP_USER" = "root" ]; then
+    sed -i 's/^user = www-data/user = sail/' /usr/local/etc/php-fpm.d/www.conf
+    sed -i 's/^group = www-data/group = sail/' /usr/local/etc/php-fpm.d/www.conf
 fi
 
 if [ ! -d /.composer ]; then

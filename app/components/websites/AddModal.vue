@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import type { Website } from '~/types'
+import type { Website, PhpExtensionInfo } from '~/types'
 
 import { dash } from 'radash'
 import { WEBSITE_TYPE_OPTIONS } from '~/constants/website-types'
@@ -45,6 +45,49 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const isBrowseOpen = ref(false)
 
+// ── Extensions ────────────────────────────────────────────────
+
+const { data: allExtensions, refresh: refreshExtensions } = useFetch<PhpExtensionInfo[]>('/api/php-extensions', {
+  lazy: true,
+  default: () => [],
+  query: computed(() => ({ php: state.phpVersion ?? '' }))
+})
+
+const enabledIds = ref<Set<number>>(new Set())
+const searchExt = ref('')
+
+const filteredExtensions = computed(() => {
+  if (!searchExt.value) return allExtensions.value ?? []
+  const q = searchExt.value.toLowerCase()
+  return (allExtensions.value ?? []).filter(ext =>
+    ext.name.toLowerCase().includes(q)
+  )
+})
+
+function toggleExtension(id: number) {
+  const next = new Set(enabledIds.value)
+  if (next.has(id)) {
+    next.delete(id)
+  } else {
+    next.add(id)
+  }
+  enabledIds.value = next
+}
+
+function selectAll() {
+  enabledIds.value = new Set((allExtensions.value ?? []).map(e => e.id))
+}
+
+function deselectAll() {
+  enabledIds.value = new Set()
+}
+
+watch(() => state.phpVersion, () => {
+  if (open.value) refreshExtensions()
+})
+
+// ── Submit ────────────────────────────────────────────────────
+
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   loading.value = true
   error.value = null
@@ -60,6 +103,13 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     const res = await $fetch<Website>(url, { method, body })
 
     if (res) {
+      // Set extensions after create
+      if (!isEditing.value && enabledIds.value.size > 0) {
+        await $fetch(`/api/websites/${res.id}/extensions`, {
+          method: 'PUT',
+          body: { extensionIds: [...enabledIds.value] }
+        })
+      }
       open.value = false
       emit('created', res.id)
     }
@@ -80,6 +130,17 @@ watch(open, () => {
     state.phpVersion = props.website?.phpVersion ?? '8.4'
     state.sslEnabled = props.website?.sslEnabled ?? false
     error.value = null
+    searchExt.value = ''
+    // Populate extensions when editing
+    if (props.website?.extensions) {
+      enabledIds.value = new Set(
+        props.website.extensions
+          .filter(e => e.enabled)
+          .map(e => e.extensionId)
+      )
+    } else {
+      enabledIds.value = new Set()
+    }
   } else {
     error.value = null
   }
@@ -145,6 +206,57 @@ function onNameInput(value: string) {
           <UFormField label="SSL" name="sslEnabled" class="flex items-end pb-2">
             <USwitch v-model="state.sslEnabled" />
           </UFormField>
+        </div>
+
+        <!-- ── PHP Extensions ──────────────────────────────── -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium">PHP Extensions</span>
+            <span class="text-xs text-(--ui-text-dimmed)">
+              {{ enabledIds.size }} selected
+            </span>
+          </div>
+
+          <UInput
+            v-model="searchExt"
+            icon="i-lucide-search"
+            placeholder="Search extensions..."
+            size="xs"
+          />
+
+          <div class="flex gap-1.5">
+            <UButton
+              size="xs"
+              variant="outline"
+              label="All"
+              @click="selectAll"
+            />
+            <UButton
+              size="xs"
+              variant="outline"
+              label="None"
+              @click="deselectAll"
+            />
+          </div>
+
+          <div class="max-h-52 overflow-y-auto border border-default rounded-md">
+            <div
+              v-for="ext in filteredExtensions"
+              :key="ext.id"
+              class="flex items-center gap-2.5 py-1.5 px-2.5 hover:bg-(--ui-bg-elevated) cursor-pointer border-b border-default/50 last:border-b-0"
+              @click="toggleExtension(ext.id)"
+            >
+              <UCheckbox :model-value="enabledIds.has(ext.id)" />
+              <span class="text-sm flex-1">{{ ext.name }}</span>
+              <UBadge :label="ext.type" variant="soft" size="xs" />
+            </div>
+            <div
+              v-if="filteredExtensions.length === 0"
+              class="py-4 text-sm text-(--ui-text-dimmed) text-center"
+            >
+              No extensions found
+            </div>
+          </div>
         </div>
 
         <div v-if="error" class="text-(--ui-error) text-sm">
