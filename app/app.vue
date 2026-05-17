@@ -35,7 +35,7 @@ useSeoMeta({
     <NuxtLoadingIndicator />
     <UNotifications />
 
-    <NuxtLayout>
+    <NuxtLayout name="custom">
       <NuxtPage />
     </NuxtLayout>
   </UApp>
