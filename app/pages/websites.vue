@@ -134,7 +134,7 @@ watch(() => logLines.value.length, () => {
 
 const isAddModalOpen = ref(false)
 const isDeleteModalOpen = ref(false)
-const isExtensionsModalOpen = ref(false)
+
 const editTarget = ref<Website | null>(null)
 
 function openEdit(w: Website) {
@@ -144,10 +144,6 @@ function openEdit(w: Website) {
 
 function openDelete(w: Website) {
   isDeleteModalOpen.value = true
-}
-
-function openExtensions(w: Website) {
-  isExtensionsModalOpen.value = true
 }
 
 async function onCreated(id: number) {
@@ -171,11 +167,6 @@ async function onCreated(id: number) {
 function onDeleted() {
   isDeleteModalOpen.value = false
   selectedId.value = null
-  refresh()
-}
-
-function onExtensionsUpdated() {
-  isExtensionsModalOpen.value = false
   refresh()
 }
 
@@ -367,13 +358,7 @@ async function syncContainers() {
                     class="cursor-pointer"
                     @click="openEdit(selectedWebsite)"
                   />
-                  <UButton
-                    size="xs"
-                    variant="ghost"
-                    icon="i-lucide-puzzle"
-                    class="cursor-pointer"
-                    @click="openExtensions(selectedWebsite)"
-                  />
+
                 </div>
               </div>
 
@@ -508,9 +493,4 @@ async function syncContainers() {
     @deleted="onDeleted"
   />
 
-  <WebsitesExtensionsModal
-    v-model:open="isExtensionsModalOpen"
-    :website="selectedWebsite"
-    @updated="onExtensionsUpdated"
-  />
 </template>

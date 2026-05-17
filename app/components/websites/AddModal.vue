@@ -56,6 +56,10 @@ const { data: allExtensions, refresh: refreshExtensions } = useFetch<PhpExtensio
 const enabledIds = ref<Set<number>>(new Set())
 const searchExt = ref('')
 
+const selectedExtensions = computed(() =>
+  (allExtensions.value ?? []).filter(e => enabledIds.value.has(e.id))
+)
+
 const filteredExtensions = computed(() => {
   if (!searchExt.value) return allExtensions.value ?? []
   const q = searchExt.value.toLowerCase()
@@ -214,6 +218,27 @@ function onNameInput(value: string) {
             <span class="text-sm font-medium">PHP Extensions</span>
             <span class="text-xs text-(--ui-text-dimmed)">
               {{ enabledIds.size }} selected
+            </span>
+          </div>
+
+          <!-- Selected tags -->
+          <div
+            v-if="selectedExtensions.length"
+            class="flex flex-wrap gap-1"
+          >
+            <span
+              v-for="ext in selectedExtensions"
+              :key="ext.id"
+              class="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs rounded bg-(--ui-bg-elevated) border border-default"
+            >
+              {{ ext.name }}
+              <button
+                type="button"
+                class="inline-flex items-center justify-center size-3.5 rounded hover:bg-(--ui-bg-accented) text-(--ui-text-dimmed)"
+                @click.stop="toggleExtension(ext.id)"
+              >
+                <span class="i-lucide-x size-2.5" />
+              </button>
             </span>
           </div>
 
