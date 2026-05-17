@@ -8,6 +8,7 @@ import { WebsiteRepository } from '../repositories/website.repository'
 import type { InfrastructureService, Website } from '~/types'
 
 import { slugify, websiteContainerName } from '../utils/slugify'
+import { getWebsiteTypeConfig, imageTagForType, DEFAULT_WEBSITE_TYPE } from '../utils/website-types'
 
 const LARDO_NETWORK = 'lardo'
 
@@ -28,10 +29,10 @@ export class DockerService {
   // yeu cau tar stream — CLI don gian hon.
   // ═══════════════════════════════════════════════════════════
 
-  static computeBuildHash(phpVersion: string, extensionNames: string[], documentRoot: string): string {
+  static computeBuildHash(type: string, phpVersion: string, extensionNames: string[], documentRoot: string): string {
     const sorted = [...extensionNames].sort()
     const dirName = path.basename(documentRoot)
-    return createHash('sha256').update(`${phpVersion}:${sorted.join(',')}:${dirName}`).digest('hex')
+    return createHash('sha256').update(`${type}:${phpVersion}:${sorted.join(',')}:${dirName}`).digest('hex')
   }
 
   static extensionToBuildArg(extName: string): string {
@@ -39,7 +40,10 @@ export class DockerService {
   }
 
   static buildPhpImage(website: Website): string {
-    const imageTag = `${slugify(website.name)}:php-${website.phpVersion}-fpm`
+    const type = (website as any).type || DEFAULT_WEBSITE_TYPE
+    const config = getWebsiteTypeConfig(type)
+    const phpTag = config.phpTag(website.phpVersion)
+    const imageTag = imageTagForType(website.name, website.phpVersion, type)
     const dirName = path.basename(website.documentRoot)
 
     const extensionNames = website.extensions
@@ -47,8 +51,9 @@ export class DockerService {
       .map((e: any) => e.extension!.name) ?? []
 
     const buildArgs: string[] = [
-      `PHP_TAG=${website.phpVersion}-fpm`,
+      `PHP_TAG=${phpTag}`,
       `WORKDIR=/var/www/${dirName}`,
+      `SUPERVISOR_PHP_COMMAND=${config.supervisorCommand(dirName)}`,
       'COMPOSER_VERSION=2',
       'NODE_VERSION=22',
       'WWWGROUP=${WWWGROUP:-1000}',
@@ -83,28 +88,31 @@ export class DockerService {
   }
 
   static needRebuild(website: Website): boolean {
+    const type = (website as any).type || DEFAULT_WEBSITE_TYPE
     const extensionNames = website.extensions
       ?.filter((e: any) => e.enabled)
       .map((e: any) => e.extension!.name) ?? []
 
-    const newHash = DockerService.computeBuildHash(website.phpVersion, extensionNames, website.documentRoot)
+    const newHash = DockerService.computeBuildHash(type, website.phpVersion, extensionNames, website.documentRoot)
     return (website as any).buildHash !== newHash
   }
 
   static async ensurePhpImage(website: Website): Promise<{ tag: string, rebuilt: boolean }> {
     if (DockerService.needRebuild(website)) {
       const tag = DockerService.buildPhpImage(website)
+      const type = (website as any).type || DEFAULT_WEBSITE_TYPE
       const extensionNames = website.extensions
         ?.filter((e: any) => e.enabled)
         .map((e: any) => e.extension!.name) ?? []
-      const newHash = DockerService.computeBuildHash(website.phpVersion, extensionNames, website.documentRoot)
+      const newHash = DockerService.computeBuildHash(type, website.phpVersion, extensionNames, website.documentRoot)
       await prisma.website.update({
         where: { id: website.id },
         data: { buildHash: newHash }
       })
       return { tag, rebuilt: true }
     }
-    return { tag: `${slugify(website.name)}:php-${website.phpVersion}-fpm`, rebuilt: false }
+    const type = (website as any).type || DEFAULT_WEBSITE_TYPE
+    return { tag: imageTagForType(website.name, website.phpVersion, type), rebuilt: false }
   }
 
   // ═══════════════════════════════════════════════════════════
