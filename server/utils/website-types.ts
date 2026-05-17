@@ -14,7 +14,7 @@ export const WEBSITE_TYPE_CONFIGS: Record<string, WebsiteTypeConfig> = {
   'php-fpm': {
     key: 'php-fpm',
     label: 'PHP-FPM',
-    phpTag: (v) => `${v}-fpm`,
+    phpTag: v => `${v}-fpm`,
     supervisorCommand: () => 'php-fpm -F',
     supervisorUser: 'root',
     proxyPort: '9000',
@@ -23,7 +23,7 @@ export const WEBSITE_TYPE_CONFIGS: Record<string, WebsiteTypeConfig> = {
   'php-serve': {
     key: 'php-serve',
     label: 'PHP Serve',
-    phpTag: (v) => `${v}-cli`,
+    phpTag: v => `${v}-cli`,
     supervisorCommand: () => 'php artisan serve --host=0.0.0.0 --port=8000',
     supervisorUser: 'sail',
     proxyPort: '8000',
@@ -32,7 +32,7 @@ export const WEBSITE_TYPE_CONFIGS: Record<string, WebsiteTypeConfig> = {
   'php-octane': {
     key: 'php-octane',
     label: 'Octane',
-    phpTag: (v) => `${v}-cli`,
+    phpTag: v => `${v}-cli`,
     supervisorCommand: () => 'php artisan octane:start --server=swoole --host=0.0.0.0 --port=8000',
     supervisorUser: 'sail',
     proxyPort: '8000',

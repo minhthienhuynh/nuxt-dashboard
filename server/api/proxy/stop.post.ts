@@ -8,6 +8,6 @@ export default eventHandler(async (event) => {
     await DockerService.stopProxy(proxy.type)
     return { status: 'stopped', containerName: proxy.type }
   } catch (error) {
-    return handleError(error)
+    throw handleError(error)
   }
 })

@@ -6,6 +6,6 @@ export default eventHandler(async () => {
     const result = await DockerService.syncContainersWithDB()
     return result
   } catch (error) {
-    return handleError(error)
+    throw handleError(error)
   }
 })

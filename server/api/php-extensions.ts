@@ -1,24 +1,8 @@
 import { getQuery } from 'h3'
-import prisma from '~~/server/utils/prisma'
+import { PhpExtensionRepository } from '~~/server/repositories/php-extension.repository'
 
 export default eventHandler(async (event) => {
   const query = getQuery(event)
-  const { php, type, search } = query
-
-  const extensions = await prisma.phpExtension.findMany({
-    include: {
-      versions: { select: { phpVersion: true } },
-      specials: { select: { requirement: true } }
-    },
-    where: {
-      ...(type ? { type: type as string } : {}),
-      ...(search ? { name: { contains: search as string } } : {}),
-      ...(php
-        ? { versions: { some: { phpVersion: php as string } } }
-        : {})
-    },
-    orderBy: { name: 'asc' }
-  })
-
-  return extensions
+  const { php, type, search } = query as Record<string, string>
+  return PhpExtensionRepository.findAll({ php, type, search })
 })

@@ -13,6 +13,6 @@ export default eventHandler(async (event) => {
     await DockerService.stopContainer(cName)
     return { status: 'stopped', containerName: cName }
   } catch (error) {
-    return handleError(error)
+    throw handleError(error)
   }
 })

@@ -10,6 +10,6 @@ export default eventHandler(async (event) => {
     const input = updateServiceSchema.parse(body)
     return ServiceService.update(id, input)
   } catch (error) {
-    return handleError(error)
+    throw handleError(error)
   }
 })

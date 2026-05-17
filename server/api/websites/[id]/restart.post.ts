@@ -13,6 +13,6 @@ export default eventHandler(async (event) => {
     await DockerService.restartContainer(cName)
     return { status: 'running', containerName: cName }
   } catch (error) {
-    return handleError(error)
+    throw handleError(error)
   }
 })

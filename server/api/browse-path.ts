@@ -1,5 +1,5 @@
 import { getQuery, createError } from 'h3'
-import { readdirSync, statSync } from 'node:fs'
+import { readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
 export default eventHandler(async (event) => {
@@ -11,20 +11,22 @@ export default eventHandler(async (event) => {
   }
 
   const resolved = pathParam.startsWith('~')
-    ? join(process.env.HOME!, pathParam.slice(1))
+    ? join(process.env.HOME || '/', pathParam.slice(1))
     : pathParam
 
   try {
-    const entries = readdirSync(resolved)
-      .map((name) => {
+    const names = await readdir(resolved)
+    const entries = (await Promise.all(
+      names.map(async (name) => {
         const fullPath = join(resolved, name)
         try {
-          const stat = statSync(fullPath)
-          return { name, isDirectory: stat.isDirectory() }
+          const s = await stat(fullPath)
+          return { name, isDirectory: s.isDirectory() }
         } catch {
           return { name, isDirectory: false }
         }
       })
+    ))
       .filter(e => e.isDirectory)
       .sort((a, b) => a.name.localeCompare(b.name))
 

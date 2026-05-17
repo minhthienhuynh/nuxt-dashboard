@@ -11,6 +11,6 @@ export default eventHandler(async (event) => {
     await DockerService.deployProxy(proxy)
     return { status: 'running', containerName: proxy.type }
   } catch (error) {
-    return handleError(error)
+    throw handleError(error)
   }
 })

@@ -462,7 +462,6 @@ async function syncContainers() {
                       @click="openEdit(selectedWebsite)"
                     />
                   </UTooltip>
-
                 </div>
               </div>
 
@@ -606,5 +605,4 @@ async function syncContainers() {
     :website="selectedWebsite"
     @deleted="onDeleted"
   />
-
 </template>

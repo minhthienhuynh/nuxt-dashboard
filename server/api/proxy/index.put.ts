@@ -14,6 +14,6 @@ export default eventHandler(async (event) => {
     }
     return result
   } catch (error) {
-    return handleError(error)
+    throw handleError(error)
   }
 })

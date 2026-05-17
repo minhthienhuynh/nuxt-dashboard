@@ -11,6 +11,6 @@ export default eventHandler(async (event) => {
     await DockerService.stopAndRemoveContainer(service.containerName)
     return ServiceService.remove(id)
   } catch (error) {
-    return handleError(error)
+    throw handleError(error)
   }
 })

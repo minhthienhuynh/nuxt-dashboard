@@ -18,6 +18,6 @@ export default eventHandler(async (event) => {
     }
     return { status: 'running', containerName: cName }
   } catch (error) {
-    return handleError(error)
+    throw handleError(error)
   }
 })

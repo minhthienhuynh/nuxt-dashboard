@@ -16,6 +16,6 @@ export default eventHandler(async (event) => {
     }
     return { status: 'running', containerName: service.containerName }
   } catch (error) {
-    return handleError(error)
+    throw handleError(error)
   }
 })

@@ -9,6 +9,6 @@ export default eventHandler(async (event) => {
     const input = createServiceSchema.parse(body)
     return ServiceService.create(input)
   } catch (error) {
-    return handleError(error)
+    throw handleError(error)
   }
 })

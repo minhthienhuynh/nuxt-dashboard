@@ -11,6 +11,6 @@ export default eventHandler(async (event) => {
     await DockerService.rebuildWebsite(website as any)
     return { status: 'running' }
   } catch (error) {
-    return handleError(error)
+    throw handleError(error)
   }
 })
