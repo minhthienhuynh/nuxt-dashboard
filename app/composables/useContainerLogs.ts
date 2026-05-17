@@ -17,6 +17,7 @@ export function useContainerLogs() {
     eventSource = new EventSource(url)
 
     eventSource.addEventListener('connected', () => {
+      lines.value = []
       connected.value = true
       loading.value = false
     })

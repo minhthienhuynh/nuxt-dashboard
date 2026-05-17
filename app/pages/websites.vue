@@ -86,6 +86,9 @@ async function deployWebsite(w: Website) {
   try {
     await $fetch(`/api/websites/${w.id}/deploy`, { method: 'POST' })
     await refresh()
+    if (selectedId.value === w.id) {
+      logConnect(`/api/websites/${w.id}/logs/stream`)
+    }
   } finally {
     const next = new Set(deploying.value)
     next.delete(w.id)

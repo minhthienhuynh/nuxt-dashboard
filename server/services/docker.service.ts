@@ -299,7 +299,9 @@ export class DockerService {
       stderr: true,
       tail: String(tail),
       follow: true
-    }).catch(() => {})
+    }).catch((err: unknown) => {
+      pt.destroy(err instanceof Error ? err : new Error(String(err)))
+    })
 
     signal?.addEventListener('abort', () => pt.destroy(), { once: true })
 

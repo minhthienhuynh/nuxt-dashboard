@@ -99,6 +99,9 @@ async function deployProxy() {
   await $fetch('/api/proxy/deploy', { method: 'POST' })
   refreshProxy()
   refresh()
+  if (proxyLogsOpen.value) {
+    proxyLogConnect('/api/proxy/logs/stream')
+  }
 }
 
 async function stopProxy() {
@@ -121,6 +124,9 @@ async function syncContainers() {
 async function startService(service: InfrastructureService) {
   await $fetch(`/api/services/${service.id}/start`, { method: 'POST' })
   refresh()
+  if (serviceLogsOpen.value && serviceLogTarget.value?.id === service.id) {
+    svcLogConnect(`/api/services/${service.id}/logs/stream`)
+  }
 }
 
 async function stopService(service: InfrastructureService) {
