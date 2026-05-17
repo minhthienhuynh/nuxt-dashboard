@@ -89,22 +89,37 @@ function openProxyEdit() {
 }
 
 async function saveProxy() {
-  await $fetch('/api/proxy', { method: 'PUT', body: editingProxy })
-  await refreshProxy()
-  proxyEditOpen.value = false
+  try {
+    await $fetch('/api/proxy', { method: 'PUT', body: editingProxy })
+    await refreshProxy()
+    proxyEditOpen.value = false
+    toast.add({ title: 'Proxy settings saved', color: 'success' })
+  } catch {
+    toast.add({ title: 'Failed to save proxy settings', color: 'error' })
+  }
 }
 
 async function deployProxy() {
-  await $fetch('/api/proxy/deploy', { method: 'POST' })
-  await refreshProxy()
-  if (proxyLogsOpen.value) {
-    proxyLogConnect('/api/proxy/logs/stream')
+  try {
+    await $fetch('/api/proxy/deploy', { method: 'POST' })
+    await refreshProxy()
+    if (proxyLogsOpen.value) {
+      proxyLogConnect('/api/proxy/logs/stream')
+    }
+    toast.add({ title: 'Caddy deployed', color: 'success' })
+  } catch {
+    toast.add({ title: 'Failed to deploy Caddy', color: 'error' })
   }
 }
 
 async function stopProxy() {
-  await $fetch('/api/proxy/stop', { method: 'POST' })
-  await refreshProxy()
+  try {
+    await $fetch('/api/proxy/stop', { method: 'POST' })
+    await refreshProxy()
+    toast.add({ title: 'Caddy stopped', color: 'success' })
+  } catch {
+    toast.add({ title: 'Failed to stop Caddy', color: 'error' })
+  }
 }
 
 // ── Logs ───────────────────────────────────────────────────
