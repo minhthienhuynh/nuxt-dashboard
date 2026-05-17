@@ -108,6 +108,36 @@ async function stopWebsite(w: Website) {
   }
 }
 
+async function restartWebsite(w: Website) {
+  deploying.value = new Set(deploying.value).add(w.id)
+  try {
+    await $fetch(`/api/websites/${w.id}/restart`, { method: 'POST' })
+    await refresh()
+    if (selectedId.value === w.id) {
+      logConnect(`/api/websites/${w.id}/logs/stream`)
+    }
+  } finally {
+    const next = new Set(deploying.value)
+    next.delete(w.id)
+    deploying.value = next
+  }
+}
+
+async function rebuildWebsite(w: Website) {
+  deploying.value = new Set(deploying.value).add(w.id)
+  try {
+    await $fetch(`/api/websites/${w.id}/rebuild`, { method: 'POST' })
+    await refresh()
+    if (selectedId.value === w.id) {
+      logConnect(`/api/websites/${w.id}/logs/stream`)
+    }
+  } finally {
+    const next = new Set(deploying.value)
+    next.delete(w.id)
+    deploying.value = next
+  }
+}
+
 function openInTab(url: string) {
   window.open(url, '_blank')
 }
@@ -274,42 +304,65 @@ async function syncContainers() {
                 </div>
               </div>
               <div class="flex items-center shrink-0 pr-2 gap-0.5" @click.stop>
-                <UButton
-                  v-if="liveStatus(w) === 'running' && !deploying.has(w.id)"
-                  size="xs"
-                  variant="ghost"
-                  icon="i-lucide-link"
-                  class="cursor-pointer"
-                  @click="openInTab(`http://${w.domain}`)"
-                />
-                <UButton
-                  v-if="liveStatus(w) === 'running'"
-                  size="xs"
-                  color="amber"
-                  variant="ghost"
-                  icon="i-lucide-square"
-                  class="cursor-pointer"
-                  :loading="deploying.has(w.id)"
-                  @click="stopWebsite(w)"
-                />
-                <UButton
-                  v-else
-                  size="xs"
-                  color="green"
-                  variant="ghost"
-                  icon="i-lucide-play"
-                  class="cursor-pointer"
-                  :loading="deploying.has(w.id)"
-                  @click="deployWebsite(w)"
-                />
-                <UButton
-                  size="xs"
-                  variant="ghost"
-                  icon="i-lucide-trash"
-                  color="error"
-                  class="cursor-pointer"
-                  @click="selectedId = w.id; openDelete(w)"
-                />
+                <UTooltip v-if="liveStatus(w) === 'running' && !deploying.has(w.id)" text="Open in browser">
+                  <UButton
+                    size="xs"
+                    variant="ghost"
+                    icon="i-lucide-link"
+                    class="cursor-pointer"
+                    @click="openInTab(`http://${w.domain}`)"
+                  />
+                </UTooltip>
+                <UTooltip v-if="!deploying.has(w.id)" text="Rebuild">
+                  <UButton
+                    size="xs"
+                    variant="ghost"
+                    icon="i-lucide-hammer"
+                    class="cursor-pointer"
+                    @click="rebuildWebsite(w)"
+                  />
+                </UTooltip>
+                <UTooltip v-if="liveStatus(w) === 'running' && !deploying.has(w.id)" text="Restart">
+                  <UButton
+                    size="xs"
+                    variant="ghost"
+                    icon="i-lucide-refresh-cw"
+                    class="cursor-pointer"
+                    @click="restartWebsite(w)"
+                  />
+                </UTooltip>
+                <UTooltip v-if="liveStatus(w) === 'running'" text="Stop">
+                  <UButton
+                    size="xs"
+                    color="amber"
+                    variant="ghost"
+                    icon="i-lucide-square"
+                    class="cursor-pointer"
+                    :loading="deploying.has(w.id)"
+                    @click="stopWebsite(w)"
+                  />
+                </UTooltip>
+                <UTooltip v-else text="Deploy">
+                  <UButton
+                    size="xs"
+                    color="green"
+                    variant="ghost"
+                    icon="i-lucide-play"
+                    class="cursor-pointer"
+                    :loading="deploying.has(w.id)"
+                    @click="deployWebsite(w)"
+                  />
+                </UTooltip>
+                <UTooltip text="Delete">
+                  <UButton
+                    size="xs"
+                    variant="ghost"
+                    icon="i-lucide-trash"
+                    color="error"
+                    class="cursor-pointer"
+                    @click="selectedId = w.id; openDelete(w)"
+                  />
+                </UTooltip>
               </div>
             </div>
           </div>
@@ -351,13 +404,64 @@ async function syncContainers() {
                   </UBadge>
                 </div>
                 <div class="flex items-center gap-1.5">
-                  <UButton
-                    size="xs"
-                    variant="ghost"
-                    icon="i-lucide-pencil"
-                    class="cursor-pointer"
-                    @click="openEdit(selectedWebsite)"
-                  />
+                  <UTooltip v-if="liveStatus(selectedWebsite) === 'running' && !deploying.has(selectedWebsite.id)" text="Open in browser">
+                    <UButton
+                      size="xs"
+                      variant="ghost"
+                      icon="i-lucide-link"
+                      class="cursor-pointer"
+                      @click="openInTab(`http://${selectedWebsite.domain}`)"
+                    />
+                  </UTooltip>
+                  <UTooltip v-if="!deploying.has(selectedWebsite.id)" text="Rebuild">
+                    <UButton
+                      size="xs"
+                      variant="ghost"
+                      icon="i-lucide-hammer"
+                      class="cursor-pointer"
+                      @click="rebuildWebsite(selectedWebsite)"
+                    />
+                  </UTooltip>
+                  <UTooltip v-if="liveStatus(selectedWebsite) === 'running' && !deploying.has(selectedWebsite.id)" text="Restart">
+                    <UButton
+                      size="xs"
+                      variant="ghost"
+                      icon="i-lucide-refresh-cw"
+                      class="cursor-pointer"
+                      @click="restartWebsite(selectedWebsite)"
+                    />
+                  </UTooltip>
+                  <UTooltip v-if="liveStatus(selectedWebsite) === 'running'" text="Stop">
+                    <UButton
+                      size="xs"
+                      color="amber"
+                      variant="ghost"
+                      icon="i-lucide-square"
+                      class="cursor-pointer"
+                      :loading="deploying.has(selectedWebsite.id)"
+                      @click="stopWebsite(selectedWebsite)"
+                    />
+                  </UTooltip>
+                  <UTooltip v-else text="Deploy">
+                    <UButton
+                      size="xs"
+                      color="green"
+                      variant="ghost"
+                      icon="i-lucide-play"
+                      class="cursor-pointer"
+                      :loading="deploying.has(selectedWebsite.id)"
+                      @click="deployWebsite(selectedWebsite)"
+                    />
+                  </UTooltip>
+                  <UTooltip text="Edit">
+                    <UButton
+                      size="xs"
+                      variant="ghost"
+                      icon="i-lucide-pencil"
+                      class="cursor-pointer"
+                      @click="openEdit(selectedWebsite)"
+                    />
+                  </UTooltip>
 
                 </div>
               </div>
@@ -429,9 +533,19 @@ async function syncContainers() {
                   <div class="text-xs text-muted mb-0.5">
                     Extensions
                   </div>
-                  <div class="text-sm font-medium">
-                    {{ selectedWebsite.extensions?.filter(e => e.enabled).length ?? 0 }} active
-                    <span class="text-muted">/ {{ selectedWebsite.extensions?.length ?? 0 }} total</span>
+                  <div v-if="selectedWebsite.extensions?.length" class="flex flex-wrap gap-1">
+                    <UBadge
+                      v-for="ext in selectedWebsite.extensions"
+                      :key="ext.id"
+                      :color="ext.enabled ? 'green' : 'gray'"
+                      variant="subtle"
+                      size="xs"
+                    >
+                      {{ ext.extension?.name ?? `#${ext.extensionId}` }}
+                    </UBadge>
+                  </div>
+                  <div v-else class="text-sm text-muted">
+                    None
                   </div>
                 </div>
               </div>

@@ -172,6 +172,23 @@ export class DockerService {
     await docker.containerStart(name)
   }
 
+  static async restartContainer(name: string): Promise<void> {
+    const docker = await getDocker()
+    await docker.containerRestart(name)
+  }
+
+  static async rebuildWebsite(website: Website): Promise<void> {
+    const cName = websiteContainerName(website.name)
+    try { await DockerService.stopAndRemoveContainer(cName) } catch { /* ok */ }
+    // Reset build hash de force rebuild
+    await prisma.website.update({
+      where: { id: website.id },
+      data: { buildHash: null }
+    })
+    website.buildHash = null
+    await DockerService.deployWebsite(website)
+  }
+
   static async containerExists(name: string): Promise<boolean> {
     const docker = await getDocker()
     try {
@@ -270,12 +287,24 @@ export class DockerService {
     const { tag } = await DockerService.ensurePhpImage(website)
 
     const dirName = path.basename(website.documentRoot)
+    const type = (website as any).type || DEFAULT_WEBSITE_TYPE
+    const config = getWebsiteTypeConfig(type)
+
+    const ports = []
+    if (website.port && website.port > 0) {
+      ports.push({
+        host: String(website.port),
+        container: config.proxyPort,
+        proto: 'tcp'
+      })
+    }
 
     // Website containers communicate internally via lardo network.
     // Only the reverse proxy exposes ports to the host.
     await DockerService.createAndStartContainer({
       image: tag,
       name: websiteContainerName(website.name),
+      ports,
       volumes: [
         { source: website.documentRoot, target: `/var/www/${dirName}` }
       ]

@@ -21,7 +21,7 @@ const schema = z.object({
   name: z.string().min(1, 'Name is required'),
   domain: z.string().min(1, 'Domain is required'),
   type: z.enum(['php-fpm', 'php-serve', 'php-octane']).default('php-fpm'),
-  port: z.coerce.number().int().min(1).max(65535).default(80),
+  port: z.coerce.number().int().min(0).max(65535).default(0),
   documentRoot: z.string().min(1, 'Document root is required'),
   phpVersion: z.string().min(1, 'PHP version is required'),
   sslEnabled: z.boolean().default(false)
@@ -35,7 +35,7 @@ const state = reactive<Partial<Schema>>({
   name: props.website?.name ?? '',
   domain: props.website?.domain ?? '',
   type: props.website?.type ?? 'php-fpm',
-  port: props.website?.port ?? 80,
+  port: props.website?.port ?? 0,
   documentRoot: props.website?.documentRoot ?? '',
   phpVersion: props.website?.phpVersion ?? '8.4',
   sslEnabled: props.website?.sslEnabled ?? false
@@ -90,6 +90,10 @@ watch(() => state.phpVersion, () => {
   if (open.value) refreshExtensions()
 })
 
+watch(() => state.type, (type) => {
+  state.port = type === 'php-fpm' ? 9000 : 0
+})
+
 // ── Submit ────────────────────────────────────────────────────
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
@@ -129,7 +133,7 @@ watch(open, () => {
     state.name = props.website?.name ?? ''
     state.domain = props.website?.domain ?? ''
     state.type = props.website?.type ?? 'php-fpm'
-    state.port = props.website?.port ?? 80
+    state.port = props.website?.port ?? 0
     state.documentRoot = props.website?.documentRoot ?? ''
     state.phpVersion = props.website?.phpVersion ?? '8.4'
     state.sslEnabled = props.website?.sslEnabled ?? false
@@ -186,8 +190,8 @@ function onNameInput(value: string) {
             />
           </UFormField>
 
-          <UFormField label="Port" name="port">
-            <UInput v-model.number="state.port" type="number" placeholder="80" />
+          <UFormField v-if="state.type !== 'php-fpm'" label="Port" name="port">
+            <UInput v-model.number="state.port" type="number" placeholder="0" />
           </UFormField>
 
           <UFormField label="PHP Version" name="phpVersion" required>
