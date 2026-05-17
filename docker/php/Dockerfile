@@ -32,8 +32,8 @@ ARG INSTALL_SQLSRV=false
 WORKDIR ${WORKDIR}
 
 ENV WORKDIR=${WORKDIR}
-ENV SUPERVISOR_PHP_COMMAND="/usr/local/bin/php -d variables_order=EGPCS ${WORKDIR}/artisan serve --host=0.0.0.0"
-ENV SUPERVISOR_PHP_USER="sail"
+ENV SUPERVISOR_PHP_COMMAND="php-fpm -F"
+ENV SUPERVISOR_PHP_USER="root"
 
 COPY --from=composer /usr/bin/composer /usr/bin/composer
 COPY --from=extension_installer /usr/bin/install-php-extensions /usr/local/bin/

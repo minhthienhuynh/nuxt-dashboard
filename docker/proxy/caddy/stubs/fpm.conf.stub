@@ -1,5 +1,11 @@
 {{DOMAIN}} {
-    root * /var/www/{{SERVICE}}/public
+    tls internal
+
+    log {
+        output stdout
+    }
+
+    root * /var/www/{{DIR_NAME}}/public
     encode gzip
 
     php_fastcgi {{SERVICE}}:9000 {

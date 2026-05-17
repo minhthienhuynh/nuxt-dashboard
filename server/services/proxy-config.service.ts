@@ -10,6 +10,7 @@ interface WebsiteForProxy {
   name: string
   domain: string
   port: number
+  documentRoot: string
 }
 
 const STUB_DIR = {
@@ -26,7 +27,8 @@ export class ProxyConfigService {
     const siteList: WebsiteForProxy[] = websites.map(w => ({
       name: w.name,
       domain: w.domain,
-      port: w.port
+      port: w.port,
+      documentRoot: w.documentRoot
     }))
 
     switch (proxy.type) {
@@ -66,9 +68,11 @@ export class ProxyConfigService {
 
   private static writeCaddySite(site: WebsiteForProxy): void {
     const stub = fs.readFileSync(path.join(STUB_DIR.caddy, 'fpm.conf.stub'), 'utf-8')
+    const dirName = path.basename(site.documentRoot)
     const content = stub
       .replace(/\{\{DOMAIN\}\}/g, site.domain)
       .replace(/\{\{SERVICE\}\}/g, websiteContainerName(site.name))
+      .replace(/\{\{DIR_NAME\}\}/g, dirName)
       .replace(/\{\{PORT\}\}/g, '9000')
 
     fs.mkdirSync(path.join(PROXY_BASE, 'caddy/sites'), { recursive: true })

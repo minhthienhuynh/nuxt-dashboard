@@ -28,9 +28,10 @@ export class DockerService {
   // yeu cau tar stream — CLI don gian hon.
   // ═══════════════════════════════════════════════════════════
 
-  static computeBuildHash(phpVersion: string, extensionNames: string[]): string {
+  static computeBuildHash(phpVersion: string, extensionNames: string[], documentRoot: string): string {
     const sorted = [...extensionNames].sort()
-    return createHash('sha256').update(`${phpVersion}:${sorted.join(',')}`).digest('hex')
+    const dirName = path.basename(documentRoot)
+    return createHash('sha256').update(`${phpVersion}:${sorted.join(',')}:${dirName}`).digest('hex')
   }
 
   static extensionToBuildArg(extName: string): string {
@@ -39,6 +40,7 @@ export class DockerService {
 
   static buildPhpImage(website: Website): string {
     const imageTag = `${slugify(website.name)}:php-${website.phpVersion}-fpm`
+    const dirName = path.basename(website.documentRoot)
 
     const extensionNames = website.extensions
       ?.filter((e: any) => e.enabled)
@@ -46,7 +48,7 @@ export class DockerService {
 
     const buildArgs: string[] = [
       `PHP_TAG=${website.phpVersion}-fpm`,
-      `WORKDIR=/var/www/${slugify(website.name)}`,
+      `WORKDIR=/var/www/${dirName}`,
       'COMPOSER_VERSION=2',
       'NODE_VERSION=22',
       'WWWGROUP=${WWWGROUP:-1000}',
@@ -85,7 +87,7 @@ export class DockerService {
       ?.filter((e: any) => e.enabled)
       .map((e: any) => e.extension!.name) ?? []
 
-    const newHash = DockerService.computeBuildHash(website.phpVersion, extensionNames)
+    const newHash = DockerService.computeBuildHash(website.phpVersion, extensionNames, website.documentRoot)
     return (website as any).buildHash !== newHash
   }
 
@@ -95,7 +97,7 @@ export class DockerService {
       const extensionNames = website.extensions
         ?.filter((e: any) => e.enabled)
         .map((e: any) => e.extension!.name) ?? []
-      const newHash = DockerService.computeBuildHash(website.phpVersion, extensionNames)
+      const newHash = DockerService.computeBuildHash(website.phpVersion, extensionNames, website.documentRoot)
       await prisma.website.update({
         where: { id: website.id },
         data: { buildHash: newHash }
@@ -220,7 +222,8 @@ export class DockerService {
     if (proxy.type === 'caddy') {
       volumes.push(
         { source: path.join(proxyBase, 'Caddyfile'), target: '/etc/caddy/Caddyfile' },
-        { source: path.join(proxyBase, 'sites'), target: '/etc/caddy/sites' }
+        { source: path.join(proxyBase, 'sites'), target: '/etc/caddy/sites' },
+        { source: path.resolve(process.cwd(), '..', 'www'), target: '/var/www' }
       )
       if (proxy.adminPort) {
         portMappings.push({ host: String(proxy.adminPort), container: '2019', proto: 'tcp' })
@@ -274,13 +277,15 @@ export class DockerService {
   static async deployWebsite(website: Website): Promise<void> {
     const { tag } = await DockerService.ensurePhpImage(website)
 
+    const dirName = path.basename(website.documentRoot)
+
     // Website containers communicate internally via lardo network.
     // Only the reverse proxy exposes ports to the host.
     await DockerService.createAndStartContainer({
       image: tag,
       name: websiteContainerName(website.name),
       volumes: [
-        { source: website.documentRoot, target: `/var/www/${slugify(website.name)}` }
+        { source: website.documentRoot, target: `/var/www/${dirName}` }
       ]
     })
   }
@@ -288,6 +293,68 @@ export class DockerService {
   // ═══════════════════════════════════════════════════════════
   // Monitor: logs, container list
   // ═══════════════════════════════════════════════════════════
+
+  static async* getLogStream(
+    containerName: string,
+    tail = 100,
+    signal?: AbortSignal
+  ): AsyncGenerator<string> {
+    const docker = await getDocker()
+    const pt = new PassThrough()
+
+    // Fire-and-forget — streams indefinitely with follow:true
+    docker.containerLogs(containerName, pt as any, pt as any, {
+      stdout: true,
+      stderr: true,
+      tail: String(tail),
+      follow: true
+    }).catch(() => {})
+
+    signal?.addEventListener('abort', () => pt.destroy(), { once: true })
+
+    let buffer = ''
+    let resolve: (value: IteratorResult<string>) => void
+    let promise = new Promise<IteratorResult<string>>((r) => { resolve = r })
+    let done = false
+
+    const onData = (chunk: Buffer) => {
+      buffer += chunk.toString()
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+      for (const line of lines) {
+        resolve({ value: line, done: false })
+        promise = new Promise<IteratorResult<string>>((r) => { resolve = r })
+      }
+    }
+
+    const onEnd = () => {
+      const value = buffer ? buffer : undefined
+      done = true
+      resolve({ value: value as string, done: true })
+    }
+
+    const onError = () => {
+      done = true
+      resolve({ value: undefined as any, done: true })
+    }
+
+    pt.on('data', onData)
+    pt.on('end', onEnd)
+    pt.on('error', onError)
+
+    try {
+      while (true) {
+        const result = await promise
+        if (result.done) break
+        yield result.value
+      }
+    } finally {
+      pt.off('data', onData)
+      pt.off('end', onEnd)
+      pt.off('error', onError)
+      if (!done) pt.destroy()
+    }
+  }
 
   static async getLogs(containerName: string, tail = 100): Promise<string> {
     try {

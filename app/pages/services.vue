@@ -66,21 +66,33 @@ const proxyStatus = computed<ServiceStatus>(() =>
   (proxy.value as any)?.status || 'stopped'
 )
 
-const proxyLogsOpen = ref(false)
-const proxyLogsContent = ref('')
-const proxyLogsLoading = ref(false)
+const { lines: proxyLogLines, connected: proxyLogConnected, connect: proxyLogConnect, disconnect: proxyLogDisconnect } = useContainerLogs()
 
-async function viewProxyLogs() {
+const proxyLogsOpen = ref(false)
+const serviceLogsOpen = ref(false)
+const serviceLogTarget = ref<InfrastructureService | null>(null)
+const { lines: svcLogLines, connected: svcLogConnected, connect: svcLogConnect, disconnect: svcLogDisconnect } = useContainerLogs()
+
+function openProxyLogs() {
   proxyLogsOpen.value = true
-  proxyLogsLoading.value = true
-  try {
-    const result = await $fetch<{ logs: string }>('/api/proxy/logs')
-    proxyLogsContent.value = result.logs || '(no logs)'
-  } catch {
-    proxyLogsContent.value = '(failed to fetch logs)'
-  } finally {
-    proxyLogsLoading.value = false
-  }
+  proxyLogConnect('/api/proxy/logs/stream')
+}
+
+function closeProxyLogs() {
+  proxyLogsOpen.value = false
+  proxyLogDisconnect()
+}
+
+function openServiceLogs(svc: InfrastructureService) {
+  serviceLogTarget.value = svc
+  serviceLogsOpen.value = true
+  svcLogConnect(`/api/services/${svc.id}/logs/stream`)
+}
+
+function closeServiceLogs() {
+  serviceLogsOpen.value = false
+  serviceLogTarget.value = null
+  svcLogDisconnect()
 }
 
 async function deployProxy() {
@@ -138,7 +150,9 @@ async function deleteService(id: number) {
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center gap-2">
             <UIcon :name="proxyMeta.icon" class="size-5 text-primary" />
-            <h3 class="text-sm font-semibold">Web Server / Proxy — {{ proxyMeta.label }}</h3>
+            <h3 class="text-sm font-semibold">
+              Web Server / Proxy — {{ proxyMeta.label }}
+            </h3>
             <UBadge :color="statusColor[proxyStatus]" variant="subtle" size="xs">
               {{ proxyStatus }}
             </UBadge>
@@ -168,7 +182,7 @@ async function deleteService(id: number) {
               icon="i-lucide-file-text"
               label="Logs"
               class="cursor-pointer"
-              @click="viewProxyLogs"
+              @click="openProxyLogs"
             />
             <UButton
               size="xs"
@@ -180,7 +194,9 @@ async function deleteService(id: number) {
             />
           </div>
         </div>
-        <div class="text-xs text-muted mb-2">{{ proxyMeta.desc }}</div>
+        <div class="text-xs text-muted mb-2">
+          {{ proxyMeta.desc }}
+        </div>
         <div class="flex items-center gap-4 text-sm">
           <span class="text-muted">Domain: <strong class="text-default">{{ proxy?.domain || '*.test' }}</strong></span>
           <span class="text-muted">HTTP: <strong class="text-default">{{ proxy?.httpPort || 80 }}</strong></span>
@@ -265,6 +281,13 @@ async function deleteService(id: number) {
               <UButton
                 size="xs"
                 variant="ghost"
+                icon="i-lucide-file-text"
+                class="cursor-pointer"
+                @click="openServiceLogs(svc)"
+              />
+              <UButton
+                size="xs"
+                variant="ghost"
                 icon="i-lucide-trash"
                 color="error"
                 class="cursor-pointer"
@@ -320,18 +343,39 @@ async function deleteService(id: number) {
   <ServicesAddModal v-model:open="isAddModalOpen" :service-types="serviceTypes" @added="onServiceAdded" />
 
   <!-- Proxy Logs Modal -->
-  <UModal v-model:open="proxyLogsOpen" :title="`Logs: ${proxy?.type || 'caddy'}`">
+  <UModal v-model:open="proxyLogsOpen" :title="`Logs: ${proxy?.type || 'caddy'}`" @close="closeProxyLogs">
     <template #body>
       <div class="p-4">
-        <div v-if="proxyLogsLoading" class="text-sm text-muted text-center py-8">
-          Loading logs...
+        <div class="flex items-center gap-2 mb-3">
+          <UBadge :color="proxyLogConnected ? 'green' : 'gray'" variant="subtle" size="xs">
+            {{ proxyLogConnected ? 'Live' : 'Connecting...' }}
+          </UBadge>
         </div>
-        <pre v-else class="text-xs bg-default/50 rounded-lg p-3 max-h-96 overflow-auto whitespace-pre-wrap break-all">{{ proxyLogsContent }}</pre>
+        <pre class="text-xs bg-default/50 rounded-lg p-3 max-h-96 overflow-auto whitespace-pre-wrap break-all font-mono">{{ proxyLogLines.join('\n') || 'Waiting for logs...' }}</pre>
       </div>
     </template>
     <template #footer>
       <div class="flex justify-end gap-2 p-4">
-        <UButton label="Close" variant="outline" @click="proxyLogsOpen = false" />
+        <UButton label="Close" variant="outline" @click="closeProxyLogs" />
+      </div>
+    </template>
+  </UModal>
+
+  <!-- Service Logs Modal -->
+  <UModal v-model:open="serviceLogsOpen" :title="`Logs: ${serviceLogTarget?.containerName || ''}`" @close="closeServiceLogs">
+    <template #body>
+      <div class="p-4">
+        <div class="flex items-center gap-2 mb-3">
+          <UBadge :color="svcLogConnected ? 'green' : 'gray'" variant="subtle" size="xs">
+            {{ svcLogConnected ? 'Live' : 'Connecting...' }}
+          </UBadge>
+        </div>
+        <pre class="text-xs bg-default/50 rounded-lg p-3 max-h-96 overflow-auto whitespace-pre-wrap break-all font-mono">{{ svcLogLines.join('\n') || 'Waiting for logs...' }}</pre>
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex justify-end gap-2 p-4">
+        <UButton label="Close" variant="outline" @click="closeServiceLogs" />
       </div>
     </template>
   </UModal>

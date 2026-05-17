@@ -65,8 +65,7 @@ watchEffect(() => {
 // ── Actions ────────────────────────────────────────────────
 
 const deploying = ref<Set<number>>(new Set())
-const logsContent = ref('')
-const logsLoading = ref(false)
+const { lines: logLines, connected: logConnected, connect: logConnect, disconnect: logDisconnect } = useContainerLogs()
 const syncing = ref(false)
 
 function statusColor(s: string) {
@@ -109,17 +108,23 @@ function openInTab(url: string) {
   window.open(url, '_blank')
 }
 
-async function viewLogs(w: Website) {
-  logsLoading.value = true
-  try {
-    const result = await $fetch<{ logs: string }>(`/api/websites/${w.id}/logs`)
-    logsContent.value = result.logs || '(no logs)'
-  } catch {
-    logsContent.value = '(failed to fetch logs)'
-  } finally {
-    logsLoading.value = false
+// Auto-connect log stream when selected website changes
+watch(selectedId, (id) => {
+  if (id) {
+    logConnect(`/api/websites/${id}/logs/stream`)
+  } else {
+    logDisconnect()
   }
-}
+}, { immediate: true })
+
+// Auto-scroll to bottom when new lines arrive
+const logContainerEl = ref<HTMLElement | null>(null)
+watch(() => logLines.value.length, () => {
+  nextTick(() => {
+    const el = logContainerEl.value
+    if (el) el.scrollTop = el.scrollHeight
+  })
+})
 
 // ── Modals ─────────────────────────────────────────────────
 
@@ -327,7 +332,9 @@ async function syncContainers() {
               <!-- Header -->
               <div class="flex items-center justify-between mb-5">
                 <div class="flex items-center gap-3">
-                  <h2 class="text-lg font-semibold">{{ selectedWebsite.name }}</h2>
+                  <h2 class="text-lg font-semibold">
+                    {{ selectedWebsite.name }}
+                  </h2>
                   <UBadge
                     v-if="deploying.has(selectedWebsite.id)"
                     color="primary"
@@ -351,14 +358,6 @@ async function syncContainers() {
                 <div class="flex items-center gap-1.5">
                   <UButton
                     size="xs"
-                    variant="outline"
-                    icon="i-lucide-file-text"
-                    label="Logs"
-                    class="cursor-pointer"
-                    @click="viewLogs(selectedWebsite)"
-                  />
-                  <UButton
-                    size="xs"
                     variant="ghost"
                     icon="i-lucide-pencil"
                     class="cursor-pointer"
@@ -377,18 +376,26 @@ async function syncContainers() {
               <!-- Info Grid -->
               <div class="grid grid-cols-2 gap-x-6 gap-y-3 mb-6">
                 <div>
-                  <div class="text-xs text-muted mb-0.5">Domain</div>
+                  <div class="text-xs text-muted mb-0.5">
+                    Domain
+                  </div>
                   <div class="text-sm font-medium flex items-center gap-1.5">
                     <UIcon name="i-lucide-globe" class="size-3.5 text-muted" />
                     {{ selectedWebsite.domain }}
                   </div>
                 </div>
                 <div>
-                  <div class="text-xs text-muted mb-0.5">Port</div>
-                  <div class="text-sm font-medium">{{ selectedWebsite.port }}</div>
+                  <div class="text-xs text-muted mb-0.5">
+                    Port
+                  </div>
+                  <div class="text-sm font-medium">
+                    {{ selectedWebsite.port }}
+                  </div>
                 </div>
                 <div>
-                  <div class="text-xs text-muted mb-0.5">PHP Version</div>
+                  <div class="text-xs text-muted mb-0.5">
+                    PHP Version
+                  </div>
                   <UBadge
                     :color="phpBadgeColor(selectedWebsite.phpVersion)"
                     variant="subtle"
@@ -398,7 +405,9 @@ async function syncContainers() {
                   </UBadge>
                 </div>
                 <div>
-                  <div class="text-xs text-muted mb-0.5">SSL</div>
+                  <div class="text-xs text-muted mb-0.5">
+                    SSL
+                  </div>
                   <UBadge
                     :color="selectedWebsite.sslEnabled ? 'green' : 'gray'"
                     variant="subtle"
@@ -408,13 +417,17 @@ async function syncContainers() {
                   </UBadge>
                 </div>
                 <div class="col-span-2">
-                  <div class="text-xs text-muted mb-0.5">Document Root</div>
+                  <div class="text-xs text-muted mb-0.5">
+                    Document Root
+                  </div>
                   <div class="text-sm font-mono text-sm bg-default/50 rounded px-2 py-1">
                     {{ selectedWebsite.documentRoot }}
                   </div>
                 </div>
                 <div>
-                  <div class="text-xs text-muted mb-0.5">Extensions</div>
+                  <div class="text-xs text-muted mb-0.5">
+                    Extensions
+                  </div>
                   <div class="text-sm font-medium">
                     {{ selectedWebsite.extensions?.filter(e => e.enabled).length ?? 0 }} active
                     <span class="text-muted">/ {{ selectedWebsite.extensions?.length ?? 0 }} total</span>
@@ -425,23 +438,28 @@ async function syncContainers() {
               <!-- Logs inline -->
               <div class="border-t border-default pt-4">
                 <div class="flex items-center justify-between mb-2">
-                  <h4 class="text-sm font-semibold">Recent Logs</h4>
-                  <UButton
+                  <h4 class="text-sm font-semibold">
+                    Recent Logs
+                  </h4>
+                  <UBadge
+                    :color="logConnected ? 'green' : 'gray'"
+                    variant="subtle"
                     size="xs"
-                    variant="ghost"
-                    icon="i-lucide-refresh-cw"
-                    label="Refresh"
-                    @click="viewLogs(selectedWebsite)"
-                  />
+                  >
+                    {{ logConnected ? 'Live' : 'Disconnected' }}
+                  </UBadge>
                 </div>
-                <div class="bg-default/20 rounded-lg p-3 max-h-60 overflow-auto">
-                  <div v-if="logsLoading" class="text-sm text-muted text-center py-4">
-                    Loading...
+                <div
+                  ref="logContainerEl"
+                  class="bg-default/20 rounded-lg p-3 max-h-60 overflow-auto font-mono"
+                >
+                  <div v-if="!logConnected && logLines.length === 0" class="text-sm text-muted text-center py-4">
+                    Connecting...
                   </div>
-                  <pre v-else-if="logsContent" class="text-xs whitespace-pre-wrap break-all">{{ logsContent }}</pre>
-                  <div v-else class="text-sm text-muted text-center py-4">
-                    Click "Logs" or "Refresh" to load logs
-                  </div>
+                  <pre
+                    v-else
+                    class="text-xs whitespace-pre-wrap break-all"
+                  >{{ logLines.join('\n') }}</pre>
                 </div>
               </div>
             </div>
@@ -451,7 +469,9 @@ async function syncContainers() {
           <div v-else class="flex items-center justify-center h-full">
             <div class="text-center text-muted">
               <UIcon name="i-lucide-monitor" class="size-12 mx-auto mb-3 opacity-30" />
-              <p class="text-sm">Select a website to view details</p>
+              <p class="text-sm">
+                Select a website to view details
+              </p>
             </div>
           </div>
         </div>
@@ -477,5 +497,4 @@ async function syncContainers() {
     :website="selectedWebsite"
     @updated="onExtensionsUpdated"
   />
-
 </template>
