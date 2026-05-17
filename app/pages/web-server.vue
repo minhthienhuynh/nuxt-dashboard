@@ -144,7 +144,7 @@ onMounted(() => loadCaddyfile())
 </script>
 
 <template>
-  <UDashboardPanel id="services">
+  <UDashboardPanel id="web-server">
     <template #header>
       <UDashboardNavbar title="Web Server">
         <template #leading>
