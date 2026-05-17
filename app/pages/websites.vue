@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { dash } from 'radash'
 import type { Website, SyncResult } from '~/types'
+import { getTypeLabel, getTypeColor } from '~/constants/website-types'
 
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
@@ -275,7 +276,7 @@ async function syncContainers() {
                   <span class="text-sm font-medium truncate">{{ w.name }}</span>
                 </div>
                 <div class="text-xs text-muted truncate ml-4 mt-0.5">
-                  {{ w.name.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') }}:php-{{ w.phpVersion }}-fpm
+                  {{ w.name.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') }}:php-{{ w.phpVersion }}-{{ (w.type || 'php-fpm').replace('php-', '') }}
                 </div>
               </div>
               <div class="flex items-center shrink-0 pr-2 gap-0.5" @click.stop>
@@ -391,6 +392,18 @@ async function syncContainers() {
                   <div class="text-sm font-medium">
                     {{ selectedWebsite.port }}
                   </div>
+                </div>
+                <div>
+                  <div class="text-xs text-muted mb-0.5">
+                    Type
+                  </div>
+                  <UBadge
+                    :color="getTypeColor(selectedWebsite.type)"
+                    variant="subtle"
+                    size="xs"
+                  >
+                    {{ getTypeLabel(selectedWebsite.type) }}
+                  </UBadge>
                 </div>
                 <div>
                   <div class="text-xs text-muted mb-0.5">
