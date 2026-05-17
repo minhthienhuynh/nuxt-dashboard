@@ -3,12 +3,14 @@ import path from 'node:path'
 import { ProxyRepository } from '../repositories/proxy.repository'
 import { WebsiteRepository } from '../repositories/website.repository'
 import { websiteContainerName } from '../utils/slugify'
+import { getWebsiteTypeConfig, DEFAULT_WEBSITE_TYPE } from '../utils/website-types'
 
 const PROXY_BASE = path.resolve(process.cwd(), 'docker/proxy')
 
 interface WebsiteForProxy {
   name: string
   domain: string
+  type: string
   port: number
   documentRoot: string
   sslEnabled: boolean
@@ -28,6 +30,7 @@ export class ProxyConfigService {
     const siteList: WebsiteForProxy[] = websites.map(w => ({
       name: w.name,
       domain: w.domain,
+      type: (w as any).type || DEFAULT_WEBSITE_TYPE,
       port: w.port,
       documentRoot: w.documentRoot,
       sslEnabled: w.sslEnabled
@@ -69,7 +72,8 @@ export class ProxyConfigService {
   }
 
   private static writeCaddySite(site: WebsiteForProxy): void {
-    const stub = fs.readFileSync(path.join(STUB_DIR.caddy, 'fpm.conf.stub'), 'utf-8')
+    const config = getWebsiteTypeConfig(site.type)
+    const stub = fs.readFileSync(path.join(STUB_DIR.caddy, `${config.proxyStub}.conf.stub`), 'utf-8')
     const dirName = path.basename(site.documentRoot)
     const scheme = site.sslEnabled ? '' : 'http://'
     const tls = site.sslEnabled ? '    tls internal\n' : ''
@@ -78,7 +82,7 @@ export class ProxyConfigService {
       .replace(/\{\{TLS\}\}/g, tls)
       .replace(/\{\{SERVICE\}\}/g, websiteContainerName(site.name))
       .replace(/\{\{DIR_NAME\}\}/g, dirName)
-      .replace(/\{\{PORT\}\}/g, '9000')
+      .replace(/\{\{PORT\}\}/g, config.proxyPort)
 
     fs.mkdirSync(path.join(PROXY_BASE, 'caddy/sites'), { recursive: true })
     fs.writeFileSync(path.join(PROXY_BASE, 'caddy/sites', `${site.name}.conf`), content)
@@ -114,11 +118,12 @@ export class ProxyConfigService {
   }
 
   private static writeNginxSite(site: WebsiteForProxy): void {
-    const stub = fs.readFileSync(path.join(STUB_DIR.nginx, 'fpm.conf.stub'), 'utf-8')
+    const config = getWebsiteTypeConfig(site.type)
+    const stub = fs.readFileSync(path.join(STUB_DIR.nginx, `${config.proxyStub}.conf.stub`), 'utf-8')
     const content = stub
       .replace(/\{\{DOMAIN\}\}/g, site.domain)
       .replace(/\{\{SERVICE\}\}/g, websiteContainerName(site.name))
-      .replace(/\{\{PORT\}\}/g, '9000')
+      .replace(/\{\{PORT\}\}/g, config.proxyPort)
 
     fs.mkdirSync(path.join(PROXY_BASE, 'nginx/sites'), { recursive: true })
     fs.writeFileSync(path.join(PROXY_BASE, 'nginx/sites', `${site.name}.conf`), content)
