@@ -128,7 +128,7 @@ const { lines: proxyLogLines, connected: proxyLogConnected, connect: proxyLogCon
 
 const proxyLogsOpen = ref(false)
 
-const { data: siteConfigs } = await useFetch<{ sites: { name: string; content: string }[] }>('/api/proxy/sites', { lazy: true })
+const { data: siteConfigs } = await useFetch<{ sites: { name: string, content: string }[] }>('/api/proxy/sites', { lazy: true })
 
 function openProxyLogs() {
   proxyLogsOpen.value = true
@@ -234,7 +234,9 @@ onMounted(() => loadCaddyfile())
       <div>
         <h3 class="text-sm font-semibold mb-3 flex items-center gap-2">
           Site Configs
-          <UBadge size="xs" variant="subtle">{{ siteConfigs?.sites?.length ?? 0 }}</UBadge>
+          <UBadge size="xs" variant="subtle">
+            {{ siteConfigs?.sites?.length ?? 0 }}
+          </UBadge>
         </h3>
         <div v-if="!siteConfigs?.sites?.length" class="text-sm text-muted">
           No site configs yet. Add a website from the
@@ -248,7 +250,9 @@ onMounted(() => loadCaddyfile())
           >
             <div class="flex items-center justify-between mb-2">
               <span class="text-sm font-medium">{{ site.name }}</span>
-              <UBadge size="xs" variant="subtle">.conf</UBadge>
+              <UBadge size="xs" variant="subtle">
+                .conf
+              </UBadge>
             </div>
             <pre class="text-xs font-mono whitespace-pre-wrap break-all bg-default/30 rounded p-2 max-h-32 overflow-auto">{{ site.content }}</pre>
           </div>
