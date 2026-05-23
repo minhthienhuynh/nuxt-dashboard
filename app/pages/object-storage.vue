@@ -43,7 +43,7 @@ async function startService(svc: InfrastructureService) {
     await refreshServices()
     toast.add({ title: `${svc.serviceType?.name || svc.containerName} started`, color: 'success' })
   } catch {
-    toast.add({ title: 'Failed to start service', color: 'error' })
+    toast.add({ title: `Failed to start ${svc.serviceType?.name || svc.containerName}`, color: 'error' })
   }
 }
 
@@ -53,17 +53,18 @@ async function stopService(svc: InfrastructureService) {
     await refreshServices()
     toast.add({ title: `${svc.serviceType?.name || svc.containerName} stopped`, color: 'success' })
   } catch {
-    toast.add({ title: 'Failed to stop service', color: 'error' })
+    toast.add({ title: `Failed to stop ${svc.serviceType?.name || svc.containerName}`, color: 'error' })
   }
 }
 
 async function deleteService(svc: InfrastructureService) {
+  if (!window.confirm(`Delete ${svc.serviceType?.name || svc.containerName}? This action cannot be undone.`)) return
   try {
     await $fetch(`/api/services/${svc.id}`, { method: 'DELETE' })
     await refreshServices()
     toast.add({ title: `${svc.serviceType?.name || svc.containerName} deleted`, color: 'success' })
   } catch {
-    toast.add({ title: 'Failed to delete service', color: 'error' })
+    toast.add({ title: `Failed to delete ${svc.serviceType?.name || svc.containerName}`, color: 'error' })
   }
 }
 </script>
