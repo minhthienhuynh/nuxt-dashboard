@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InfrastructureService, ServiceTypeInfo, ServiceStatus } from '~/types'
+import type { InfrastructureService, ServiceTypeInfo } from '~/types'
 
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
@@ -68,11 +68,11 @@ function parsePorts(service: InfrastructureService): { hostPort: string, contain
                 {{ svc.serviceType?.name || 'Storage' }}
               </h3>
               <UBadge
-                :color="statusColor[(svc as unknown as { status: ServiceStatus }).status || 'stopped']"
+                :color="statusColor[svc.status || 'stopped']"
                 variant="subtle"
                 size="xs"
               >
-                {{ (svc as unknown as { status: ServiceStatus }).status || 'stopped' }}
+                {{ svc.status || 'stopped' }}
               </UBadge>
             </div>
             <div class="flex items-center gap-1.5">
@@ -99,7 +99,7 @@ function parsePorts(service: InfrastructureService): { hostPort: string, contain
           <div class="text-xs text-muted mb-2">
             {{ svc.serviceType?.defaultImage || 'Custom' }} — container: {{ svc.containerName }}
           </div>
-          <div v-if="parsePorts(svc).length" class="flex flex-wrap gap-2">
+          <div class="flex flex-wrap gap-2">
             <span
               v-for="(port, i) in parsePorts(svc)"
               :key="i"
