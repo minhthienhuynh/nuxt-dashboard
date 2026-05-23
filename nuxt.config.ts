@@ -12,6 +12,12 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  vite: {
+    server: {
+      allowedHosts: true
+    }
+  },
+
   routeRules: {
     '/api/**': {
       cors: true
