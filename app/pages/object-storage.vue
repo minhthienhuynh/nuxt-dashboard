@@ -4,6 +4,8 @@ import type { InfrastructureService, ServiceTypeInfo } from '~/types'
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
 const UIcon = resolveComponent('UIcon')
+const USelect = resolveComponent('USelect')
+const UInput = resolveComponent('UInput')
 
 const toast = useToast()
 
@@ -85,6 +87,38 @@ function closeLogs() {
   logsOpen.value = false
   logsDisconnect()
 }
+
+// ── Add Service ─────────────────────────────────────────────
+
+const addOpen = ref(false)
+const storageTypeOptions = computed(() =>
+  (serviceTypes.value || [])
+    .filter(t => t.category === 'storage')
+    .map(t => ({ label: t.name, value: t.key }))
+)
+const creating = reactive({
+  serviceTypeKey: 'rustfs',
+  containerName: ''
+})
+
+async function createService() {
+  try {
+    await $fetch('/api/services', {
+      method: 'POST',
+      body: {
+        serviceTypeKey: creating.serviceTypeKey,
+        containerName: creating.containerName || undefined
+      }
+    })
+    await refreshServices()
+    addOpen.value = false
+    creating.serviceTypeKey = 'rustfs'
+    creating.containerName = ''
+    toast.add({ title: 'Storage service created', color: 'success' })
+  } catch {
+    toast.add({ title: 'Failed to create storage service', color: 'error' })
+  }
+}
 </script>
 
 <template>
@@ -93,6 +127,16 @@ function closeLogs() {
       <UDashboardNavbar title="Object Storage">
         <template #leading>
           <UDashboardSidebarCollapse />
+        </template>
+        <template #trailing>
+          <UButton
+            v-if="storageServices.length"
+            label="Add Service"
+            color="primary"
+            icon="i-lucide-plus"
+            size="xs"
+            @click="addOpen = true"
+          />
         </template>
       </UDashboardNavbar>
     </template>
@@ -103,7 +147,12 @@ function closeLogs() {
         <p class="text-sm text-muted mb-4">
           No storage services configured yet.
         </p>
-        <UButton label="Add Service" color="primary" icon="i-lucide-plus" />
+        <UButton
+          label="Add Service"
+          color="primary"
+          icon="i-lucide-plus"
+          @click="addOpen = true"
+        />
       </div>
 
       <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -180,6 +229,28 @@ function closeLogs() {
         </div>
       </div>
     </template>
+
+    <!-- Add Service Modal -->
+    <UModal v-model:open="addOpen" title="Add Storage Service">
+      <template #body>
+        <div class="space-y-3 p-4">
+          <div>
+            <label class="text-sm font-medium">Service Type</label>
+            <USelect v-model="creating.serviceTypeKey" :items="storageTypeOptions" class="mt-1" />
+          </div>
+          <div>
+            <label class="text-sm font-medium">Container Name (optional)</label>
+            <UInput v-model="creating.containerName" class="mt-1" placeholder="auto-generated if empty" />
+          </div>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2 p-4">
+          <UButton label="Cancel" variant="outline" @click="addOpen = false" />
+          <UButton label="Create" color="primary" @click="createService" />
+        </div>
+      </template>
+    </UModal>
 
     <!-- Logs Modal -->
     <UModal v-model:open="logsOpen" :title="`Logs: ${logsServiceName}`" @close="closeLogs">
