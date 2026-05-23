@@ -12,12 +12,6 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
-  vite: {
-    server: {
-      allowedHosts: true
-    }
-  },
-
   routeRules: {
     '/api/**': {
       cors: true
@@ -25,6 +19,12 @@ export default defineNuxtConfig({
   },
 
   compatibilityDate: '2024-07-11',
+
+  vite: {
+    server: {
+      allowedHosts: true
+    }
+  },
 
   eslint: {
     config: {

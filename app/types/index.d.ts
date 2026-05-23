@@ -152,6 +152,7 @@ export interface ServiceTypeInfo {
   defaultPorts: ServicePortInfo[]
   hasHealthcheck: boolean
   hasPersistence: boolean
+  requiredEnv?: Record<string, string> | null
 }
 
 export interface ServicePortInfo {

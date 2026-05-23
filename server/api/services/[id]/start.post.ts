@@ -14,7 +14,8 @@ export default eventHandler(async (event) => {
     } else {
       await DockerService.deployService(service as unknown as import('~/types').InfrastructureService)
     }
-    return { status: 'running', containerName: service.containerName }
+    const status = await DockerService.getContainerStatus(service.containerName)
+    return { status, containerName: service.containerName }
   } catch (error) {
     throw handleError(error)
   }

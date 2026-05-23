@@ -1,5 +1,6 @@
 import { AppError } from '../utils/errors'
 import { ServiceRepository } from '../repositories/service.repository'
+import { SERVICE_DEFAULTS } from '../utils/service-defaults'
 import type { CreateServiceInput, UpdateServiceInput } from '../validators/service.schema'
 
 export const ServiceService = {
@@ -25,6 +26,16 @@ export const ServiceService = {
       throw new AppError(`Unknown service type: ${input.serviceTypeKey}`, 400)
     }
 
+    // Auto-fill required env vars with defaults if not provided
+    const defaults = SERVICE_DEFAULTS[type.key]
+    const existingKeys = new Set(input.envVars?.map(e => e.key) || [])
+    const defaultEnvVars = defaults?.requiredEnv
+      ? Object.entries(defaults.requiredEnv)
+          .filter(([k]) => !existingKeys.has(k))
+          .map(([key, value]) => ({ key, value }))
+      : []
+    const envVars = [...(input.envVars || []), ...defaultEnvVars]
+
     const containerName = input.containerName || `${type.key}-${Date.now()}`
 
     const existing = await ServiceRepository.findServiceByName(type.id, containerName)
@@ -35,7 +46,7 @@ export const ServiceService = {
     return ServiceRepository.createService({
       serviceTypeId: type.id,
       containerName,
-      envVars: input.envVars,
+      envVars,
       ports: input.ports,
       volumes: input.volumes
     })

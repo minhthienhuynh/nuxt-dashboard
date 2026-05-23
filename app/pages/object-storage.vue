@@ -1,18 +1,12 @@
 <script setup lang="ts">
 import type { InfrastructureService, ServiceTypeInfo } from '~/types'
 
-const UBadge = resolveComponent('UBadge')
-const UButton = resolveComponent('UButton')
-const UIcon = resolveComponent('UIcon')
-const USelect = resolveComponent('USelect')
-const UInput = resolveComponent('UInput')
-
 const toast = useToast()
 
-const statusColor: Record<string, 'green' | 'gray' | 'red'> = {
-  running: 'green',
-  stopped: 'gray',
-  error: 'red'
+const statusColor: Record<string, 'success' | 'neutral' | 'error'> = {
+  running: 'success',
+  stopped: 'neutral',
+  error: 'error'
 }
 
 const { data: services, refresh: refreshServices } = await useFetch<InfrastructureService[]>('/api/services', { lazy: true })
@@ -95,6 +89,9 @@ const storageTypeOptions = computed(() =>
   (serviceTypes.value || [])
     .filter(t => t.category === 'storage')
     .map(t => ({ label: t.name, value: t.key }))
+)
+const selectedType = computed(() =>
+  serviceTypes.value?.find(t => t.key === creating.serviceTypeKey)
 )
 const creating = reactive({
   serviceTypeKey: 'rustfs',
@@ -233,7 +230,7 @@ function removeVolume(index: number) {
               <UButton
                 v-if="svc.status !== 'running'"
                 size="xs"
-                color="green"
+                color="success"
                 icon="i-lucide-play"
                 label="Start"
                 @click="startService(svc)"
@@ -241,7 +238,7 @@ function removeVolume(index: number) {
               <UButton
                 v-else
                 size="xs"
-                color="amber"
+                color="warning"
                 icon="i-lucide-square"
                 label="Stop"
                 @click="stopService(svc)"
@@ -263,7 +260,7 @@ function removeVolume(index: number) {
               <UButton
                 size="xs"
                 variant="ghost"
-                color="red"
+                color="error"
                 icon="i-lucide-trash"
                 @click="deleteService(svc)"
               />
@@ -284,196 +281,207 @@ function removeVolume(index: number) {
         </div>
       </div>
     </template>
-
-    <!-- Add Service Modal -->
-    <UModal v-model:open="addOpen" title="Add Storage Service">
-      <template #body>
-        <div class="space-y-3 p-4">
-          <div>
-            <label class="text-sm font-medium">Service Type</label>
-            <USelect v-model="creating.serviceTypeKey" :items="storageTypeOptions" class="mt-1" />
-          </div>
-          <div>
-            <label class="text-sm font-medium">Container Name (optional)</label>
-            <UInput v-model="creating.containerName" class="mt-1" placeholder="auto-generated if empty" />
-          </div>
-        </div>
-      </template>
-      <template #footer>
-        <div class="flex justify-end gap-2 p-4">
-          <UButton label="Cancel" variant="outline" @click="addOpen = false" />
-          <UButton label="Create" color="primary" @click="createService" />
-        </div>
-      </template>
-    </UModal>
-
-    <!-- Logs Modal -->
-    <UModal v-model:open="logsOpen" :title="`Logs: ${logsServiceName}`" @close="closeLogs">
-      <template #body>
-        <div class="p-4">
-          <div class="flex items-center gap-2 mb-3">
-            <UBadge :color="logsConnected ? 'green' : 'gray'" variant="subtle" size="xs">
-              {{ logsConnected ? 'Live' : 'Connecting...' }}
-            </UBadge>
-          </div>
-          <pre class="text-xs bg-default/50 rounded-lg p-3 max-h-96 overflow-auto whitespace-pre-wrap break-all font-mono">{{ logsLines.join('\n') || 'Waiting for logs...' }}</pre>
-        </div>
-      </template>
-      <template #footer>
-        <div class="flex justify-end gap-2 p-4">
-          <UButton label="Close" variant="outline" @click="closeLogs" />
-        </div>
-      </template>
-    </UModal>
-
-    <!-- Settings Modal -->
-    <UModal v-model:open="settingsOpen" title="Service Settings">
-      <template #body>
-        <div class="space-y-4 p-4">
-          <!-- Env Vars -->
-          <div>
-            <div class="flex items-center justify-between mb-2">
-              <label class="text-sm font-medium">Environment Variables</label>
-              <UButton
-                size="xs"
-                variant="outline"
-                icon="i-lucide-plus"
-                label="Add"
-                @click="addEnvVar"
-              />
-            </div>
-            <div
-              v-if="!editingEnvVars.length"
-              class="text-xs text-muted"
-            >
-              No env vars configured.
-            </div>
-            <div
-              v-for="(env, i) in editingEnvVars"
-              :key="i"
-              class="flex items-center gap-2 mb-2"
-            >
-              <UInput
-                v-model="env.key"
-                placeholder="KEY"
-                class="flex-1"
-                size="xs"
-              />
-              <UInput
-                v-model="env.value"
-                placeholder="value"
-                class="flex-1"
-                size="xs"
-              />
-              <UButton
-                size="xs"
-                variant="ghost"
-                color="red"
-                icon="i-lucide-x"
-                @click="removeEnvVar(i)"
-              />
-            </div>
-          </div>
-
-          <!-- Ports -->
-          <div>
-            <div class="flex items-center justify-between mb-2">
-              <label class="text-sm font-medium">Ports</label>
-              <UButton
-                size="xs"
-                variant="outline"
-                icon="i-lucide-plus"
-                label="Add"
-                @click="addPort"
-              />
-            </div>
-            <div
-              v-if="!editingPorts.length"
-              class="text-xs text-muted"
-            >
-              No ports configured.
-            </div>
-            <div
-              v-for="(port, i) in editingPorts"
-              :key="i"
-              class="flex items-center gap-2 mb-2"
-            >
-              <UInput
-                v-model="port.hostPort"
-                placeholder="Host port"
-                size="xs"
-                class="w-28"
-              />
-              <span class="text-xs text-muted">:</span>
-              <UInput
-                v-model="port.containerPort"
-                placeholder="Container port"
-                size="xs"
-                class="w-28"
-              />
-              <UButton
-                size="xs"
-                variant="ghost"
-                color="red"
-                icon="i-lucide-x"
-                @click="removePort(i)"
-              />
-            </div>
-          </div>
-
-          <!-- Volumes -->
-          <div>
-            <div class="flex items-center justify-between mb-2">
-              <label class="text-sm font-medium">Volumes</label>
-              <UButton
-                size="xs"
-                variant="outline"
-                icon="i-lucide-plus"
-                label="Add"
-                @click="addVolume"
-              />
-            </div>
-            <div
-              v-if="!editingVolumes.length"
-              class="text-xs text-muted"
-            >
-              No volumes configured.
-            </div>
-            <div
-              v-for="(vol, i) in editingVolumes"
-              :key="i"
-              class="flex items-center gap-2 mb-2"
-            >
-              <UInput
-                v-model="vol.source"
-                placeholder="Source"
-                size="xs"
-                class="flex-1"
-              />
-              <span class="text-xs text-muted">:</span>
-              <UInput
-                v-model="vol.target"
-                placeholder="Target"
-                size="xs"
-                class="flex-1"
-              />
-              <UButton
-                size="xs"
-                variant="ghost"
-                color="red"
-                icon="i-lucide-x"
-                @click="removeVolume(i)"
-              />
-            </div>
-          </div>
-        </div>
-      </template>
-      <template #footer>
-        <div class="flex justify-end gap-2 p-4">
-          <UButton label="Cancel" variant="outline" @click="settingsOpen = false" />
-          <UButton label="Save" color="primary" @click="saveSettings" />
-        </div>
-      </template>
-    </UModal>
   </UDashboardPanel>
+
+  <!-- Add Service Modal -->
+  <UModal v-model:open="addOpen" title="Add Storage Service">
+    <template #body>
+      <div class="space-y-3 p-4">
+        <div>
+          <label class="text-sm font-medium">Service Type</label>
+          <USelect v-model="creating.serviceTypeKey" :items="storageTypeOptions" class="mt-1" />
+        </div>
+        <div>
+          <label class="text-sm font-medium">Container Name (optional)</label>
+          <UInput v-model="creating.containerName" class="mt-1" placeholder="auto-generated if empty" />
+        </div>
+        <div v-if="selectedType?.requiredEnv && Object.keys(selectedType.requiredEnv).length">
+          <label class="text-sm font-medium">Default Environment Variables</label>
+          <div class="mt-1 p-2 rounded bg-default/50 text-xs font-mono space-y-1">
+            <div v-for="(_val, key) in selectedType.requiredEnv" :key="key">
+              <span class="text-primary">{{ key }}</span>=<span class="text-muted">{{ _val }}</span>
+            </div>
+          </div>
+          <p class="text-xs text-muted mt-1">
+            Auto-set with defaults if not overridden.
+          </p>
+        </div>
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex justify-end gap-2 p-4">
+        <UButton label="Cancel" variant="outline" @click="addOpen = false" />
+        <UButton label="Create" color="primary" @click="createService" />
+      </div>
+    </template>
+  </UModal>
+
+  <!-- Logs Modal -->
+  <UModal v-model:open="logsOpen" :title="`Logs: ${logsServiceName}`" @close="closeLogs">
+    <template #body>
+      <div class="p-4">
+        <div class="flex items-center gap-2 mb-3">
+          <UBadge :color="logsConnected ? 'success' : 'neutral'" variant="subtle" size="xs">
+            {{ logsConnected ? 'Live' : 'Connecting...' }}
+          </UBadge>
+        </div>
+        <pre class="text-xs bg-default/50 rounded-lg p-3 max-h-96 overflow-auto whitespace-pre-wrap break-all font-mono">{{ logsLines.join('\n') || 'Waiting for logs...' }}</pre>
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex justify-end gap-2 p-4">
+        <UButton label="Close" variant="outline" @click="closeLogs" />
+      </div>
+    </template>
+  </UModal>
+
+  <!-- Settings Modal -->
+  <UModal v-model:open="settingsOpen" title="Service Settings">
+    <template #body>
+      <div class="space-y-4 p-4">
+        <!-- Env Vars -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-sm font-medium">Environment Variables</label>
+            <UButton
+              size="xs"
+              variant="outline"
+              icon="i-lucide-plus"
+              label="Add"
+              @click="addEnvVar"
+            />
+          </div>
+          <div
+            v-if="!editingEnvVars.length"
+            class="text-xs text-muted"
+          >
+            No env vars configured.
+          </div>
+          <div
+            v-for="(env, i) in editingEnvVars"
+            :key="i"
+            class="flex items-center gap-2 mb-2"
+          >
+            <UInput
+              v-model="env.key"
+              placeholder="KEY"
+              class="flex-1"
+              size="xs"
+            />
+            <UInput
+              v-model="env.value"
+              placeholder="value"
+              class="flex-1"
+              size="xs"
+            />
+            <UButton
+              size="xs"
+              variant="ghost"
+              color="error"
+              icon="i-lucide-x"
+              @click="removeEnvVar(i)"
+            />
+          </div>
+        </div>
+
+        <!-- Ports -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-sm font-medium">Ports</label>
+            <UButton
+              size="xs"
+              variant="outline"
+              icon="i-lucide-plus"
+              label="Add"
+              @click="addPort"
+            />
+          </div>
+          <div
+            v-if="!editingPorts.length"
+            class="text-xs text-muted"
+          >
+            No ports configured.
+          </div>
+          <div
+            v-for="(port, i) in editingPorts"
+            :key="i"
+            class="flex items-center gap-2 mb-2"
+          >
+            <UInput
+              v-model="port.hostPort"
+              placeholder="Host port"
+              size="xs"
+              class="w-28"
+            />
+            <span class="text-xs text-muted">:</span>
+            <UInput
+              v-model="port.containerPort"
+              placeholder="Container port"
+              size="xs"
+              class="w-28"
+            />
+            <UButton
+              size="xs"
+              variant="ghost"
+              color="error"
+              icon="i-lucide-x"
+              @click="removePort(i)"
+            />
+          </div>
+        </div>
+
+        <!-- Volumes -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-sm font-medium">Volumes</label>
+            <UButton
+              size="xs"
+              variant="outline"
+              icon="i-lucide-plus"
+              label="Add"
+              @click="addVolume"
+            />
+          </div>
+          <div
+            v-if="!editingVolumes.length"
+            class="text-xs text-muted"
+          >
+            No volumes configured.
+          </div>
+          <div
+            v-for="(vol, i) in editingVolumes"
+            :key="i"
+            class="flex items-center gap-2 mb-2"
+          >
+            <UInput
+              v-model="vol.source"
+              placeholder="Source"
+              size="xs"
+              class="flex-1"
+            />
+            <span class="text-xs text-muted">:</span>
+            <UInput
+              v-model="vol.target"
+              placeholder="Target"
+              size="xs"
+              class="flex-1"
+            />
+            <UButton
+              size="xs"
+              variant="ghost"
+              color="error"
+              icon="i-lucide-x"
+              @click="removeVolume(i)"
+            />
+          </div>
+        </div>
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex justify-end gap-2 p-4">
+        <UButton label="Cancel" variant="outline" @click="settingsOpen = false" />
+        <UButton label="Save" color="primary" @click="saveSettings" />
+      </div>
+    </template>
+  </UModal>
 </template>

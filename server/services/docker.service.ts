@@ -4,6 +4,7 @@ import path from 'node:path'
 import { PassThrough } from 'node:stream'
 import type { Writable } from 'node:stream'
 import { getDocker } from '../utils/docker'
+import { SERVICE_DEFAULTS } from '../utils/service-defaults'
 import type { InfrastructureService, Website, WebsitePhpExtension } from '~/types'
 
 import { websiteContainerName } from '../utils/slugify'
@@ -113,6 +114,7 @@ export const DockerService = {
     ports?: { host: string, container: string, proto?: string }[]
     volumes?: { source: string, target: string }[]
     network?: string
+    cmd?: string[]
   }): Promise<void> {
     const docker = await getDocker()
 
@@ -138,20 +140,24 @@ export const DockerService = {
     }
 
     // containerCreate(spec, { name }) — name trong options
+    const createSpec: Record<string, unknown> = {
+      Image: config.image,
+      Env: env,
+      ExposedPorts: exposedPorts,
+      Labels: {
+        'com.docker.compose.project': APP_NAME
+      },
+      HostConfig: {
+        PortBindings: portBindings,
+        Binds: binds,
+        NetworkMode: config.network || LARDO_NETWORK
+      }
+    }
+    if (config.cmd?.length) {
+      createSpec.Cmd = config.cmd
+    }
     await docker.containerCreate(
-      {
-        Image: config.image,
-        Env: env,
-        ExposedPorts: exposedPorts,
-        Labels: {
-          'com.docker.compose.project': APP_NAME
-        },
-        HostConfig: {
-          PortBindings: portBindings,
-          Binds: binds,
-          NetworkMode: config.network || LARDO_NETWORK
-        }
-      } as unknown as Record<string, unknown>,
+      createSpec,
       { name: config.name }
     )
 
@@ -278,16 +284,22 @@ export const DockerService = {
 
     await DockerService.pullImage(image)
 
+    const ports = (svc.ports || []).map(p => ({
+      host: p.hostPort,
+      container: p.containerPort,
+      proto: p.protocol
+    }))
+
+    const defaults = SERVICE_DEFAULTS[type.key]
+    const cmd = defaults?.cmd
+
     await DockerService.createAndStartContainer({
       image,
       name: svc.containerName,
       env: Object.fromEntries((svc.envVars || []).map(e => [e.key, e.value])),
-      ports: (svc.ports || []).map(p => ({
-        host: p.hostPort,
-        container: p.containerPort,
-        proto: p.protocol
-      })),
-      volumes: (svc.volumes || []).map(v => ({ source: v.source, target: v.target }))
+      ports,
+      volumes: (svc.volumes || []).map(v => ({ source: v.source, target: v.target })),
+      cmd
     })
   },
 
@@ -428,6 +440,19 @@ export const DockerService = {
         state: c.State ?? '',
         status: c.Status ?? ''
       }))
+  },
+
+  async getContainerStatus(name: string): Promise<'running' | 'stopped' | 'error'> {
+    try {
+      const docker = await getDocker()
+      const info = await docker.containerInspect(name)
+      const state = (info as unknown as { State?: { Status?: string, ExitCode?: number } })?.State
+      if (state?.Status === 'running') return 'running'
+      if (state?.ExitCode !== undefined && state.ExitCode !== 0) return 'error'
+      return 'stopped'
+    } catch {
+      return 'stopped'
+    }
   },
 
   async getContainerStatuses(): Promise<Map<string, 'running' | 'stopped'>> {

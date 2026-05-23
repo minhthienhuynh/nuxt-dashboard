@@ -27,6 +27,13 @@ const links = [[{
   onSelect: () => {
     open.value = false
   }
+}, {
+  label: 'Object Storage',
+  icon: 'i-lucide-hard-drive',
+  to: '/object-storage',
+  onSelect: () => {
+    open.value = false
+  }
 }]] satisfies NavigationMenuItem[][]
 
 const groups = computed(() => [{
