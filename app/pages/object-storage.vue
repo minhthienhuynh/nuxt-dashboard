@@ -5,13 +5,15 @@ const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
 const UIcon = resolveComponent('UIcon')
 
+const toast = useToast()
+
 const statusColor: Record<string, 'green' | 'gray' | 'red'> = {
   running: 'green',
   stopped: 'gray',
   error: 'red'
 }
 
-const { data: services } = await useFetch<InfrastructureService[]>('/api/services', { lazy: true })
+const { data: services, refresh: refreshServices } = await useFetch<InfrastructureService[]>('/api/services', { lazy: true })
 const { data: serviceTypes } = await useFetch<ServiceTypeInfo[]>('/api/services?types=only', { lazy: true })
 
 const storageServices = computed(() =>
@@ -33,6 +35,36 @@ function parsePorts(service: InfrastructureService): { hostPort: string, contain
     return []
   }
   return service.ports.map(p => ({ hostPort: p.hostPort, containerPort: p.containerPort }))
+}
+
+async function startService(svc: InfrastructureService) {
+  try {
+    await $fetch(`/api/services/${svc.id}/start`, { method: 'POST' })
+    await refreshServices()
+    toast.add({ title: `${svc.serviceType?.name || svc.containerName} started`, color: 'success' })
+  } catch {
+    toast.add({ title: 'Failed to start service', color: 'error' })
+  }
+}
+
+async function stopService(svc: InfrastructureService) {
+  try {
+    await $fetch(`/api/services/${svc.id}/stop`, { method: 'POST' })
+    await refreshServices()
+    toast.add({ title: `${svc.serviceType?.name || svc.containerName} stopped`, color: 'success' })
+  } catch {
+    toast.add({ title: 'Failed to stop service', color: 'error' })
+  }
+}
+
+async function deleteService(svc: InfrastructureService) {
+  try {
+    await $fetch(`/api/services/${svc.id}`, { method: 'DELETE' })
+    await refreshServices()
+    toast.add({ title: `${svc.serviceType?.name || svc.containerName} deleted`, color: 'success' })
+  } catch {
+    toast.add({ title: 'Failed to delete service', color: 'error' })
+  }
 }
 </script>
 
@@ -77,10 +109,20 @@ function parsePorts(service: InfrastructureService): { hostPort: string, contain
             </div>
             <div class="flex items-center gap-1.5">
               <UButton
+                v-if="svc.status !== 'running'"
                 size="xs"
                 color="green"
                 icon="i-lucide-play"
                 label="Start"
+                @click="startService(svc)"
+              />
+              <UButton
+                v-else
+                size="xs"
+                color="amber"
+                icon="i-lucide-square"
+                label="Stop"
+                @click="stopService(svc)"
               />
               <UButton
                 size="xs"
@@ -93,6 +135,13 @@ function parsePorts(service: InfrastructureService): { hostPort: string, contain
                 variant="ghost"
                 icon="i-lucide-settings"
                 label="Settings"
+              />
+              <UButton
+                size="xs"
+                variant="ghost"
+                color="red"
+                icon="i-lucide-trash"
+                @click="deleteService(svc)"
               />
             </div>
           </div>
