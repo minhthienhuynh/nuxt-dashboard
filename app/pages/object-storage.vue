@@ -67,6 +67,24 @@ async function deleteService(svc: InfrastructureService) {
     toast.add({ title: `Failed to delete ${svc.serviceType?.name || svc.containerName}`, color: 'error' })
   }
 }
+
+// ── Logs ───────────────────────────────────────────────────
+
+const { lines: logsLines, connected: logsConnected, connect: logsConnect, disconnect: logsDisconnect } = useContainerLogs()
+
+const logsOpen = ref(false)
+const logsServiceName = ref('')
+
+function openLogs(svc: InfrastructureService) {
+  logsServiceName.value = svc.serviceType?.name || svc.containerName
+  logsOpen.value = true
+  logsConnect(`/api/services/${svc.id}/logs/stream`)
+}
+
+function closeLogs() {
+  logsOpen.value = false
+  logsDisconnect()
+}
 </script>
 
 <template>
@@ -130,6 +148,7 @@ async function deleteService(svc: InfrastructureService) {
                 variant="outline"
                 icon="i-lucide-file-text"
                 label="Logs"
+                @click="openLogs(svc)"
               />
               <UButton
                 size="xs"
@@ -161,5 +180,24 @@ async function deleteService(svc: InfrastructureService) {
         </div>
       </div>
     </template>
+
+    <!-- Logs Modal -->
+    <UModal v-model:open="logsOpen" :title="`Logs: ${logsServiceName}`" @close="closeLogs">
+      <template #body>
+        <div class="p-4">
+          <div class="flex items-center gap-2 mb-3">
+            <UBadge :color="logsConnected ? 'green' : 'gray'" variant="subtle" size="xs">
+              {{ logsConnected ? 'Live' : 'Connecting...' }}
+            </UBadge>
+          </div>
+          <pre class="text-xs bg-default/50 rounded-lg p-3 max-h-96 overflow-auto whitespace-pre-wrap break-all font-mono">{{ logsLines.join('\n') || 'Waiting for logs...' }}</pre>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2 p-4">
+          <UButton label="Close" variant="outline" @click="closeLogs" />
+        </div>
+      </template>
+    </UModal>
   </UDashboardPanel>
 </template>
