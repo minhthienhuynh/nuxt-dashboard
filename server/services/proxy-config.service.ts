@@ -1,4 +1,4 @@
-import fs from 'node:fs'
+import { access, readFile, writeFile, mkdir, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import { ProxyRepository } from '../repositories/proxy.repository'
 import { WebsiteRepository } from '../repositories/website.repository'
@@ -52,28 +52,33 @@ export const ProxyConfigService = {
     }
   },
 
-  removeForWebsite(name: string): void {
+  async removeForWebsite(name: string): Promise<void> {
     const caddyFile = path.join(PROXY_BASE, 'caddy/sites', `${name}.conf`)
     const traefikFile = path.join(PROXY_BASE, 'traefik/dynamic', `${name}.yml`)
     const nginxFile = path.join(PROXY_BASE, 'nginx/sites', `${name}.conf`)
 
     for (const f of [caddyFile, traefikFile, nginxFile]) {
-      if (fs.existsSync(f)) fs.unlinkSync(f)
+      try {
+        await access(f)
+        await unlink(f)
+      } catch {
+        // File doesn't exist, skip
+      }
     }
   },
 
   // ── Caddy ──────────────────────────────────────────────
 
-  generateCaddy(sites: WebsiteForProxy[]): void {
-    fs.mkdirSync(path.join(PROXY_BASE, 'caddy/sites'), { recursive: true })
+  async generateCaddy(sites: WebsiteForProxy[]): Promise<void> {
+    await mkdir(path.join(PROXY_BASE, 'caddy/sites'), { recursive: true })
     for (const site of sites) {
-      ProxyConfigService.writeCaddySite(site)
+      await ProxyConfigService.writeCaddySite(site)
     }
   },
 
-  writeCaddySite(site: WebsiteForProxy): void {
+  async writeCaddySite(site: WebsiteForProxy): Promise<void> {
     const config = getWebsiteTypeConfig(site.type)
-    const stub = fs.readFileSync(path.join(STUB_DIR.caddy, `${config.proxyStub}.conf.stub`), 'utf-8')
+    const stub = await readFile(path.join(STUB_DIR.caddy, `${config.proxyStub}.conf.stub`), 'utf-8')
     const dirName = path.basename(site.documentRoot)
     const scheme = site.sslEnabled ? '' : 'http://'
     const tls = site.sslEnabled ? '    tls internal\n' : ''
@@ -84,48 +89,48 @@ export const ProxyConfigService = {
       .replace(/\{\{DIR_NAME\}\}/g, dirName)
       .replace(/\{\{PORT\}\}/g, config.proxyPort)
 
-    fs.mkdirSync(path.join(PROXY_BASE, 'caddy/sites'), { recursive: true })
-    fs.writeFileSync(path.join(PROXY_BASE, 'caddy/sites', `${site.name}.conf`), content)
+    await mkdir(path.join(PROXY_BASE, 'caddy/sites'), { recursive: true })
+    await writeFile(path.join(PROXY_BASE, 'caddy/sites', `${site.name}.conf`), content)
   },
 
   // ── Traefik ────────────────────────────────────────────
 
-  generateTraefik(sites: WebsiteForProxy[]): void {
-    fs.mkdirSync(path.join(PROXY_BASE, 'traefik/dynamic'), { recursive: true })
+  async generateTraefik(sites: WebsiteForProxy[]): Promise<void> {
+    await mkdir(path.join(PROXY_BASE, 'traefik/dynamic'), { recursive: true })
     for (const site of sites) {
-      ProxyConfigService.writeTraefikSite(site)
+      await ProxyConfigService.writeTraefikSite(site)
     }
   },
 
-  writeTraefikSite(site: WebsiteForProxy): void {
-    const stub = fs.readFileSync(path.join(STUB_DIR.traefik, 'dynamic.conf.stub'), 'utf-8')
+  async writeTraefikSite(site: WebsiteForProxy): Promise<void> {
+    const stub = await readFile(path.join(STUB_DIR.traefik, 'dynamic.conf.stub'), 'utf-8')
     const content = stub
       .replace(/\{\{DOMAIN\}\}/g, site.domain)
       .replace(/\{\{SERVICE\}\}/g, websiteContainerName(site.name))
       .replace(/\{\{PORT\}\}/g, '80')
 
-    fs.mkdirSync(path.join(PROXY_BASE, 'traefik/dynamic'), { recursive: true })
-    fs.writeFileSync(path.join(PROXY_BASE, 'traefik/dynamic', `${site.name}.yml`), content)
+    await mkdir(path.join(PROXY_BASE, 'traefik/dynamic'), { recursive: true })
+    await writeFile(path.join(PROXY_BASE, 'traefik/dynamic', `${site.name}.yml`), content)
   },
 
   // ── Nginx ──────────────────────────────────────────────
 
-  generateNginx(sites: WebsiteForProxy[]): void {
-    fs.mkdirSync(path.join(PROXY_BASE, 'nginx/sites'), { recursive: true })
+  async generateNginx(sites: WebsiteForProxy[]): Promise<void> {
+    await mkdir(path.join(PROXY_BASE, 'nginx/sites'), { recursive: true })
     for (const site of sites) {
-      ProxyConfigService.writeNginxSite(site)
+      await ProxyConfigService.writeNginxSite(site)
     }
   },
 
-  writeNginxSite(site: WebsiteForProxy): void {
+  async writeNginxSite(site: WebsiteForProxy): Promise<void> {
     const config = getWebsiteTypeConfig(site.type)
-    const stub = fs.readFileSync(path.join(STUB_DIR.nginx, `${config.proxyStub}.conf.stub`), 'utf-8')
+    const stub = await readFile(path.join(STUB_DIR.nginx, `${config.proxyStub}.conf.stub`), 'utf-8')
     const content = stub
       .replace(/\{\{DOMAIN\}\}/g, site.domain)
       .replace(/\{\{SERVICE\}\}/g, websiteContainerName(site.name))
       .replace(/\{\{PORT\}\}/g, config.proxyPort)
 
-    fs.mkdirSync(path.join(PROXY_BASE, 'nginx/sites'), { recursive: true })
-    fs.writeFileSync(path.join(PROXY_BASE, 'nginx/sites', `${site.name}.conf`), content)
+    await mkdir(path.join(PROXY_BASE, 'nginx/sites'), { recursive: true })
+    await writeFile(path.join(PROXY_BASE, 'nginx/sites', `${site.name}.conf`), content)
   }
 }

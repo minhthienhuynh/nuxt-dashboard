@@ -14,7 +14,7 @@ export default eventHandler(async (event) => {
     const cName = websiteContainerName(websiteName)
     await DockerContainerService.stopAndRemoveContainer(cName)
     await WebsiteService.remove(id)
-    ProxyConfigService.removeForWebsite(websiteName)
+    await ProxyConfigService.removeForWebsite(websiteName)
     return { success: true }
   } catch (error) {
     throw handleError(error)
