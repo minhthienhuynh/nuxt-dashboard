@@ -1,11 +1,6 @@
 <script setup lang="ts">
 import type { ServiceTypeInfo } from '~/types'
 
-const UButton = resolveComponent('UButton')
-const UModal = resolveComponent('UModal')
-const USelect = resolveComponent('USelect')
-const UInput = resolveComponent('UInput')
-
 const open = defineModel<boolean>('open', { default: false })
 const props = defineProps<{
   serviceTypes?: ServiceTypeInfo[]
