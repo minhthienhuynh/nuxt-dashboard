@@ -314,6 +314,13 @@ export const DockerService = {
     })
   },
 
+  async rebuildService(svc: InfrastructureService): Promise<void> {
+    try {
+      await DockerService.stopAndRemoveContainer(svc.containerName)
+    } catch { /* container might not exist */ }
+    await DockerService.deployService(svc)
+  },
+
   async deployWebsite(website: Website): Promise<void> {
     const { tag } = await DockerService.ensurePhpImage(website)
 
