@@ -59,6 +59,14 @@ export const WebsiteRepository = {
     return prisma.website.delete({ where: { id } })
   },
 
+  async updateBuildHash(id: number, buildHash: string | null) {
+    return prisma.website.update({
+      where: { id },
+      data: { buildHash },
+      include: EXTENSIONS_INCLUDE
+    })
+  },
+
   async replaceExtensions(websiteId: number, extensionIds: number[]) {
     await prisma.websitePhpExtension.deleteMany({ where: { websiteId } })
     if (extensionIds.length > 0) {
