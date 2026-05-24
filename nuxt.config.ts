@@ -14,7 +14,14 @@ export default defineNuxtConfig({
 
   routeRules: {
     '/api/**': {
-      cors: true
+      cors: {
+        origin: process.env.NODE_ENV === 'development'
+          ? ['http://localhost:3000']
+          : [process.env.APP_URL || 'http://localhost:3000']
+      },
+      headers: {
+        'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+      }
     }
   },
 
