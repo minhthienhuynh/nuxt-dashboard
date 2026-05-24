@@ -7,14 +7,8 @@ interface DirEntry {
   isDirectory: boolean
 }
 
-interface BrowseResponse {
-  path: string
-  parentPath: string | null
-  entries: DirEntry[]
-}
-
 const currentPath = ref('')
-const parentPath = ref<string | null>('')
+const parentPath = ref('')
 const entries = ref<DirEntry[]>([])
 const loading = ref(false)
 const selectedPath = ref('')
@@ -22,12 +16,12 @@ const selectedPath = ref('')
 async function browsePath(path: string) {
   loading.value = true
   try {
-    const data = await $fetch<BrowseResponse>(
+    const data = await $fetch<{ path: string, parentPath: string | null, entries: DirEntry[] }>(
       '/api/browse-path',
       { query: { path } }
     )
     currentPath.value = data.path
-    parentPath.value = data.parentPath
+    parentPath.value = data.parentPath || ''
     entries.value = data.entries
     selectedPath.value = data.path
   } catch {
@@ -49,7 +43,9 @@ function navigateTo(dir: string) {
 }
 
 function goUp() {
-  browsePath(parentPath.value)
+  if (parentPath.value) {
+    browsePath(parentPath.value)
+  }
 }
 
 function confirm() {
@@ -87,10 +83,17 @@ function confirm() {
             :key="entry.name"
             class="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-(--ui-bg-elevated) text-sm"
             :class="{ 'bg-(--ui-bg-elevated)': selectedPath === `${currentPath}/${entry.name}` }"
-            @click="navigateTo(`${currentPath}/${entry.name}`)"
+            @click="selectedPath = `${currentPath}/${entry.name}`"
           >
             <UIcon name="i-lucide-folder" class="size-4 text-(--ui-text-dimmed)" />
             <span>{{ entry.name }}</span>
+            <UButton
+              icon="i-lucide-arrow-right"
+              variant="ghost"
+              size="xs"
+              class="ml-auto"
+              @click.stop="navigateTo(`${currentPath}/${entry.name}`)"
+            />
           </div>
         </div>
 
