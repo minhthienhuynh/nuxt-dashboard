@@ -99,6 +99,9 @@ watch(selectedId, async (newId) => {
   loadingDetail.value = true
   try {
     const msg = await $fetch<MailpitMessageDetail>(`/api/mailpit/messages/${newId}`)
+    // Copy read status from list (detail API doesn't include Read)
+    const listMsg = messagesData.value?.messages?.find(m => m.ID === newId)
+    if (listMsg) msg.Read = listMsg.Read
     selectedMessage.value = msg
   } catch {
     selectedMessage.value = null
@@ -117,6 +120,18 @@ function onDeleted(_id: string) {
   selectedMessage.value = null
   selectedId.value = null
   refreshMessages()
+}
+
+function onToggledRead(id: string, read: boolean) {
+  // Update the selected message's read status immediately
+  if (selectedMessage.value) {
+    selectedMessage.value.Read = read
+  }
+  // Also update the list
+  if (messagesData.value?.messages) {
+    const listMsg = messagesData.value.messages.find(m => m.ID === id)
+    if (listMsg) listMsg.Read = read
+  }
 }
 
 const breakpoints = useBreakpoints(breakpointsTailwind)
@@ -234,6 +249,7 @@ onUnmounted(() => {
     @close="selectedMessage = null; selectedId = null"
     @deleted="onDeleted"
     @open="openInMailpit"
+    @toggled-read="onToggledRead"
   />
   <div v-else-if="!loadingDetail" class="hidden lg:flex flex-1 items-center justify-center">
     <UIcon name="i-lucide-mail" class="size-32 text-dimmed" />
@@ -249,6 +265,7 @@ onUnmounted(() => {
           @close="selectedMessage = null; selectedId = null"
           @deleted="onDeleted"
           @open="openInMailpit"
+          @toggled-read="onToggledRead"
         />
       </template>
     </USlideover>

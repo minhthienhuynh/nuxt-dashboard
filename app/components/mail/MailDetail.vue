@@ -10,10 +10,12 @@ const emit = defineEmits<{
   close: []
   deleted: [id: string]
   open: [id: string]
+  toggledRead: [id: string, read: boolean]
 }>()
 
 const toast = useToast()
 const deleting = ref(false)
+const togglingRead = ref(false)
 
 async function handleDelete() {
   deleting.value = true
@@ -29,6 +31,26 @@ async function handleDelete() {
     })
   } finally {
     deleting.value = false
+  }
+}
+
+async function toggleRead() {
+  togglingRead.value = true
+  const newRead = !props.message.Read
+  try {
+    await $fetch(`/api/mailpit/messages/${props.message.ID}/read`, {
+      method: 'POST',
+      body: { read: newRead }
+    })
+    emit('toggledRead', props.message.ID, newRead)
+  } catch (e: unknown) {
+    const err = e as { data?: { statusMessage?: string }; message?: string }
+    toast.add({
+      title: err?.data?.statusMessage ?? err?.message ?? 'Failed to update',
+      color: 'error'
+    })
+  } finally {
+    togglingRead.value = false
   }
 }
 </script>
@@ -47,6 +69,15 @@ async function handleDelete() {
       </template>
 
       <template #right>
+        <UButton
+          v-if="message.Read !== undefined"
+          :icon="message.Read ? 'i-lucide-mail' : 'i-lucide-mail-open'"
+          color="neutral"
+          variant="ghost"
+          :label="message.Read ? 'Unread' : 'Read'"
+          :loading="togglingRead"
+          @click="toggleRead"
+        />
         <UButton
           icon="i-lucide-external-link"
           color="neutral"

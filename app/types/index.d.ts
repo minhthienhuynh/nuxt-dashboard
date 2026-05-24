@@ -267,6 +267,7 @@ export interface MailpitMessageDetail {
   Text?: string
   HTML?: string
   Tags: string[]
+  Read?: boolean
   Attachments?: MailpitAttachment[]
   Inline?: MailpitAttachment[]
 }
