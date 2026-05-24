@@ -8,7 +8,8 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
-    "typecheck": "nuxt typecheck"
+    "typecheck": "nuxt typecheck",
+    "test": "vitest run"
   },
   "dependencies": {
     "@docker/node-sdk": "^0.0.17",
@@ -35,13 +36,17 @@
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.15.2",
+    "@nuxt/test-utils": "^4.0.3",
     "@types/dompurify": "^3.2.0",
     "@types/node": "^25.6.2",
+    "@vue/test-utils": "^2.4.10",
     "dotenv": "^17.4.2",
     "eslint": "^10.3.0",
+    "happy-dom": "^20.9.0",
     "prisma": "^7.8.0",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",
+    "vitest": "^4.1.7",
     "vue-tsc": "^3.2.8"
   },
   "packageManager": "pnpm@10.33.2"
