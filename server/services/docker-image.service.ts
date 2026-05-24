@@ -1,6 +1,9 @@
 import { createHash } from 'node:crypto'
-import { execSync } from 'node:child_process'
+import { exec } from 'node:child_process'
+import { promisify } from 'node:util'
 import path from 'node:path'
+
+const execAsync = promisify(exec)
 import { getDocker } from '../utils/docker'
 import { AppError } from '../utils/errors'
 import { getWebsiteTypeConfig, imageTagForType, DEFAULT_WEBSITE_TYPE } from '../utils/website-types'
@@ -19,7 +22,7 @@ export const DockerImageService = {
     return createHash('sha256').update(`${type}:${phpVersion}:${sorted.join(',')}:${dirName}`).digest('hex')
   },
 
-  buildPhpImage(website: Website): string {
+  async buildPhpImage(website: Website): Promise<string> {
     const type = website.type || DEFAULT_WEBSITE_TYPE
     const config = getWebsiteTypeConfig(type)
     const phpTag = config.phpTag(website.phpVersion)
@@ -51,8 +54,8 @@ export const DockerImageService = {
     ]
 
     try {
-      execSync(`docker ${args.map(a => a.includes(' ') ? `"${a}"` : a).join(' ')}`, {
-        stdio: 'pipe'
+      await execAsync(`docker ${args.map(a => a.includes(' ') ? `"${a}"` : a).join(' ')}`, {
+        timeout: 300000
       })
     } catch (error) {
       throw new AppError(`Failed to build PHP image: ${error instanceof Error ? error.message : String(error)}`, 500)

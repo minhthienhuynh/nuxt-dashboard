@@ -15,7 +15,7 @@ export const DockerDeploymentService = {
       .map((e: WebsitePhpExtension) => e.extension!.name) ?? []
 
     if (DockerImageService.needRebuild(website)) {
-      const tag = DockerImageService.buildPhpImage(website)
+      const tag = await DockerImageService.buildPhpImage(website)
       const newHash = DockerImageService.computeBuildHash(type, website.phpVersion, extensionNames, website.documentRoot)
       await WebsiteRepository.updateBuildHash(website.id, newHash)
       return { tag, rebuilt: true }
