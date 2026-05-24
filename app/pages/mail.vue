@@ -109,7 +109,7 @@ watch(selectedId, async (newId) => {
 
 function openInMailpit(id: string) {
   if (mailpitStatus.value?.dashboardUrl) {
-    window.open(`${mailpitStatus.value.dashboardUrl}/view/${id}.html`, '_blank')
+    window.open(`${mailpitStatus.value.dashboardUrl}/view/${id}`, '_blank')
   }
 }
 

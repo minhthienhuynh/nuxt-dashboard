@@ -254,13 +254,21 @@ export interface MailpitMessage {
   Tags: string[]
 }
 
-export interface MailpitMessageDetail extends MailpitMessage {
+export interface MailpitMessageDetail {
+  ID: string
+  MessageID?: string
+  From?: MailpitFrom
+  To?: MailpitTo[]
   Cc?: MailpitTo[]
   Bcc?: MailpitTo[]
+  Subject?: string
+  Date: string
+  Size: number
   Text?: string
   HTML?: string
+  Tags: string[]
+  Attachments?: MailpitAttachment[]
   Inline?: MailpitAttachment[]
-  AttachmentsList?: MailpitAttachment[]
 }
 
 export interface MailpitMessagesResponse {

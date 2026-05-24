@@ -80,7 +80,7 @@ async function handleDelete() {
         </div>
       </div>
       <p class="max-sm:pl-16 text-muted text-sm sm:mt-2">
-        {{ format(new Date(message.Created), 'dd MMM yyyy HH:mm') }}
+        {{ format(new Date(message.Date), 'dd MMM yyyy HH:mm') }}
       </p>
     </div>
 
@@ -88,11 +88,11 @@ async function handleDelete() {
       <div v-if="message.HTML" class="mailpit-html" v-html="message.HTML" />
       <pre v-else class="whitespace-pre-wrap font-sans text-sm">{{ message.Text }}</pre>
 
-      <div v-if="message.AttachmentsList?.length" class="mt-6 border-t border-default pt-4">
-        <h4 class="text-sm font-semibold mb-2">Attachments ({{ message.AttachmentsList.length }})</h4>
+      <div v-if="message.Attachments?.length" class="mt-6 border-t border-default pt-4">
+        <h4 class="text-sm font-semibold mb-2">Attachments ({{ message.Attachments.length }})</h4>
         <div class="flex flex-wrap gap-2">
           <UBadge
-            v-for="att in message.AttachmentsList"
+            v-for="att in message.Attachments"
             :key="att.PartID"
             variant="subtle"
           >
