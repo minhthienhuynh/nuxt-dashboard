@@ -7,9 +7,34 @@ const props = defineProps<{
   loading: boolean
 }>()
 
+const selectedId = defineModel<string | null>()
+
 const emit = defineEmits<{
-  select: [id: string]
+  open: [id: string]
 }>()
+
+const messageList = computed(() => props.messages)
+
+defineShortcuts({
+  arrowdown: () => {
+    const msgs = messageList.value
+    const index = msgs.findIndex((m) => m.ID === selectedId.value)
+    if (index === -1) {
+      selectedId.value = msgs[0]?.ID ?? null
+    } else if (index < msgs.length - 1) {
+      selectedId.value = msgs[index + 1]?.ID ?? null
+    }
+  },
+  arrowup: () => {
+    const msgs = messageList.value
+    const index = msgs.findIndex((m) => m.ID === selectedId.value)
+    if (index === -1) {
+      selectedId.value = msgs[msgs.length - 1]?.ID ?? null
+    } else if (index > 0) {
+      selectedId.value = msgs[index - 1]?.ID ?? null
+    }
+  }
+})
 </script>
 
 <template>
@@ -25,16 +50,31 @@ const emit = defineEmits<{
     <div
       v-for="msg in messages"
       :key="msg.ID"
-      class="p-4 sm:px-6 text-sm cursor-pointer border-l-2 transition-colors border-bg hover:border-primary hover:bg-primary/5"
-      :class="!msg.Read ? 'text-highlighted' : 'text-toned'"
-      @click="emit('select', msg.ID)"
+      class="group p-4 sm:px-6 text-sm cursor-pointer border-l-2 transition-colors"
+      :class="[
+        !msg.Read ? 'text-highlighted' : 'text-toned',
+        selectedId === msg.ID
+          ? 'border-primary bg-primary/10'
+          : 'border-bg hover:border-primary hover:bg-primary/5'
+      ]"
+      @click="selectedId = msg.ID"
     >
       <div class="flex items-center justify-between" :class="[!msg.Read && 'font-semibold']">
         <div class="flex items-center gap-3 min-w-0">
           <span class="truncate">{{ msg.From?.Name || msg.From?.Address || 'Unknown' }}</span>
           <UChip v-if="!msg.Read" />
         </div>
-        <span class="shrink-0 text-xs ml-2">{{ isToday(new Date(msg.Created)) ? format(new Date(msg.Created), 'HH:mm') : format(new Date(msg.Created), 'dd MMM') }}</span>
+        <div class="flex items-center gap-1 shrink-0 ml-2">
+          <span class="text-xs">{{ isToday(new Date(msg.Created)) ? format(new Date(msg.Created), 'HH:mm') : format(new Date(msg.Created), 'dd MMM') }}</span>
+          <UButton
+            icon="i-lucide-external-link"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            class="opacity-0 group-hover:opacity-100 transition-opacity"
+            @click.stop="emit('open', msg.ID)"
+          />
+        </div>
       </div>
       <p class="truncate" :class="[!msg.Read && 'font-semibold']">
         {{ msg.Subject || '(no subject)' }}

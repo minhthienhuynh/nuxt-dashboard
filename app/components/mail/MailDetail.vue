@@ -9,6 +9,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: []
   deleted: [id: string]
+  open: [id: string]
 }>()
 
 const toast = useToast()
@@ -46,6 +47,13 @@ async function handleDelete() {
       </template>
 
       <template #right>
+        <UButton
+          icon="i-lucide-external-link"
+          color="neutral"
+          variant="ghost"
+          label="Mailpit"
+          @click="emit('open', props.message.ID)"
+        />
         <UButton
           icon="i-lucide-trash"
           color="neutral"

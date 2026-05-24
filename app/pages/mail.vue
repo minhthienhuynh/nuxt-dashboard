@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { MailpitMessage, MailpitStatus, InfrastructureService } from '~/types'
+import type { MailpitMessage, MailpitMessageDetail, MailpitStatus, InfrastructureService } from '~/types'
+import { breakpointsTailwind } from '@vueuse/core'
 
 const toast = useToast()
 
@@ -32,7 +33,6 @@ async function deployMailpit() {
       }) as unknown as InfrastructureService
     }
 
-    // Deploy if container is not running (start endpoint auto-deploys if needed)
     if ((mailpitSvc as any).status !== 'running') {
       await $fetch(`/api/services/${mailpitSvc.id}/start`, { method: 'POST' })
     }
@@ -82,11 +82,45 @@ function openMailpitDashboard() {
 
 const { data: messagesData, status: messagesLoading, refresh: refreshMessages } = await useFetch<{ messages: MailpitMessage[] }>('/api/mailpit/messages', { lazy: true })
 
-function openMail(id: string) {
+const selectedId = ref<string | null>(null)
+const selectedMessage = ref<MailpitMessageDetail | null>(null)
+const loadingDetail = ref(false)
+
+const isDetailOpen = computed({
+  get: () => !!selectedMessage.value,
+  set: (v: boolean) => { if (!v) selectedMessage.value = null }
+})
+
+watch(selectedId, async (newId) => {
+  if (!newId) {
+    selectedMessage.value = null
+    return
+  }
+  loadingDetail.value = true
+  try {
+    const msg = await $fetch<MailpitMessageDetail>(`/api/mailpit/messages/${newId}`)
+    selectedMessage.value = msg
+  } catch {
+    selectedMessage.value = null
+  } finally {
+    loadingDetail.value = false
+  }
+})
+
+function openInMailpit(id: string) {
   if (mailpitStatus.value?.dashboardUrl) {
     window.open(`${mailpitStatus.value.dashboardUrl}/view/${id}.html`, '_blank')
   }
 }
+
+function onDeleted(_id: string) {
+  selectedMessage.value = null
+  selectedId.value = null
+  refreshMessages()
+}
+
+const breakpoints = useBreakpoints(breakpointsTailwind)
+const isMobile = breakpoints.smaller('lg')
 
 // Auto-refresh messages every 30s when mailpit is running
 const autoRefresh = ref<ReturnType<typeof setInterval> | null>(null)
@@ -187,13 +221,36 @@ onUnmounted(() => {
 
     <MailList
       v-if="mailpitStatus?.running"
+      v-model="selectedId"
       :messages="messagesData?.messages || []"
       :loading="messagesLoading === 'pending'"
-      @select="openMail"
+      @open="openInMailpit"
     />
   </UDashboardPanel>
 
-  <div class="hidden lg:flex flex-1 items-center justify-center">
+  <MailDetail
+    v-if="selectedMessage"
+    :message="selectedMessage"
+    @close="selectedMessage = null; selectedId = null"
+    @deleted="onDeleted"
+    @open="openInMailpit"
+  />
+  <div v-else-if="!loadingDetail" class="hidden lg:flex flex-1 items-center justify-center">
     <UIcon name="i-lucide-mail" class="size-32 text-dimmed" />
   </div>
+
+  <!-- Mobile slideover for detail -->
+  <ClientOnly>
+    <USlideover v-if="isMobile" v-model:open="isDetailOpen">
+      <template #content>
+        <MailDetail
+          v-if="selectedMessage"
+          :message="selectedMessage"
+          @close="selectedMessage = null; selectedId = null"
+          @deleted="onDeleted"
+          @open="openInMailpit"
+        />
+      </template>
+    </USlideover>
+  </ClientOnly>
 </template>
