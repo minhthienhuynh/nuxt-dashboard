@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { MailpitMessage, MailpitMessageDetail, MailpitStatus, InfrastructureService } from '~/types'
+import type { MailpitMessage, MailpitMessageDetail, MailpitStatus } from '~/types'
 import { breakpointsTailwind } from '@vueuse/core'
 
 const toast = useToast()
@@ -10,32 +10,11 @@ const { data: mailpitStatus, refresh: refreshStatus } = await useFetch<MailpitSt
 
 // ── Mailpit service management ───────────────────────────────
 
-const deploying = ref(false)
-const stopping = ref(false)
+const { deploying, stopping, deploy, stop } = useMailpit()
 
 async function deployMailpit() {
-  deploying.value = true
   try {
-    const services = await $fetch<InfrastructureService[]>('/api/services')
-    let mailpitSvc = services.find(s => s.serviceType?.key === 'mailpit')
-
-    if (!mailpitSvc) {
-      mailpitSvc = await $fetch('/api/services', {
-        method: 'POST',
-        body: {
-          serviceTypeKey: 'mailpit',
-          containerName: 'mailpit',
-          ports: [
-            { hostPort: '1025', containerPort: '1025', protocol: 'tcp' },
-            { hostPort: '8025', containerPort: '8025', protocol: 'tcp' }
-          ]
-        }
-      }) as unknown as InfrastructureService
-    }
-
-    if ((mailpitSvc as any).status !== 'running') {
-      await $fetch(`/api/services/${mailpitSvc.id}/start`, { method: 'POST' })
-    }
+    await deploy()
     await refreshStatus()
     await refreshMessages()
     toast.add({ title: 'Mailpit deployed', color: 'success' })
@@ -45,19 +24,12 @@ async function deployMailpit() {
       title: err?.data?.statusMessage ?? err?.message ?? 'Failed to deploy Mailpit',
       color: 'error'
     })
-  } finally {
-    deploying.value = false
   }
 }
 
 async function stopMailpit() {
-  stopping.value = true
   try {
-    const services = await $fetch<InfrastructureService[]>('/api/services')
-    const mailpitSvc = services.find(s => s.serviceType?.key === 'mailpit')
-    if (mailpitSvc) {
-      await $fetch(`/api/services/${mailpitSvc.id}/stop`, { method: 'POST' })
-    }
+    await stop()
     await refreshStatus()
     await refreshMessages()
     toast.add({ title: 'Mailpit stopped', color: 'success' })
@@ -67,8 +39,6 @@ async function stopMailpit() {
       title: err?.data?.statusMessage ?? err?.message ?? 'Failed to stop Mailpit',
       color: 'error'
     })
-  } finally {
-    stopping.value = false
   }
 }
 
