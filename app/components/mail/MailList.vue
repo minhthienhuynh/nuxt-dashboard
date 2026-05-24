@@ -7,30 +7,9 @@ const props = defineProps<{
   loading: boolean
 }>()
 
-const selectedId = defineModel<string | null>()
-
-const messageList = computed(() => props.messages)
-
-defineShortcuts({
-  arrowdown: () => {
-    const msgs = messageList.value
-    const index = msgs.findIndex((m) => m.ID === selectedId.value)
-    if (index === -1) {
-      selectedId.value = msgs[0]?.ID ?? null
-    } else if (index < msgs.length - 1) {
-      selectedId.value = msgs[index + 1]?.ID ?? null
-    }
-  },
-  arrowup: () => {
-    const msgs = messageList.value
-    const index = msgs.findIndex((m) => m.ID === selectedId.value)
-    if (index === -1) {
-      selectedId.value = msgs[msgs.length - 1]?.ID ?? null
-    } else if (index > 0) {
-      selectedId.value = msgs[index - 1]?.ID ?? null
-    }
-  }
-})
+const emit = defineEmits<{
+  select: [id: string]
+}>()
 </script>
 
 <template>
@@ -46,14 +25,9 @@ defineShortcuts({
     <div
       v-for="msg in messages"
       :key="msg.ID"
-      class="p-4 sm:px-6 text-sm cursor-pointer border-l-2 transition-colors"
-      :class="[
-        !msg.Read ? 'text-highlighted' : 'text-toned',
-        selectedId === msg.ID
-          ? 'border-primary bg-primary/10'
-          : 'border-bg hover:border-primary hover:bg-primary/5'
-      ]"
-      @click="selectedId = msg.ID"
+      class="p-4 sm:px-6 text-sm cursor-pointer border-l-2 transition-colors border-bg hover:border-primary hover:bg-primary/5"
+      :class="!msg.Read ? 'text-highlighted' : 'text-toned'"
+      @click="emit('select', msg.ID)"
     >
       <div class="flex items-center justify-between" :class="[!msg.Read && 'font-semibold']">
         <div class="flex items-center gap-3 min-w-0">
