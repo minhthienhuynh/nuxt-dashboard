@@ -1,5 +1,5 @@
 import { ServiceRepository } from '../repositories/service.repository'
-import { DockerService } from '../services/docker.service'
+import { DockerContainerService } from '../services/docker-container.service'
 
 const MAILPIT_DASHBOARD_PORT = '8025'
 
@@ -28,7 +28,7 @@ async function getMailpitConnection(): Promise<MailpitConnection | null> {
   )
   if (!dashboardPort) return null
 
-  const containerStatus = await DockerService.getContainerStatus(mailpit.containerName)
+  const containerStatus = await DockerContainerService.getContainerStatus(mailpit.containerName)
   if (containerStatus !== 'running') return null
 
   return {

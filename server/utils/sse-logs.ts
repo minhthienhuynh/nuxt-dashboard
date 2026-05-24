@@ -1,6 +1,6 @@
 import { createEventStream } from 'h3'
 import type { H3Event } from 'h3'
-import { DockerService } from '../services/docker.service'
+import { DockerContainerService } from '../services/docker-container.service'
 
 export function streamContainerLogs(event: H3Event, containerName: string, tail = 100) {
   const stream = createEventStream(event)
@@ -17,7 +17,7 @@ export function streamContainerLogs(event: H3Event, containerName: string, tail 
 
   ;(async () => {
     try {
-      for await (const line of DockerService.getLogStream(containerName, tail, ac.signal)) {
+      for await (const line of DockerContainerService.getLogStream(containerName, tail, ac.signal)) {
         if (closed) break
         stream.push({ event: 'line', data: line })
       }
