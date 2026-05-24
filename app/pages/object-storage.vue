@@ -3,6 +3,8 @@ import type { InfrastructureService, ServiceTypeInfo } from '~/types'
 
 const toast = useToast()
 
+const rebuilding = ref<Set<number>>(new Set())
+
 const statusColor: Record<string, 'success' | 'neutral' | 'error'> = {
   running: 'success',
   stopped: 'neutral',
@@ -50,6 +52,20 @@ async function stopService(svc: InfrastructureService) {
     toast.add({ title: `${svc.serviceType?.name || svc.containerName} stopped`, color: 'success' })
   } catch {
     toast.add({ title: `Failed to stop ${svc.serviceType?.name || svc.containerName}`, color: 'error' })
+  }
+}
+
+async function rebuildServiceAction(svc: InfrastructureService) {
+  rebuilding.value = new Set(rebuilding.value).add(svc.id)
+  try {
+    await $fetch(`/api/services/${svc.id}/rebuild`, { method: 'POST' })
+    await refreshServices()
+    toast.add({ title: `${svc.serviceType?.name || svc.containerName} rebuilt successfully`, color: 'success' })
+  } catch {
+    toast.add({ title: `Failed to rebuild ${svc.serviceType?.name || svc.containerName}`, color: 'error' })
+  } finally {
+    rebuilding.value = new Set(rebuilding.value)
+    rebuilding.value.delete(svc.id)
   }
 }
 
@@ -242,6 +258,14 @@ function removeVolume(index: number) {
                 icon="i-lucide-square"
                 label="Stop"
                 @click="stopService(svc)"
+              />
+              <UButton
+                size="xs"
+                variant="outline"
+                icon="i-lucide-hammer"
+                label="Rebuild"
+                :loading="rebuilding.has(svc.id)"
+                @click="rebuildServiceAction(svc)"
               />
               <UButton
                 size="xs"
