@@ -73,8 +73,8 @@ export const DockerContainerService = {
     try {
       await docker.containerStop(name)
       await docker.containerDelete(name)
-    } catch {
-      // Container có thể đã bị xoá từ bên ngoài
+    } catch (err: unknown) {
+      console.error(`[DockerContainerService] Failed to stop/remove container ${name}:`, err)
     }
   },
 
@@ -182,7 +182,8 @@ export const DockerContainerService = {
       })
 
       return Buffer.concat(chunks).toString('utf-8')
-    } catch {
+    } catch (err: unknown) {
+      console.error(`[DockerContainerService] Failed to get logs for ${containerName}:`, err)
       return ''
     }
   },
@@ -212,7 +213,8 @@ export const DockerContainerService = {
       if (state?.Status === 'running') return 'running'
       if (state?.ExitCode !== undefined && state.ExitCode !== 0) return 'error'
       return 'stopped'
-    } catch {
+    } catch (err: unknown) {
+      console.error(`[DockerContainerService] Failed to inspect container ${name}:`, err)
       return 'stopped'
     }
   },
@@ -229,8 +231,8 @@ export const DockerContainerService = {
           result.set(name, container.State === 'running' ? 'running' : 'stopped')
         }
       }
-    } catch {
-      // Docker not available — return empty map
+    } catch (err: unknown) {
+      console.error('[DockerContainerService] Failed to list containers:', err)
     }
     return result
   }
