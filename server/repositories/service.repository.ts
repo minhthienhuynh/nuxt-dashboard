@@ -84,43 +84,46 @@ export const ServiceRepository = {
   },
 
   async updateService(id: number, data: UpdateServiceInput) {
-    if (data.envVars) {
-      await prisma.serviceEnvVar.deleteMany({ where: { serviceId: id } })
-      if (data.envVars.length > 0) {
-        await prisma.serviceEnvVar.createMany({
-          data: data.envVars.map(e => ({ serviceId: id, ...e }))
-        })
-      }
-    }
-    if (data.ports) {
-      await prisma.servicePort.deleteMany({ where: { serviceId: id } })
-      if (data.ports.length > 0) {
-        await prisma.servicePort.createMany({
-          data: data.ports.map(p => ({ serviceId: id, ...p, protocol: p.protocol ?? 'tcp' }))
-        })
-      }
-    }
-    if (data.volumes) {
-      await prisma.serviceVolume.deleteMany({ where: { serviceId: id } })
-      if (data.volumes.length > 0) {
-        await prisma.serviceVolume.createMany({
-          data: data.volumes.map(v => ({ serviceId: id, ...v }))
-        })
-      }
-    }
+    return prisma.$transaction(async (tx) => {
+      const { envVars, ports, volumes, ...serviceData } = data
 
-    const result = await prisma.infrastructureService.update({
-      where: { id },
-      data: {
-        ...(data.containerName !== undefined ? { containerName: data.containerName } : {}),
-        ...(data.enabled !== undefined ? { enabled: data.enabled } : {})
-      },
-      include: SERVICE_INCLUDE
+      await tx.infrastructureService.update({
+        where: { id },
+        data: serviceData
+      })
+
+      if (envVars !== undefined) {
+        await tx.serviceEnvVar.deleteMany({ where: { serviceId: id } })
+        if (envVars.length > 0) {
+          await tx.serviceEnvVar.createMany({
+            data: envVars.map(v => ({ ...v, serviceId: id }))
+          })
+        }
+      }
+
+      if (ports !== undefined) {
+        await tx.servicePort.deleteMany({ where: { serviceId: id } })
+        if (ports.length > 0) {
+          await tx.servicePort.createMany({
+            data: ports.map(p => ({ ...p, serviceId: id }))
+          })
+        }
+      }
+
+      if (volumes !== undefined) {
+        await tx.serviceVolume.deleteMany({ where: { serviceId: id } })
+        if (volumes.length > 0) {
+          await tx.serviceVolume.createMany({
+            data: volumes.map(v => ({ ...v, serviceId: id }))
+          })
+        }
+      }
+
+      return tx.infrastructureService.findUnique({
+        where: { id },
+        include: SERVICE_INCLUDE
+      })
     })
-    if (result.serviceType) {
-      return { ...result, serviceType: formatServiceType(result.serviceType) }
-    }
-    return result
   },
 
   deleteService(id: number) {

@@ -68,19 +68,21 @@ export const WebsiteRepository = {
   },
 
   async replaceExtensions(websiteId: number, extensionIds: number[]) {
-    await prisma.websitePhpExtension.deleteMany({ where: { websiteId } })
-    if (extensionIds.length > 0) {
-      await prisma.websitePhpExtension.createMany({
-        data: extensionIds.map(extensionId => ({
-          websiteId,
-          extensionId,
-          enabled: true
-        }))
+    return prisma.$transaction(async (tx) => {
+      await tx.websitePhpExtension.deleteMany({ where: { websiteId } })
+      if (extensionIds.length > 0) {
+        await tx.websitePhpExtension.createMany({
+          data: extensionIds.map(extensionId => ({
+            websiteId,
+            extensionId,
+            enabled: true
+          }))
+        })
+      }
+      return tx.website.findUnique({
+        where: { id: websiteId },
+        include: EXTENSIONS_INCLUDE
       })
-    }
-    return prisma.website.findUnique({
-      where: { id: websiteId },
-      include: EXTENSIONS_INCLUDE
     })
   },
 
