@@ -1,5 +1,5 @@
 import { ServiceService } from '~~/server/services/service.service'
-import { DockerService } from '~~/server/services/docker.service'
+import { DockerContainerService } from '~~/server/services/docker-container.service'
 import { SERVICE_DEFAULTS } from '~~/server/utils/service-defaults'
 import { getQuery } from 'h3'
 import { handleError } from '~~/server/utils/errors'
@@ -15,7 +15,7 @@ export default eventHandler(async (event) => {
       }))
     }
     const services = await ServiceService.listServices()
-    const statuses = await DockerService.getContainerStatuses()
+    const statuses = await DockerContainerService.getContainerStatuses()
     for (const svc of services) {
       const dockerStatus = statuses.get(svc.containerName)
       ;(svc as unknown as { status: string }).status = dockerStatus || 'unknown'
