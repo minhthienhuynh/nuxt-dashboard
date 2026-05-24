@@ -23,7 +23,7 @@ export function useContainerLogs() {
     })
 
     eventSource.addEventListener('line', (e: MessageEvent) => {
-      lines.value.push(e.data)
+      lines.value = [...lines.value, e.data]
     })
 
     eventSource.onerror = () => {
