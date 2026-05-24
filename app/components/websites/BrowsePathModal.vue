@@ -33,7 +33,7 @@ async function browsePath(path: string) {
 
 watch(open, async () => {
   if (open.value) {
-    const startPath = modelValue.value || process.env?.HOME || '/Users'
+    const startPath = modelValue.value || '~/Workspaces'
     await browsePath(startPath)
   }
 })
