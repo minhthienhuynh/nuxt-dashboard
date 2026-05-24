@@ -24,14 +24,18 @@ async function deployMailpit() {
         method: 'POST',
         body: {
           serviceTypeKey: 'mailpit',
-          containerName: 'mailpit'
+          containerName: 'mailpit',
+          ports: [
+            { hostPort: '1025', containerPort: '1025', protocol: 'tcp' },
+            { hostPort: '8025', containerPort: '8025', protocol: 'tcp' }
+          ]
         }
       }) as unknown as InfrastructureService
     }
 
-    // Deploy if container is not running
+    // Deploy if container is not running (start endpoint auto-deploys if needed)
     if ((mailpitSvc as any).status !== 'running') {
-      await $fetch(`/api/services/${mailpitSvc.id}/deploy`, { method: 'POST' as any })
+      await $fetch(`/api/services/${mailpitSvc.id}/start`, { method: 'POST' })
     }
     await refreshStatus()
     await refreshMessages()

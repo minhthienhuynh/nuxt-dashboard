@@ -7,7 +7,10 @@ export default eventHandler(async (event) => {
     const id = getRouterParam(event, 'id')
     if (!id) throw new AppError('Missing message ID', 400)
 
-    const result = await mailpitFetch(`/message/${id}`, { method: 'DELETE' })
+    const result = await mailpitFetch('/messages', {
+      method: 'DELETE',
+      body: JSON.stringify({ IDs: [id] })
+    })
     if (result === null) {
       throw new AppError('Mailpit is not running', 503)
     }

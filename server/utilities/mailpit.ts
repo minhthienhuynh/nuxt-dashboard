@@ -52,7 +52,11 @@ async function mailpitFetch<T>(path: string, options?: RequestInit): Promise<T |
   if (!res.ok) {
     throw new Error(`Mailpit API error: ${res.status} ${res.statusText}`)
   }
-  return res.json() as Promise<T>
+  const contentType = res.headers.get('content-type') || ''
+  if (contentType.includes('application/json')) {
+    return res.json() as Promise<T>
+  }
+  return { success: true } as unknown as T
 }
 
 /**

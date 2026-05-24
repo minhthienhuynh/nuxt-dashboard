@@ -34,6 +34,13 @@ const links = [[{
   onSelect: () => {
     open.value = false
   }
+}, {
+  label: 'Mail',
+  icon: 'i-lucide-mail',
+  to: '/mail',
+  onSelect: () => {
+    open.value = false
+  }
 }]] satisfies NavigationMenuItem[][]
 
 const groups = computed(() => [{
