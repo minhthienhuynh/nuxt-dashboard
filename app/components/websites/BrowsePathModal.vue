@@ -7,8 +7,14 @@ interface DirEntry {
   isDirectory: boolean
 }
 
+interface BrowseResponse {
+  path: string
+  parentPath: string | null
+  entries: DirEntry[]
+}
+
 const currentPath = ref('')
-const parentPath = ref('')
+const parentPath = ref<string | null>('')
 const entries = ref<DirEntry[]>([])
 const loading = ref(false)
 const selectedPath = ref('')
@@ -16,7 +22,7 @@ const selectedPath = ref('')
 async function browsePath(path: string) {
   loading.value = true
   try {
-    const data = await $fetch<{ path: string, parentPath: string, entries: DirEntry[] }>(
+    const data = await $fetch<BrowseResponse>(
       '/api/browse-path',
       { query: { path } }
     )
@@ -61,7 +67,7 @@ function confirm() {
             icon="i-lucide-arrow-up"
             variant="ghost"
             size="xs"
-            :disabled="currentPath === '/'"
+            :disabled="!parentPath"
             @click="goUp"
           />
           <code class="text-xs bg-(--ui-bg-elevated) px-2 py-1 rounded flex-1 truncate">
