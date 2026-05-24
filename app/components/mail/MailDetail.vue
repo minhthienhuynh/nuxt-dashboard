@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { format } from 'date-fns'
 import type { MailpitMessageDetail } from '~/types'
+import DOMPurify from 'dompurify'
 
 const props = defineProps<{
   message: MailpitMessageDetail
@@ -12,6 +13,17 @@ const emit = defineEmits<{
   open: [id: string]
   toggledRead: [id: string, read: boolean]
 }>()
+
+const sanitizedHtml = computed(() => {
+  if (import.meta.server) return ''
+  if (!props.message?.HTML) return ''
+  return DOMPurify.sanitize(props.message.HTML, {
+    ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'em', 'strong', 'a', 'ul', 'ol', 'li',
+      'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'img', 'table', 'tr', 'td', 'th',
+      'thead', 'tbody', 'div', 'span', 'code', 'pre', 'blockquote', 'hr'],
+    ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'width', 'height', 'style', 'class', 'id']
+  })
+})
 
 const toast = useToast()
 const deleting = ref(false)
@@ -116,7 +128,7 @@ async function toggleRead() {
     </div>
 
     <div class="flex-1 p-4 sm:p-6 overflow-y-auto">
-      <div v-if="message.HTML" class="mailpit-html" v-html="message.HTML" />
+      <div v-if="message.HTML" class="mailpit-html" v-html="sanitizedHtml" />
       <pre v-else class="whitespace-pre-wrap font-sans text-sm">{{ message.Text }}</pre>
 
       <div v-if="message.Attachments?.length" class="mt-6 border-t border-default pt-4">
