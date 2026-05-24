@@ -221,3 +221,59 @@ export interface DockerContainer {
   state: string
   status: string
 }
+
+// Mailpit
+export interface MailpitFrom {
+  Name?: string
+  Address: string
+}
+
+export interface MailpitTo {
+  Name?: string
+  Address: string
+}
+
+export interface MailpitAttachment {
+  PartID: string
+  FileName: string
+  ContentType: string
+  Size: number
+}
+
+export interface MailpitMessage {
+  ID: string
+  MessageID?: string
+  From?: MailpitFrom
+  To?: MailpitTo[]
+  Subject?: string
+  Created: string
+  Size: number
+  Snippet?: string
+  Read: boolean
+  Attachments: number
+  Tags: string[]
+}
+
+export interface MailpitMessageDetail extends MailpitMessage {
+  Cc?: MailpitTo[]
+  Bcc?: MailpitTo[]
+  Text?: string
+  HTML?: string
+  Inline?: MailpitAttachment[]
+  AttachmentsList?: MailpitAttachment[]
+}
+
+export interface MailpitMessagesResponse {
+  messages: MailpitMessage[]
+  total: number
+  unread: number
+  count: number
+  start: number
+}
+
+export interface MailpitStatus {
+  running: boolean
+  dashboardUrl?: string
+  apiUrl?: string
+  containerName?: string
+}
