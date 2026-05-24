@@ -101,7 +101,17 @@ watch(selectedId, async (newId) => {
     const msg = await $fetch<MailpitMessageDetail>(`/api/mailpit/messages/${newId}`)
     // Copy read status from list (detail API doesn't include Read)
     const listMsg = messagesData.value?.messages?.find(m => m.ID === newId)
-    if (listMsg) msg.Read = listMsg.Read
+    if (listMsg) {
+      msg.Read = listMsg.Read
+      // Auto-mark as read when opening an unread message
+      if (!listMsg.Read) {
+        listMsg.Read = true
+        $fetch(`/api/mailpit/messages/${newId}/read`, {
+          method: 'POST',
+          body: { read: true }
+        }).catch(() => {})
+      }
+    }
     selectedMessage.value = msg
   } catch {
     selectedMessage.value = null
