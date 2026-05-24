@@ -1,5 +1,50 @@
--- AlterTable
-ALTER TABLE "Website" ADD COLUMN "buildHash" TEXT;
+-- CreateTable
+CREATE TABLE "PhpExtension" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "name" TEXT NOT NULL,
+    "type" TEXT NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "PhpVersionSupport" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "extensionId" INTEGER NOT NULL,
+    "phpVersion" TEXT NOT NULL,
+    CONSTRAINT "PhpVersionSupport_extensionId_fkey" FOREIGN KEY ("extensionId") REFERENCES "PhpExtension" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "SpecialRequirement" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "extensionId" INTEGER NOT NULL,
+    "requirement" TEXT NOT NULL,
+    CONSTRAINT "SpecialRequirement_extensionId_fkey" FOREIGN KEY ("extensionId") REFERENCES "PhpExtension" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "Website" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "name" TEXT NOT NULL,
+    "domain" TEXT NOT NULL,
+    "type" TEXT NOT NULL DEFAULT 'php-fpm',
+    "port" INTEGER NOT NULL DEFAULT 80,
+    "documentRoot" TEXT NOT NULL,
+    "phpVersion" TEXT NOT NULL,
+    "sslEnabled" BOOLEAN NOT NULL DEFAULT false,
+    "buildHash" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "WebsitePhpExtension" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "websiteId" INTEGER NOT NULL,
+    "extensionId" INTEGER NOT NULL,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    CONSTRAINT "WebsitePhpExtension_websiteId_fkey" FOREIGN KEY ("websiteId") REFERENCES "Website" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "WebsitePhpExtension_extensionId_fkey" FOREIGN KEY ("extensionId") REFERENCES "PhpExtension" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
 
 -- CreateTable
 CREATE TABLE "ProxyConfig" (
@@ -31,7 +76,6 @@ CREATE TABLE "InfrastructureService" (
     "serviceTypeId" INTEGER NOT NULL,
     "containerName" TEXT NOT NULL,
     "imageOverride" TEXT,
-    "status" TEXT NOT NULL DEFAULT 'stopped',
     "enabled" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
@@ -66,6 +110,21 @@ CREATE TABLE "ServiceVolume" (
     "target" TEXT NOT NULL,
     CONSTRAINT "ServiceVolume_serviceId_fkey" FOREIGN KEY ("serviceId") REFERENCES "InfrastructureService" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PhpExtension_name_key" ON "PhpExtension"("name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PhpVersionSupport_extensionId_phpVersion_key" ON "PhpVersionSupport"("extensionId", "phpVersion");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SpecialRequirement_extensionId_requirement_key" ON "SpecialRequirement"("extensionId", "requirement");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Website_domain_key" ON "Website"("domain");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "WebsitePhpExtension_websiteId_extensionId_key" ON "WebsitePhpExtension"("websiteId", "extensionId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ServiceType_key_key" ON "ServiceType"("key");
