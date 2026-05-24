@@ -6,7 +6,9 @@ defineProps<{
   mail: Mail
 }>()
 
-const emits = defineEmits(['close'])
+const emit = defineEmits<{
+  close: []
+}>()
 
 const dropdownItems = [[{
   label: 'Mark as unread',
@@ -54,7 +56,7 @@ function onSubmit() {
           color="neutral"
           variant="ghost"
           class="-ms-1.5"
-          @click="emits('close')"
+          @click="emit('close')"
         />
       </template>
 
