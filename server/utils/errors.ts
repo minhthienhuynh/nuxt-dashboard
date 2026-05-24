@@ -26,9 +26,9 @@ export function handleError(error: unknown) {
     })
   }
 
-  console.error(error)
+  console.error('[500]', error)
   throw createError({
     statusCode: 500,
-    statusMessage: error instanceof Error ? error.message : 'Internal Server Error'
+    statusMessage: 'Internal Server Error'
   })
 }
