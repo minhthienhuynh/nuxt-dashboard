@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, format } from 'date-fns'
+import { format } from 'date-fns'
 import { VisXYContainer, VisLine, VisAxis, VisArea, VisCrosshair, VisTooltip } from '@unovis/vue'
 import type { Period, Range } from '~/types'
+import type { ChartDataRecord } from '~/composables/useHomeMockData'
+import { useHomeMockData } from '~/composables/useHomeMockData'
 
 const cardRef = useTemplateRef<HTMLElement | null>('cardRef')
 
@@ -10,32 +12,18 @@ const props = defineProps<{
   range: Range
 }>()
 
-type DataRecord = {
-  date: Date
-  amount: number
-}
-
 const { width } = useElementSize(cardRef)
 
-const data = ref<DataRecord[]>([])
+const { chartData: data, regenerate } = useHomeMockData()
 
 watch([() => props.period, () => props.range], () => {
-  const dates = ({
-    daily: eachDayOfInterval,
-    weekly: eachWeekOfInterval,
-    monthly: eachMonthOfInterval
-  } as Record<Period, typeof eachDayOfInterval>)[props.period](props.range)
-
-  const min = 1000
-  const max = 10000
-
-  data.value = dates.map(date => ({ date, amount: Math.floor(Math.random() * (max - min + 1)) + min }))
+  regenerate(props.period, props.range)
 }, { immediate: true })
 
-const x = (_: DataRecord, i: number) => i
-const y = (d: DataRecord) => d.amount
+const x = (_: ChartDataRecord, i: number) => i
+const y = (d: ChartDataRecord) => d.amount
 
-const total = computed(() => data.value.reduce((acc: number, { amount }) => acc + amount, 0))
+const total = computed(() => data.value?.reduce((acc: number, { amount }) => acc + amount, 0) ?? 0)
 
 const formatNumber = new Intl.NumberFormat('en', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format
 
@@ -55,7 +43,7 @@ const xTicks = (i: number) => {
   return formatDate(data.value[i].date)
 }
 
-const template = (d: DataRecord) => `${formatDate(d.date)}: ${formatNumber(d.amount)}`
+const template = (d: ChartDataRecord) => `${formatDate(d.date)}: ${formatNumber(d.amount)}`
 </script>
 
 <template>
