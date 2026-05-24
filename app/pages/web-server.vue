@@ -1,13 +1,6 @@
 <script setup lang="ts">
 import type { ProxyConfig, ServiceStatus } from '~/types'
 
-const UBadge = resolveComponent('UBadge')
-const UButton = resolveComponent('UButton')
-const UIcon = resolveComponent('UIcon')
-const USelect = resolveComponent('USelect')
-const UInput = resolveComponent('UInput')
-const UTextarea = resolveComponent('UTextarea')
-
 const toast = useToast()
 
 const { data: proxy, refresh: refreshProxy } = await useFetch<ProxyConfig>('/api/proxy', { lazy: true })
@@ -66,10 +59,10 @@ const editingProxy = reactive<ProxyConfig>({
   updatedAt: ''
 })
 
-const statusColor: Record<string, 'green' | 'gray' | 'red'> = {
-  running: 'green',
-  stopped: 'gray',
-  error: 'red'
+const statusColor: Record<string, 'success' | 'neutral' | 'error'> = {
+  running: 'success',
+  stopped: 'neutral',
+  error: 'error'
 }
 
 const proxyTypeOptions = computed(() => [
@@ -170,7 +163,7 @@ onMounted(() => loadCaddyfile())
             <UButton
               v-if="proxyStatus !== 'running'"
               size="xs"
-              color="green"
+              color="success"
               icon="i-lucide-play"
               label="Deploy"
               @click="deployProxy"
@@ -178,7 +171,7 @@ onMounted(() => loadCaddyfile())
             <UButton
               v-else
               size="xs"
-              color="amber"
+              color="warning"
               icon="i-lucide-square"
               label="Stop"
               @click="stopProxy"
@@ -326,7 +319,7 @@ onMounted(() => loadCaddyfile())
     <template #body>
       <div class="p-4">
         <div class="flex items-center gap-2 mb-3">
-          <UBadge :color="proxyLogConnected ? 'green' : 'gray'" variant="subtle" size="xs">
+          <UBadge :color="proxyLogConnected ? 'success' : 'neutral'" variant="subtle" size="xs">
             {{ proxyLogConnected ? 'Live' : 'Connecting...' }}
           </UBadge>
         </div>

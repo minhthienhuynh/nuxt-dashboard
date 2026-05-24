@@ -47,6 +47,13 @@ export const ServiceRepository = {
     })
   },
 
+  async findAllUsedPorts() {
+    const ports = await prisma.servicePort.findMany({
+      select: { hostPort: true }
+    })
+    return ports.map(p => p.hostPort)
+  },
+
   async createService(data: {
     serviceTypeId: number
     containerName: string

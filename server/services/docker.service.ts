@@ -5,6 +5,7 @@ import { PassThrough } from 'node:stream'
 import type { Writable } from 'node:stream'
 import { getDocker } from '../utils/docker'
 import { SERVICE_DEFAULTS } from '../utils/service-defaults'
+import { AppError } from '../utils/errors'
 import type { InfrastructureService, Website, WebsitePhpExtension } from '~/types'
 
 import { websiteContainerName } from '../utils/slugify'
@@ -66,11 +67,21 @@ export const DockerService = {
     ]
 
     const context = path.resolve(process.cwd(), 'docker/php')
-    const buildArgFlags = buildArgs.map(a => `--build-arg "${a}"`).join(' ')
+    const args = [
+      'build',
+      ...buildArgs.flatMap(arg => ['--build-arg', arg]),
+      '-t',
+      imageTag,
+      context
+    ]
 
-    execSync(`docker build ${buildArgFlags} -t ${imageTag} ${context}`, {
-      stdio: 'pipe'
-    })
+    try {
+      execSync(`docker ${args.map(a => a.includes(' ') ? `"${a}"` : a).join(' ')}`, {
+        stdio: 'pipe'
+      })
+    } catch (error) {
+      throw new AppError(`Failed to build PHP image: ${error instanceof Error ? error.message : String(error)}`, 500)
+    }
 
     return imageTag
   },

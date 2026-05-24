@@ -18,9 +18,7 @@ export default eventHandler(async (event) => {
     const statuses = await DockerService.getContainerStatuses()
     for (const svc of services) {
       const dockerStatus = statuses.get(svc.containerName)
-      if (dockerStatus) {
-        ;(svc as unknown as { status: string }).status = dockerStatus
-      }
+      ;(svc as unknown as { status: string }).status = dockerStatus || 'unknown'
     }
     return services as unknown as import('~/types').InfrastructureService[]
   } catch (error) {

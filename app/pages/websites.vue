@@ -1,13 +1,7 @@
 <script setup lang="ts">
-import { dash } from 'radash'
 import type { Website } from '~/types'
 import { getTypeLabel, getTypeColor } from '~/constants/website-types'
-
-const UBadge = resolveComponent('UBadge')
-const UButton = resolveComponent('UButton')
-const UIcon = resolveComponent('UIcon')
-const UInput = resolveComponent('UInput')
-const USelect = resolveComponent('USelect')
+import { websiteContainerName } from '~/utils/slugify'
 
 // ── Real-time Docker events ─────────────────────────────────
 
@@ -16,12 +10,8 @@ const { connected, containerStates, connect, disconnect } = useDockerEvents()
 onMounted(() => connect('container'))
 onUnmounted(() => disconnect())
 
-function containerNameFromWebsite(name: string) {
-  return `website-${dash(name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').replace(/[^a-zA-Z0-9\s-]/g, ''))}`
-}
-
 function liveStatus(w: Website): string {
-  const cname = containerNameFromWebsite(w.name)
+  const cname = websiteContainerName(w.name)
   return containerStates.value[cname] || w.status
 }
 
@@ -64,6 +54,7 @@ watchEffect(() => {
 
 // ── Actions ────────────────────────────────────────────────
 
+const toast = useToast()
 const deploying = ref<Set<number>>(new Set())
 const { lines: logLines, connected: logConnected, connect: logConnect, disconnect: logDisconnect } = useContainerLogs()
 
@@ -71,12 +62,12 @@ function statusColor(s: string) {
   return s === 'running' ? 'text-green-500' : s === 'error' ? 'text-red-500' : 'text-gray-400'
 }
 
-function phpBadgeColor(v: string) {
+function phpBadgeColor(v: string): 'success' | 'warning' | 'error' {
   const major = Number(v.split('.')[0])
   const minor = Number(v.split('.')[1])
-  if (major >= 8) return 'green'
-  if (major === 7 && minor >= 2) return 'amber'
-  return 'red'
+  if (major >= 8) return 'success'
+  if (major === 7 && minor >= 2) return 'warning'
+  return 'error'
 }
 
 async function deployWebsite(w: Website) {
@@ -84,9 +75,16 @@ async function deployWebsite(w: Website) {
   try {
     await $fetch(`/api/websites/${w.id}/deploy`, { method: 'POST' })
     await refresh()
+    toast.add({ title: 'Website deployed successfully', color: 'success' })
     if (selectedId.value === w.id) {
       logConnect(`/api/websites/${w.id}/logs/stream`)
     }
+  } catch (e: unknown) {
+    const err = e as { data?: { statusMessage?: string }; message?: string }
+    toast.add({
+      title: err?.data?.statusMessage ?? err?.message ?? 'Deploy failed',
+      color: 'error'
+    })
   } finally {
     const next = new Set(deploying.value)
     next.delete(w.id)
@@ -99,6 +97,13 @@ async function stopWebsite(w: Website) {
   try {
     await $fetch(`/api/websites/${w.id}/stop`, { method: 'POST' })
     await refresh()
+    toast.add({ title: 'Website stopped successfully', color: 'success' })
+  } catch (e: unknown) {
+    const err = e as { data?: { statusMessage?: string }; message?: string }
+    toast.add({
+      title: err?.data?.statusMessage ?? err?.message ?? 'Stop failed',
+      color: 'error'
+    })
   } finally {
     const next = new Set(deploying.value)
     next.delete(w.id)
@@ -111,9 +116,16 @@ async function restartWebsite(w: Website) {
   try {
     await $fetch(`/api/websites/${w.id}/restart`, { method: 'POST' })
     await refresh()
+    toast.add({ title: 'Website restarted successfully', color: 'success' })
     if (selectedId.value === w.id) {
       logConnect(`/api/websites/${w.id}/logs/stream`)
     }
+  } catch (e: unknown) {
+    const err = e as { data?: { statusMessage?: string }; message?: string }
+    toast.add({
+      title: err?.data?.statusMessage ?? err?.message ?? 'Restart failed',
+      color: 'error'
+    })
   } finally {
     const next = new Set(deploying.value)
     next.delete(w.id)
@@ -126,9 +138,16 @@ async function rebuildWebsite(w: Website) {
   try {
     await $fetch(`/api/websites/${w.id}/rebuild`, { method: 'POST' })
     await refresh()
+    toast.add({ title: 'Website rebuilt successfully', color: 'success' })
     if (selectedId.value === w.id) {
       logConnect(`/api/websites/${w.id}/logs/stream`)
     }
+  } catch (e: unknown) {
+    const err = e as { data?: { statusMessage?: string }; message?: string }
+    toast.add({
+      title: err?.data?.statusMessage ?? err?.message ?? 'Rebuild failed',
+      color: 'error'
+    })
   } finally {
     const next = new Set(deploying.value)
     next.delete(w.id)
@@ -308,7 +327,7 @@ function onDeleted() {
                 <UTooltip v-if="liveStatus(w) === 'running'" text="Stop">
                   <UButton
                     size="xs"
-                    color="amber"
+                    color="warning"
                     variant="ghost"
                     icon="i-lucide-square"
                     class="cursor-pointer"
@@ -319,7 +338,7 @@ function onDeleted() {
                 <UTooltip v-else text="Deploy">
                   <UButton
                     size="xs"
-                    color="green"
+                    color="success"
                     variant="ghost"
                     icon="i-lucide-play"
                     class="cursor-pointer"
@@ -370,7 +389,7 @@ function onDeleted() {
                   </UBadge>
                   <UBadge
                     v-else
-                    :color="liveStatus(selectedWebsite) === 'running' ? 'green' : liveStatus(selectedWebsite) === 'error' ? 'red' : 'gray'"
+                    :color="liveStatus(selectedWebsite) === 'running' ? 'success' : liveStatus(selectedWebsite) === 'error' ? 'error' : 'neutral'"
                     variant="subtle"
                     size="sm"
                   >
@@ -408,7 +427,7 @@ function onDeleted() {
                   <UTooltip v-if="liveStatus(selectedWebsite) === 'running'" text="Stop">
                     <UButton
                       size="xs"
-                      color="amber"
+                      color="warning"
                       variant="ghost"
                       icon="i-lucide-square"
                       class="cursor-pointer"
@@ -419,7 +438,7 @@ function onDeleted() {
                   <UTooltip v-else text="Deploy">
                     <UButton
                       size="xs"
-                      color="green"
+                      color="success"
                       variant="ghost"
                       icon="i-lucide-play"
                       class="cursor-pointer"
@@ -487,7 +506,7 @@ function onDeleted() {
                     SSL
                   </div>
                   <UBadge
-                    :color="selectedWebsite.sslEnabled ? 'green' : 'gray'"
+                    :color="selectedWebsite.sslEnabled ? 'success' : 'neutral'"
                     variant="subtle"
                     size="xs"
                   >
@@ -502,7 +521,7 @@ function onDeleted() {
                     <UBadge
                       v-for="ext in selectedWebsite.extensions"
                       :key="ext.id"
-                      :color="ext.enabled ? 'green' : 'gray'"
+                      :color="ext.enabled ? 'success' : 'neutral'"
                       variant="subtle"
                       size="xs"
                     >
@@ -530,7 +549,7 @@ function onDeleted() {
                     Recent Logs
                   </h4>
                   <UBadge
-                    :color="logConnected ? 'green' : 'gray'"
+                    :color="logConnected ? 'success' : 'neutral'"
                     variant="subtle"
                     size="xs"
                   >

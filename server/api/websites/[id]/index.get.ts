@@ -11,9 +11,7 @@ export default eventHandler(async (event) => {
     const website = await WebsiteService.getById(id)
     const statuses = await DockerService.getContainerStatuses()
     const dockerStatus = statuses.get(websiteContainerName(website.name))
-    if (dockerStatus) {
-      ;(website as unknown as { status: string }).status = dockerStatus
-    }
+    ;(website as unknown as { status: string }).status = dockerStatus || 'unknown'
     return website as unknown as import('~/types').Website
   } catch (error) {
     throw handleError(error)

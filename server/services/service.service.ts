@@ -26,6 +26,16 @@ export const ServiceService = {
       throw new AppError(`Unknown service type: ${input.serviceTypeKey}`, 400)
     }
 
+    // Validate port conflicts
+    if (input.ports && input.ports.length > 0) {
+      const usedPorts = await ServiceRepository.findAllUsedPorts()
+      for (const port of input.ports) {
+        if (usedPorts.includes(port.hostPort)) {
+          throw new AppError(`Port ${port.hostPort} is already in use`, 409)
+        }
+      }
+    }
+
     // Auto-fill required env vars with defaults if not provided
     const defaults = SERVICE_DEFAULTS[type.key]
     const existingKeys = new Set(input.envVars?.map(e => e.key) || [])
@@ -57,6 +67,20 @@ export const ServiceService = {
     if (!service) {
       throw new AppError('Service not found', 404)
     }
+
+    // Validate port conflicts (exclude current service's ports)
+    if (input.ports && input.ports.length > 0) {
+      const allUsedPorts = await ServiceRepository.findAllUsedPorts()
+      const currentServicePorts = service.ports?.map(p => p.hostPort) || []
+      const usedPorts = allUsedPorts.filter(p => !currentServicePorts.includes(p))
+
+      for (const port of input.ports) {
+        if (usedPorts.includes(port.hostPort)) {
+          throw new AppError(`Port ${port.hostPort} is already in use`, 409)
+        }
+      }
+    }
+
     return ServiceRepository.updateService(id, input)
   },
 
