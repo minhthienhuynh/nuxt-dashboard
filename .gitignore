@@ -29,3 +29,8 @@ logs
 # AI config
 .claude
 openspec
+
+# Prisma (generated client + local SQLite db)
+prisma/generated
+prisma/*.db
+prisma/*.db-journal
