@@ -11,3 +11,145 @@ generator client {
 datasource db {
   provider = "sqlite"
 }
+
+// SSH management domain models.
+//
+// Conventions (see openspec/changes/design-ssh-management-db/design.md):
+// - Primary keys use UUIDv7 (`@default(uuid(7))`): time-sortable and non-sequential.
+//   Generated at the Prisma Client level, so always insert through the client.
+// - SQLite has no native enum, so enum-like fields are `String` with the allowed
+//   values listed in a comment; validation belongs to the app/service layer.
+// - Secret-bearing columns store application-encrypted ciphertext only, never
+//   plaintext. The schema does not encrypt; this is a contract for the service layer.
+
+// Folder tree that organizes hosts. Self-referential for nesting.
+model Group {
+  id        String   @id @default(uuid(7))
+  name      String
+  parentId  String?
+  parent    Group?   @relation("GroupTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Group[]  @relation("GroupTree")
+  hosts     Host[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// An SSH endpoint to connect to.
+model Host {
+  id           String              @id @default(uuid(7))
+  label        String
+  address      String // hostname or IP
+  port         Int                 @default(22)
+  os           String? // enum-like: linux | macos | windows | other
+  description  String?
+  groupId      String?
+  group        Group?              @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  identityId   String?
+  identity     Identity?           @relation(fields: [identityId], references: [id], onDelete: SetNull)
+  tags         HostTag[]
+  portForwards PortForward[]
+  knownHosts   KnownHost[]
+  snippets     Snippet[]
+  history      ConnectionHistory[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([groupId])
+  @@index([identityId])
+}
+
+// Reusable connection credentials (shared across hosts).
+model Identity {
+  id        String   @id @default(uuid(7))
+  label     String?
+  username  String
+  authType  String // enum-like: password | key | agent
+  password  String? // ENCRYPTED ciphertext, never plaintext
+  sshKeyId  String?
+  sshKey    SSHKey?  @relation(fields: [sshKeyId], references: [id], onDelete: SetNull)
+  hosts     Host[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// An SSH key pair. Private material is encrypted.
+model SSHKey {
+  id         String     @id @default(uuid(7))
+  label      String
+  keyType    String // enum-like: ed25519 | rsa | ecdsa
+  publicKey  String
+  privateKey String? // ENCRYPTED ciphertext, never plaintext
+  passphrase String? // ENCRYPTED ciphertext, never plaintext
+  identities Identity[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+
+// Free-form label, many-to-many with Host via HostTag.
+model Tag {
+  id    String    @id @default(uuid(7))
+  name  String    @unique
+  hosts HostTag[]
+}
+
+// Join model for the Host <-> Tag many-to-many relation.
+model HostTag {
+  hostId String
+  tagId  String
+  host   Host   @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([hostId, tagId])
+}
+
+// Port-forwarding rule attached to a host.
+model PortForward {
+  id          String   @id @default(uuid(7))
+  hostId      String
+  host        Host     @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  forwardType String // enum-like: local | remote | dynamic
+  bindAddress String?
+  bindPort    Int
+  destHost    String? // null for dynamic forwards
+  destPort    Int? // null for dynamic forwards
+  createdAt   DateTime @default(now())
+
+  @@index([hostId])
+}
+
+// Recorded server host-key fingerprint, one per (host, keyType).
+model KnownHost {
+  id          String   @id @default(uuid(7))
+  hostId      String
+  host        Host     @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  keyType     String
+  fingerprint String
+  createdAt   DateTime @default(now())
+
+  @@unique([hostId, keyType])
+}
+
+// Saved command. Global when hostId is null, otherwise scoped to that host.
+model Snippet {
+  id        String   @id @default(uuid(7))
+  label     String
+  command   String
+  hostId    String?
+  host      Host?    @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([hostId])
+}
+
+// Log of connection attempts for recent-connection listings.
+model ConnectionHistory {
+  id        String    @id @default(uuid(7))
+  hostId    String
+  host      Host      @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  status    String // enum-like: success | failed | disconnected
+
+  @@index([hostId, startedAt])
+}
