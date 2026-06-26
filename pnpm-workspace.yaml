@@ -3,8 +3,10 @@ allowBuilds:
   '@prisma/engines': true
   '@tailwindcss/oxide': false
   better-sqlite3: true
+  cpu-features: false
   esbuild: false
   maplibre-gl: false
   prisma: true
+  ssh2: false
   unrs-resolver: false
   vue-demi: false

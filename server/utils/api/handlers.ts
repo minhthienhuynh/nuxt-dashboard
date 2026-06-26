@@ -46,8 +46,12 @@ export const identityHandlers = createCrudHandlers({
   createSchema: identityCreateSchema,
   updateSchema: identityUpdateSchema,
   serialize: serializeIdentity,
-  transformInput: data =>
-    typeof data.password === 'string' ? { ...data, password: encryptSecret(data.password) } : data
+  // Encrypt a non-empty password; DROP an empty/absent one so it can't
+  // overwrite the stored secret (with either '' or an encrypted '').
+  transformInput: (data) => {
+    const { password, ...rest } = data
+    return password ? { ...rest, password: encryptSecret(password) } : rest
+  }
 })
 
 export const sshKeyHandlers = createCrudHandlers({
@@ -57,8 +61,12 @@ export const sshKeyHandlers = createCrudHandlers({
   serialize: serializeSshKey,
   transformInput: (data) => {
     const copy = { ...data }
-    if (typeof copy.privateKey === 'string') copy.privateKey = encryptSecret(copy.privateKey)
-    if (typeof copy.passphrase === 'string') copy.passphrase = encryptSecret(copy.passphrase)
+    // Encrypt non-empty secrets; drop empty/absent ones so '' cannot clobber a
+    // stored value.
+    if (copy.privateKey) copy.privateKey = encryptSecret(copy.privateKey)
+    else delete copy.privateKey
+    if (copy.passphrase) copy.passphrase = encryptSecret(copy.passphrase)
+    else delete copy.passphrase
     return copy
   }
 })

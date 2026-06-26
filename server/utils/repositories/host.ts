@@ -17,7 +17,8 @@ export const hostRepository = {
         tags: { include: { tag: true } },
         portForwards: true,
         knownHosts: true,
-        history: true
+        // Newest first so "recent connections" shows the latest sessions.
+        history: { orderBy: { startedAt: 'desc' }, take: 10 }
       }
     })
 }

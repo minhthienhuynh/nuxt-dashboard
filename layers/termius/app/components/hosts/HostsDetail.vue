@@ -19,14 +19,17 @@ const host = ref<HostWithRelations | null>(null)
 const loading = ref(false)
 
 // Load the host with its relations whenever the drawer opens for a host.
+// Guard against out-of-order responses: if the selected host changed while a
+// request was in flight, discard the stale result.
 watch([open, () => props.hostId], async ([isOpen, id]) => {
   if (!isOpen || !id) return
   loading.value = true
   host.value = null
   try {
-    host.value = await $fetch<HostWithRelations>(`/api/hosts/${id}?relations=true`)
+    const result = await $fetch<HostWithRelations>(`/api/hosts/${id}?relations=true`)
+    if (props.hostId === id) host.value = result
   } finally {
-    loading.value = false
+    if (props.hostId === id) loading.value = false
   }
 }, { immediate: true })
 </script>

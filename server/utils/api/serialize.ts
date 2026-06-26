@@ -10,13 +10,14 @@ export function stripSecrets<T extends Record<string, unknown>>(row: T): T {
   return copy as T
 }
 
-export function serializeIdentity<T extends Record<string, unknown>>(row: T | null): T | null {
+// Identity and SSH-key responses both just strip their own secret fields, so
+// they share one null-safe serializer (kept as two names for call-site clarity).
+function redactRow<T extends Record<string, unknown>>(row: T | null): T | null {
   return row ? stripSecrets(row) : row
 }
 
-export function serializeSshKey<T extends Record<string, unknown>>(row: T | null): T | null {
-  return row ? stripSecrets(row) : row
-}
+export const serializeIdentity = redactRow
+export const serializeSshKey = redactRow
 
 // Host has no direct secret, but its related identity (when loaded via
 // ?relations) does, so redact the nested identity.

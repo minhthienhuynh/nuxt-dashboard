@@ -98,11 +98,14 @@ async function resolveIdentityId(d: Schema): Promise<string | undefined> {
   if (d.authType === 'key') {
     return d.keyIdentityId && d.keyIdentityId !== NONE ? d.keyIdentityId : props.host?.identityId ?? undefined
   }
-  // password / agent need a username to form an identity; without one, keep
+  // password / agent need a username to form an identity. Default to 'root'
+  // when a password was given but the username was left blank (otherwise the
+  // host would be saved with no credentials). With nothing to store, keep
   // whatever the host already had.
-  if (!d.username) return props.host?.identityId ?? undefined
+  const username = d.username || (d.password ? 'root' : '')
+  if (!username) return props.host?.identityId ?? undefined
 
-  const body: Record<string, unknown> = { username: d.username, authType: d.authType }
+  const body: Record<string, unknown> = { username, authType: d.authType }
   if (d.authType === 'password' && d.password) body.password = d.password
 
   const existing = currentIdentity.value
@@ -116,6 +119,14 @@ async function resolveIdentityId(d: Schema): Promise<string | undefined> {
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   const d = event.data
+
+  // Key auth needs a saved key identity; don't silently save a host with no
+  // credentials when the Keychain is empty or none is picked.
+  if (d.authType === 'key' && (!d.keyIdentityId || d.keyIdentityId === NONE)) {
+    toast.add({ title: 'Select an SSH key — none are saved yet', color: 'error' })
+    return
+  }
+
   // strictObject on the server rejects empty strings on optional FKs, so only
   // include fields that carry a real value. Label defaults to the address.
   const payload: Record<string, unknown> = {
