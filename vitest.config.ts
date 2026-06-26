@@ -23,7 +23,11 @@ export default defineConfig({
           name: 'unit',
           include: ['test/unit/*.{test,spec}.ts'],
           environment: 'node',
-          env: { DATABASE_URL: 'file:./prisma/test.db' },
+          env: {
+            DATABASE_URL: 'file:./prisma/test.db',
+            // Fixed AES-256 key (base64 32 bytes) so vault tests are deterministic.
+            VAULT_KEY: 'DCQO801XI37hPJBwdiP4MQgg+zUbBQK5oFKL/8Ft7x4='
+          },
           globalSetup: ['test/unit/setup-db.ts'],
           setupFiles: ['test/unit/setup-each.ts'],
           // All repo tests share one SQLite test db; run files serially so one
