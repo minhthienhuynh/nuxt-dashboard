@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 
 const props = defineProps<{
-  resource: 'hosts' | 'groups'
+  resource: 'hosts' | 'groups' | 'tags'
   id: string | null
   label?: string
 }>()
@@ -14,7 +14,7 @@ const emit = defineEmits<{
 const open = defineModel<boolean>('open', { default: false })
 
 const isGroup = computed(() => props.resource === 'groups')
-const noun = computed(() => (isGroup.value ? 'group' : 'host'))
+const noun = computed(() => ({ hosts: 'host', groups: 'group', tags: 'tag' }[props.resource]))
 
 const toast = useToast()
 

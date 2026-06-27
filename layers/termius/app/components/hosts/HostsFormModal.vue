@@ -2,13 +2,16 @@
 import { computed, reactive, ref, watch } from 'vue'
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import type { Group, Host, Identity, SSHKey } from '../../types/ssh'
+import type { Group, Host, HostWithRelations, Identity, SSHKey, Tag } from '../../types/ssh'
 
 const props = defineProps<{
   host?: Host | null
   groups: Group[]
   identities: Identity[]
   sshKeys: SSHKey[]
+  tags: Tag[]
+  // Pre-selected group when creating a host from inside a group.
+  defaultGroupId?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -27,14 +30,17 @@ const schema = z.object({
   authType: z.enum(['password', 'key']),
   password: z.string().optional(),
   sshKeyId: z.string().optional(),
-  description: z.string().optional(),
-  groupId: z.string().optional()
+  groupId: z.string().optional(),
+  tags: z.array(z.string()).optional()
 })
 type Schema = z.output<typeof schema>
 
 const state = reactive<Partial<Schema>>({})
 const showMore = ref(false)
 const showPassword = ref(false)
+// On edit, only reconcile tags once the host's current tags have loaded — a
+// failed/in-flight load must not let an empty selection wipe existing links.
+const tagsLoaded = ref(false)
 
 // Credentials live on Identity, not Host. When editing, prefill from the host's
 // linked identity; the stored password (if any) is loaded via ?reveal=true below.
@@ -52,10 +58,26 @@ watch(open, async (isOpen) => {
   state.authType = identity?.authType ?? 'password'
   state.password = ''
   state.sshKeyId = identity?.authType === 'key' ? (identity.sshKeyId ?? SELECT_NONE) : SELECT_NONE
-  state.description = props.host?.description ?? ''
-  state.groupId = props.host?.groupId ?? SELECT_NONE
+  // Edit: keep the host's group. Create: default to the group we're inside.
+  state.groupId = props.host ? (props.host.groupId ?? SELECT_NONE) : (props.defaultGroupId ?? SELECT_NONE)
+  state.tags = []
+  tagsLoaded.value = !props.host?.id
   showMore.value = false
   showPassword.value = false
+
+  // Preload the host's current tags when editing (the prop carries no relations).
+  if (props.host?.id) {
+    try {
+      const full = await $fetch<HostWithRelations>(`/api/hosts/${props.host.id}?relations=true`)
+      // Ignore a stale response if the form was closed/reopened for another host.
+      if (open.value && props.host?.id === hostId) {
+        state.tags = full.tags.map(l => l.tag.name)
+        tagsLoaded.value = true
+      }
+    } catch {
+      // Leave tags unloaded so submit won't reconcile (and risk clearing) them.
+    }
+  }
 
   // Show the existing password when editing a host that uses a password identity.
   if (identity && identity.authType === 'password') {
@@ -82,6 +104,22 @@ const sshKeyItems = computed(() =>
   props.sshKeys.length
     ? props.sshKeys.map(k => ({ label: k.label, value: k.id }))
     : [{ label: 'No saved keys yet', value: SELECT_NONE }])
+
+// Existing tag names plus any just-created ones, so freshly added tags stay
+// rendered as selected options (the API find-or-creates them on save).
+const tagSuggestions = computed(() => {
+  const names = new Set(props.tags.map(t => t.name))
+  for (const t of state.tags ?? []) names.add(t)
+  return [...names]
+})
+
+// USelectMenu's create-item only emits the typed name; add it to the selection.
+function onCreateTag(name: string) {
+  const tag = name.trim()
+  if (!tag) return
+  if (!state.tags) state.tags = []
+  if (!state.tags.includes(tag)) state.tags.push(tag)
+}
 
 const toast = useToast()
 
@@ -138,8 +176,10 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     address: d.address
   }
   if (d.port) payload.port = d.port
-  if (d.description) payload.description = d.description
   if (d.groupId && d.groupId !== SELECT_NONE) payload.groupId = d.groupId
+  // Reconcile tags only when the current set is known (always on create, on edit
+  // only after a successful preload) so a failed load can't clear existing links.
+  if (tagsLoaded.value) payload.tags = d.tags ?? []
 
   try {
     const identityId = await resolveIdentityId(d)
@@ -237,6 +277,19 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
           <USelect v-model="state.sshKeyId" :items="sshKeyItems" class="w-full" />
         </UFormField>
 
+        <UFormField label="Tags" name="tags">
+          <USelectMenu
+            v-model="state.tags"
+            :items="tagSuggestions"
+            multiple
+            create-item
+            icon="i-lucide-tag"
+            placeholder="Add tags…"
+            class="w-full"
+            @create="onCreateTag"
+          />
+        </UFormField>
+
         <UButton
           :label="showMore ? 'Show less' : 'Show more'"
           :icon="showMore ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
@@ -250,10 +303,6 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
         <template v-if="showMore">
           <UFormField label="Group" name="groupId">
             <USelect v-model="state.groupId" :items="groupItems" class="w-full" />
-          </UFormField>
-
-          <UFormField label="Description" name="description">
-            <UTextarea v-model="state.description" :rows="2" class="w-full" />
           </UFormField>
         </template>
 

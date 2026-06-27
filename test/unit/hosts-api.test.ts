@@ -65,8 +65,37 @@ describe('hosts API handlers (h3 v1 runtime)', () => {
     expect(list.map((h: { id: string }) => h.id)).toContain(created.id)
   })
 
+  it('POST with tags links them (creating missing tags)', async () => {
+    const created = await createHost({ label: 'h', address: '1.1.1.1', tags: ['prod', 'db'] })
+
+    const full = await hostItem(created.id, { query: '?relations=true' })
+    expect(full.tags.map((l: { tag: { name: string } }) => l.tag.name).sort()).toEqual(['db', 'prod'])
+  })
+
+  it('PUT with empty tags clears links; omitting tags leaves them', async () => {
+    const created = await createHost({ label: 'h', address: '1.1.1.1', tags: ['keep'] })
+
+    await hostItem(created.id, { method: 'PUT', body: { label: 'renamed' } })
+    expect((await hostItem(created.id, { query: '?relations=true' }))
+      .tags.map((l: { tag: { name: string } }) => l.tag.name)).toEqual(['keep'])
+
+    await hostItem(created.id, { method: 'PUT', body: { tags: [] } })
+    expect((await hostItem(created.id, { query: '?relations=true' })).tags).toEqual([])
+  })
+
+  it('?tag=a&tag=b filters hosts by ALL tags (AND)', async () => {
+    const both = await createHost({ label: 'both', address: '1.1.1.1', tags: ['prod', 'db'] })
+    await createHost({ label: 'prod-only', address: '2.2.2.2', tags: ['prod'] })
+
+    const list = await listHosts('?tag=prod&tag=db')
+    expect(list.map((h: { id: string }) => h.id)).toEqual([both.id])
+  })
+
   it('rejects an invalid create with 400 and without persisting', async () => {
     await expect(createHost({ label: 'no-address' })).rejects.toMatchObject({ statusCode: 400 })
+    // An empty/non-string tag name is rejected before any write.
+    await expect(createHost({ label: 'h', address: '1.1.1.1', tags: [''] })).rejects.toMatchObject({ statusCode: 400 })
+    await expect(createHost({ label: 'h', address: '1.1.1.1', tags: [123] })).rejects.toMatchObject({ statusCode: 400 })
     expect(await prisma.host.count()).toBe(0)
   })
 })

@@ -11,9 +11,11 @@ const hostShape = {
   address: z.string().min(1),
   port: z.number().int().positive().optional(),
   os: z.string().optional(),
-  description: z.string().optional(),
   groupId: z.string().optional(),
-  identityId: z.string().optional()
+  identityId: z.string().optional(),
+  // Tag names to attach. Reconciled into HostTag links (find-or-create by name)
+  // by the host repository — not a Host column.
+  tags: z.array(z.string().trim().min(1)).optional()
 }
 export const hostCreateSchema = z.strictObject(hostShape)
 export const hostUpdateSchema = z.strictObject(hostShape).partial()

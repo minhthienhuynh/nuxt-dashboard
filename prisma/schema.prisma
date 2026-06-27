@@ -41,7 +41,6 @@ model Host {
   address      String // hostname or IP
   port         Int                 @default(22)
   os           String? // detected on connect: distro id (ubuntu, debian, …) | linux | macos | windows | other
-  description  String?
   groupId      String?
   group        Group?              @relation(fields: [groupId], references: [id], onDelete: SetNull)
   identityId   String?

@@ -17,7 +17,6 @@ export interface Host {
   address: string
   port: number
   os: string | null
-  description: string | null
   groupId: string | null
   identityId: string | null
   createdAt: string

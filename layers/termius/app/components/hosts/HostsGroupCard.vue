@@ -3,6 +3,9 @@ defineProps<{
   name: string
   count: number
   icon?: string
+  // In list view the card drops its box border (rows are separated by the
+  // container's divider lines instead).
+  list?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -14,7 +17,10 @@ const emit = defineEmits<{
 
 <template>
   <div
-    class="group relative flex items-center gap-3 p-4 rounded-lg border border-default cursor-pointer transition-colors hover:border-primary hover:bg-primary/5"
+    :class="[
+      'group relative flex items-center gap-3 p-4 cursor-pointer transition-colors hover:bg-primary/5',
+      list ? '' : 'rounded-lg border border-default hover:border-primary'
+    ]"
     @click="emit('open')"
   >
     <div class="flex items-center justify-center size-10 rounded-md bg-primary/10 text-primary shrink-0">

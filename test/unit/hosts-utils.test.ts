@@ -7,7 +7,7 @@ function group(id: string, parentId: string | null = null, name = id): Group {
 }
 
 function host(id: string, groupId: string | null, label = id, address = `${id}.example`): Host {
-  return { id, label, address, port: 22, os: null, description: null, groupId, identityId: null, createdAt: '', updatedAt: '' }
+  return { id, label, address, port: 22, os: null, groupId, identityId: null, createdAt: '', updatedAt: '' }
 }
 
 describe('buildGroupTree', () => {

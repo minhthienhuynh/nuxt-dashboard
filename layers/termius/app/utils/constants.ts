@@ -1,10 +1,9 @@
 // Shared UI constants for the SSH manager forms and lists.
 
 // Reka UI (USelect) forbids an empty-string item value (reserved for clearing),
-// so "none"/"all" options use a non-empty sentinel — real values are UUIDs or a
-// fixed enum, so these never collide.
+// so the "none" option uses a non-empty sentinel — real values are UUIDs or a
+// fixed enum, so it never collides.
 export const SELECT_NONE = 'none'
-export const ALL_TAGS = '__all__'
 
 // Authentication methods offered by the host and identity forms (SSH agent is
 // not supported). Typed so the value narrows to the Identity authType union.

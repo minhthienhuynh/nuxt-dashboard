@@ -4,6 +4,9 @@ import type { Host } from '../../types/ssh'
 const props = defineProps<{
   host: Host
   groupName?: string | null
+  // In list view the card drops its box border (rows are separated by the
+  // container's divider lines instead).
+  list?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -17,7 +20,10 @@ const os = computed(() => osMeta(props.host.os))
 
 <template>
   <div
-    class="group flex items-center gap-3 p-3 rounded-lg border border-default cursor-pointer transition-colors hover:border-primary hover:bg-primary/5"
+    :class="[
+      'group flex items-center gap-3 p-3 cursor-pointer transition-colors hover:bg-primary/5',
+      list ? '' : 'rounded-lg border border-default hover:border-primary'
+    ]"
     @click="emit('select')"
   >
     <UIcon

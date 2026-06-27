@@ -98,14 +98,6 @@ watch([open, () => props.hostId], async ([isOpen, id]) => {
               {{ host.identity ? `${host.identity.username} (${host.identity.authType})` : '—' }}
             </dd>
           </div>
-          <div v-if="host.description" class="flex justify-between gap-4">
-            <dt class="text-dimmed">
-              Description
-            </dt>
-            <dd class="text-highlighted text-right">
-              {{ host.description }}
-            </dd>
-          </div>
         </dl>
 
         <div v-if="host.tags.length">

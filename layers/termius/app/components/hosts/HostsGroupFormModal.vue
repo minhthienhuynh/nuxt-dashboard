@@ -7,6 +7,8 @@ import type { Group } from '../../types/ssh'
 const props = defineProps<{
   group?: Group | null
   groups: Group[]
+  // Pre-selected parent when creating a group from inside a group.
+  defaultParentId?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -28,7 +30,8 @@ const state = reactive<Partial<Schema>>({})
 watch(open, (isOpen) => {
   if (!isOpen) return
   state.name = props.group?.name ?? ''
-  state.parentId = props.group?.parentId ?? SELECT_NONE
+  // Edit: keep the group's parent. Create: default to the group we're inside.
+  state.parentId = props.group ? (props.group.parentId ?? SELECT_NONE) : (props.defaultParentId ?? SELECT_NONE)
 })
 
 // A group cannot be its own parent. (Deeper cycle prevention is left to the

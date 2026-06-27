@@ -8,11 +8,15 @@ import type { Group, GroupSelection, Host, HostWithRelations, Identity, SSHKey, 
 const { data: groups, refresh: refreshGroups } = await useFetch<Group[]>('/api/groups', { default: () => [], lazy: true })
 const { data: identities } = await useFetch<Identity[]>('/api/identities', { default: () => [], lazy: true })
 const { data: sshKeys } = await useFetch<SSHKey[]>('/api/ssh-keys', { default: () => [], lazy: true })
-const { data: tags } = await useFetch<Tag[]>('/api/tags', { default: () => [], lazy: true })
+const { data: tags, refresh: refreshTags } = await useFetch<Tag[]>('/api/tags', { default: () => [], lazy: true })
 
-const tagFilter = ref(ALL_TAGS)
+// Selected tag names; empty means "all". Multiple tags AND together server-side.
+const tagFilter = ref<string[]>([])
 const { data: hosts, refresh: refreshHosts } = await useFetch<Host[]>(
-  () => (tagFilter.value && tagFilter.value !== ALL_TAGS ? `/api/hosts?tag=${encodeURIComponent(tagFilter.value)}` : '/api/hosts'),
+  () => {
+    const qs = tagFilter.value.map(t => `tag=${encodeURIComponent(t)}`).join('&')
+    return qs ? `/api/hosts?${qs}` : '/api/hosts'
+  },
   { default: () => [], lazy: true }
 )
 
@@ -22,12 +26,23 @@ const search = ref('')
 const view = ref<'grid' | 'list'>('grid')
 const viewItems = [
   { label: 'Grid', value: 'grid', icon: 'i-lucide-layout-grid' },
-  { label: 'List', value: 'list', icon: 'i-lucide-list' }
-]
+  { label: 'List', value: 'list', icon: 'i-lucide-layout-list' }
+] as const
+
+// Icon for the dropdown trigger reflects the active view.
+const currentViewIcon = computed(() => viewItems.find(i => i.value === view.value)?.icon)
+// Dropdown items mirror the old select: selecting one switches the view.
+const viewMenu = computed(() => [
+  viewItems.map(item => ({
+    label: item.label,
+    icon: item.icon,
+    onSelect: () => { view.value = item.value }
+  }))
+])
 
 const tree = computed(() => buildGroupTree(groups.value))
 const isSearching = computed(() => search.value.trim().length > 0)
-const tagActive = computed(() => tagFilter.value !== ALL_TAGS)
+const tagActive = computed(() => tagFilter.value.length > 0)
 // Search and tag filter are both flat/global views: hide the group cards (their
 // counts would be wrong against the tag-filtered host list) and show a flat
 // list of matching hosts.
@@ -72,12 +87,27 @@ const crumbs = computed<{ id: GroupSelection, name: string }[]>(() => {
   return path
 })
 
+// Breadcrumb items: every ancestor (All hosts + parent groups) is a clickable
+// link for navigating up; only the current group (last crumb) is plain text.
+const crumbItems = computed(() => {
+  const path = crumbs.value
+  return [
+    { label: 'All hosts', class: 'cursor-pointer', onClick: () => openGroup('all') },
+    ...path.map((c, i) =>
+      i === path.length - 1
+        ? { label: c.name }
+        : { label: c.name, class: 'cursor-pointer', onClick: () => openGroup(c.id) })
+  ]
+})
+
 const inGroup = computed(() => selection.value !== 'all' && !isFiltered.value)
 
-const tagItems = computed(() => [
-  { label: 'All tags', value: ALL_TAGS },
-  ...tags.value.map(t => ({ label: t.name, value: t.name }))
-])
+// The real group currently open (not "all"/"ungrouped"), used to pre-select the
+// group when creating a host/group from inside it.
+const currentGroupId = computed(() =>
+  selection.value !== 'all' && selection.value !== 'ungrouped' ? selection.value : null)
+
+const tagItems = computed(() => tags.value.map(t => t.name))
 
 // A single "New" dropdown holds both create actions.
 const newMenu = [[
@@ -115,6 +145,12 @@ function addHost() {
   hostModalOpen.value = true
 }
 
+// Saving a host may find-or-create tags, so refresh the tag list (filter
+// options) alongside the hosts.
+async function onHostSaved() {
+  await Promise.all([refreshHosts(), refreshTags()])
+}
+
 function editHost(host: Host) {
   editingHost.value = host
   hostModalOpen.value = true
@@ -136,9 +172,38 @@ function editGroup(group: Group) {
 
 // --- Delete -----------------------------------------------------------------
 const deleteOpen = ref(false)
-const deleteResource = ref<'hosts' | 'groups'>('hosts')
+const deleteResource = ref<'hosts' | 'groups' | 'tags'>('hosts')
 const deleteId = ref<string | null>(null)
 const deleteLabel = ref('')
+
+function deleteTag(name: string) {
+  const tag = tags.value.find(t => t.name === name)
+  if (!tag) return
+  deleteResource.value = 'tags'
+  deleteId.value = tag.id
+  deleteLabel.value = name
+  deleteOpen.value = true
+}
+
+// --- Tag rename -------------------------------------------------------------
+const tagEditOpen = ref(false)
+const editingTag = ref<Tag | null>(null)
+
+function editTag(name: string) {
+  const tag = tags.value.find(t => t.name === name)
+  if (!tag) return
+  editingTag.value = tag
+  tagEditOpen.value = true
+}
+
+async function onTagRenamed(newName: string) {
+  // Rewrite an active filter pointing at the renamed tag, de-duped in case the
+  // new name is already selected. Host rows carry no tag data, so the list only
+  // needs the reactive refetch the filter change triggers — just refresh tags.
+  const oldName = editingTag.value?.name
+  if (oldName) tagFilter.value = [...new Set(tagFilter.value.map(t => (t === oldName ? newName : t)))]
+  await refreshTags()
+}
 
 function deleteHost(host: Host) {
   deleteResource.value = 'hosts'
@@ -157,6 +222,13 @@ function deleteGroup(group: Group) {
 async function onDeleted() {
   detailOpen.value = false
   selectedHostId.value = null
+  // Tag delete doesn't change host rows: drop it from the filter (the reactive
+  // query refetches if it was active) and refresh only the tag list.
+  if (deleteResource.value === 'tags') {
+    tagFilter.value = tagFilter.value.filter(t => t !== deleteLabel.value)
+    await refreshTags()
+    return
+  }
   await Promise.all([refreshHosts(), refreshGroups()])
   // Reset to root if the open group no longer exists (it, or an ancestor, was
   // deleted), otherwise the view would be stranded on a missing group.
@@ -204,42 +276,76 @@ function onDetailDelete(host: HostWithRelations) {
 
         <div class="flex-1" />
 
-        <USelect
+        <USelectMenu
           v-model="tagFilter"
           :items="tagItems"
+          multiple
           icon="i-lucide-tag"
+          placeholder="All tags"
           size="sm"
-          class="w-40"
-        />
-        <USelect
-          v-model="view"
-          :items="viewItems"
-          size="sm"
-          class="w-28"
-        />
+          class="w-50"
+          :ui="{ itemTrailingIcon: 'hidden' }"
+        >
+          <template #item-leading="{ item }">
+            <UIcon
+              :name="tagFilter.includes(String(item)) ? 'i-lucide-circle-check' : 'i-lucide-circle'"
+              class="size-4 shrink-0"
+              :class="tagFilter.includes(String(item)) ? 'text-primary' : 'text-dimmed'"
+            />
+          </template>
+
+          <template #item-trailing="{ item }">
+            <span class="inline-flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+              <UButton
+                icon="i-lucide-pencil"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                aria-label="Rename tag"
+                @pointerdown.stop
+                @click.stop="editTag(String(item))"
+              />
+              <UButton
+                icon="i-lucide-trash-2"
+                color="error"
+                variant="ghost"
+                size="xs"
+                aria-label="Delete tag"
+                @pointerdown.stop
+                @click.stop="deleteTag(String(item))"
+              />
+            </span>
+          </template>
+
+          <template v-if="tagItems.length" #content-bottom>
+            <div class="p-1 border-t border-default">
+              <UButton
+                label="Clear selection"
+                icon="i-lucide-x"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                block
+                :disabled="!tagFilter.length"
+                @click="tagFilter = []"
+              />
+            </div>
+          </template>
+        </USelectMenu>
+        <UDropdownMenu :items="viewMenu">
+          <UButton
+            :icon="currentViewIcon"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            aria-label="Change view"
+          />
+        </UDropdownMenu>
       </div>
 
       <!-- Breadcrumb -->
-      <div v-if="inGroup" class="flex items-center gap-1.5 px-4 pb-3 text-sm">
-        <UButton
-          label="All hosts"
-          icon="i-lucide-arrow-left"
-          color="neutral"
-          variant="soft"
-          size="xs"
-          @click="openGroup('all')"
-        />
-        <template v-for="(c, i) in crumbs" :key="c.id">
-          <UIcon name="i-lucide-chevron-right" class="size-4 text-dimmed shrink-0" />
-          <button
-            type="button"
-            class="font-medium transition-colors"
-            :class="i === crumbs.length - 1 ? 'text-primary' : 'text-toned hover:text-highlighted'"
-            @click="openGroup(c.id)"
-          >
-            {{ c.name }}
-          </button>
-        </template>
+      <div v-if="inGroup" class="px-4 pb-3">
+        <UBreadcrumb :items="crumbItems" />
       </div>
 
       <div class="flex-1 overflow-y-auto px-4 pb-6 space-y-6">
@@ -248,12 +354,13 @@ function onDetailDelete(host: HostWithRelations) {
           <h3 class="text-xs font-semibold text-dimmed uppercase tracking-wide mb-2">
             Groups
           </h3>
-          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          <div :class="view === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3' : 'flex flex-col divide-y divide-default'">
             <HostsGroupCard
               v-for="g in childGroups"
               :key="g.id"
               :name="g.name"
               :count="groupCounts.get(g.id) ?? 0"
+              :list="view === 'list'"
               @open="openGroup(g.id)"
               @edit="editGroup(g)"
               @delete="deleteGroup(g)"
@@ -263,6 +370,7 @@ function onDetailDelete(host: HostWithRelations) {
               name="Ungrouped"
               icon="i-lucide-folder-minus"
               :count="ungroupedCount"
+              :list="view === 'list'"
               @open="openGroup('ungrouped')"
               @edit="() => {}"
               @delete="() => {}"
@@ -277,13 +385,14 @@ function onDetailDelete(host: HostWithRelations) {
           </h3>
           <div
             v-if="visibleHosts.length"
-            :class="view === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3' : 'flex flex-col gap-2'"
+            :class="view === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3' : 'flex flex-col divide-y divide-default'"
           >
             <HostsCard
               v-for="host in visibleHosts"
               :key="host.id"
               :host="host"
               :group-name="host.groupId ? groupById.get(host.groupId)?.name : null"
+              :list="view === 'list'"
               @select="openDetail(host)"
               @connect="connect(host.id)"
             />
@@ -312,14 +421,23 @@ function onDetailDelete(host: HostWithRelations) {
       :groups="groups"
       :identities="identities"
       :ssh-keys="sshKeys"
-      @saved="refreshHosts"
+      :tags="tags"
+      :default-group-id="currentGroupId"
+      @saved="onHostSaved"
     />
 
     <HostsGroupFormModal
       v-model:open="groupModalOpen"
       :group="editingGroup"
       :groups="groups"
+      :default-parent-id="currentGroupId"
       @saved="refreshGroups"
+    />
+
+    <HostsTagEditModal
+      v-model:open="tagEditOpen"
+      :tag="editingTag"
+      @saved="onTagRenamed"
     />
 
     <HostsDeleteModal

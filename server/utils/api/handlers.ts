@@ -77,8 +77,12 @@ export const hostHandlers = createCrudHandlers({
   updateSchema: hostUpdateSchema,
   serialize: serializeHost,
   listQuery: (event) => {
-    const tag = getQuery(event).tag
-    return typeof tag === 'string' ? hostRepository.findByTag(tag) : undefined
+    // Repeated `?tag=a&tag=b` arrives as string | string[]; normalize to a list
+    // of names and AND them. No tags → fall through to the default findMany.
+    const raw = getQuery(event).tag
+    const names = (Array.isArray(raw) ? raw : raw == null ? [] : [raw])
+      .filter((t): t is string => typeof t === 'string' && t.length > 0)
+    return names.length ? hostRepository.findByTags(names) : undefined
   },
   findOne: (id, event) =>
     getQuery(event).relations === 'true' ? hostRepository.withRelations(id) : hostRepository.findById(id)
