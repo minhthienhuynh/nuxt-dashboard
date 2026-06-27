@@ -28,6 +28,12 @@ describe('api validation schemas', () => {
     expect(result.success).toBe(true)
   })
 
+  it('sshKeyCreateSchema allows an omitted public key (defaults to empty)', () => {
+    const result = sshKeyCreateSchema.safeParse({ label: 'k', keyType: 'ed25519' })
+    expect(result.success).toBe(true)
+    expect(result.success && result.data.publicKey).toBe('')
+  })
+
   it('still rejects unknown fields (strict)', () => {
     expect(identityCreateSchema.safeParse({ username: 'u', authType: 'key', bogus: 'x' }).success).toBe(false)
   })

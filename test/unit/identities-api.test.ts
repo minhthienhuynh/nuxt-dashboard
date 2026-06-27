@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import identityItem from '../../server/api/identities/[id]'
 import { identityHandlers } from '../../server/utils/api/handlers'
 import { decryptSecret } from '../../server/utils/vault'
 import { prisma, resetDb } from './repo-helpers'
@@ -27,6 +28,24 @@ describe('identities API with vault (h3 v1 runtime)', () => {
     expect(created).not.toHaveProperty('password')
 
     const fetched = await getIdentity(created.id)
+    expect(fetched).not.toHaveProperty('password')
+  })
+
+  it('reveal=true returns the decrypted password for editing', async () => {
+    const created = await createIdentity({ username: 'u', authType: 'password', password: 's3cret' })
+    const revealed = await identityItem(mockH3Event({
+      path: `/api/identities/${created.id}?reveal=true`,
+      params: { id: created.id }
+    })) as { password: string | null }
+    expect(revealed.password).toBe('s3cret')
+  })
+
+  it('plain GET (no reveal) still omits the password', async () => {
+    const created = await createIdentity({ username: 'u', authType: 'password', password: 'secret' })
+    const fetched = await identityItem(mockH3Event({
+      path: `/api/identities/${created.id}`,
+      params: { id: created.id }
+    }))
     expect(fetched).not.toHaveProperty('password')
   })
 })

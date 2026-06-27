@@ -18,7 +18,7 @@ const emit = defineEmits<{
     @click="emit('open')"
   >
     <div class="flex items-center justify-center size-10 rounded-md bg-primary/10 text-primary shrink-0">
-      <UIcon :name="icon ?? 'i-lucide-folder'" class="size-5" />
+      <UIcon :name="icon ?? 'i-lucide-group'" class="size-5" />
     </div>
 
     <div class="min-w-0 flex-1">

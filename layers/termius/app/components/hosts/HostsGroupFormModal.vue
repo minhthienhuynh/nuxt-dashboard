@@ -25,20 +25,16 @@ type Schema = z.output<typeof schema>
 
 const state = reactive<Partial<Schema>>({})
 
-// Reka UI (USelect) forbids an empty-string item value, so the "no parent"
-// option uses a non-empty sentinel (group ids are UUIDs → no collision).
-const NONE = 'none'
-
 watch(open, (isOpen) => {
   if (!isOpen) return
   state.name = props.group?.name ?? ''
-  state.parentId = props.group?.parentId ?? NONE
+  state.parentId = props.group?.parentId ?? SELECT_NONE
 })
 
 // A group cannot be its own parent. (Deeper cycle prevention is left to the
 // backend / future work — this just removes the obvious self-reference.)
 const parentItems = computed(() => [
-  { label: 'No parent (root)', value: NONE },
+  { label: 'No parent (root)', value: SELECT_NONE },
   ...props.groups
     .filter(g => g.id !== props.group?.id)
     .map(g => ({ label: g.name, value: g.id }))
@@ -48,7 +44,7 @@ const toast = useToast()
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   const payload: Record<string, unknown> = { name: event.data.name }
-  if (event.data.parentId && event.data.parentId !== NONE) payload.parentId = event.data.parentId
+  if (event.data.parentId && event.data.parentId !== SELECT_NONE) payload.parentId = event.data.parentId
 
   try {
     if (isEdit.value && props.group) {

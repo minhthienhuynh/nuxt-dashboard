@@ -28,7 +28,7 @@ export const groupUpdateSchema = z.strictObject(groupShape).partial()
 const identityShape = {
   label: z.string().optional(),
   username: z.string().min(1),
-  authType: z.enum(['password', 'key', 'agent']),
+  authType: z.enum(['password', 'key']),
   sshKeyId: z.string().optional(),
   // Encrypted by the vault before persisting; never returned in responses.
   password: z.string().optional()
@@ -39,12 +39,14 @@ export const identityUpdateSchema = z.strictObject(identityShape).partial()
 const sshKeyShape = {
   label: z.string().min(1),
   keyType: z.string().min(1),
-  publicKey: z.string().min(1),
+  // Public key is optional — a key can be saved without it. The Prisma column is
+  // NOT NULL with no default, so create falls back to '' when it is omitted.
+  publicKey: z.string().optional(),
   // Encrypted by the vault before persisting; never returned in responses.
   privateKey: z.string().optional(),
   passphrase: z.string().optional()
 }
-export const sshKeyCreateSchema = z.strictObject(sshKeyShape)
+export const sshKeyCreateSchema = z.strictObject({ ...sshKeyShape, publicKey: z.string().default('') })
 export const sshKeyUpdateSchema = z.strictObject(sshKeyShape).partial()
 
 const tagShape = {

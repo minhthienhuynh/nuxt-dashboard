@@ -40,7 +40,7 @@ model Host {
   label        String
   address      String // hostname or IP
   port         Int                 @default(22)
-  os           String? // enum-like: linux | macos | windows | other
+  os           String? // detected on connect: distro id (ubuntu, debian, …) | linux | macos | windows | other
   description  String?
   groupId      String?
   group        Group?              @relation(fields: [groupId], references: [id], onDelete: SetNull)
@@ -63,7 +63,7 @@ model Identity {
   id        String   @id @default(uuid(7))
   label     String?
   username  String
-  authType  String // enum-like: password | key | agent
+  authType  String // enum-like: password | key
   password  String? // ENCRYPTED ciphertext, never plaintext
   sshKeyId  String?
   sshKey    SSHKey?  @relation(fields: [sshKeyId], references: [id], onDelete: SetNull)

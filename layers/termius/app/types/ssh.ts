@@ -29,8 +29,19 @@ export interface Identity {
   id: string
   label: string | null
   username: string
-  authType: 'password' | 'key' | 'agent'
+  authType: 'password' | 'key'
   sshKeyId: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+// SSH key with secrets stripped (no `privateKey`/`passphrase`). `publicKey` is
+// non-secret and returned by the API.
+export interface SSHKey {
+  id: string
+  label: string
+  keyType: string
+  publicKey: string
   createdAt: string
   updatedAt: string
 }

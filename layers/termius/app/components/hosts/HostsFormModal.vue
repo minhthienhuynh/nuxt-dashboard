@@ -2,12 +2,13 @@
 import { computed, reactive, ref, watch } from 'vue'
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import type { Group, Host, Identity } from '../../types/ssh'
+import type { Group, Host, Identity, SSHKey } from '../../types/ssh'
 
 const props = defineProps<{
   host?: Host | null
   groups: Group[]
   identities: Identity[]
+  sshKeys: SSHKey[]
 }>()
 
 const emit = defineEmits<{
@@ -18,20 +19,14 @@ const open = defineModel<boolean>('open', { default: false })
 
 const isEdit = computed(() => !!props.host)
 
-// Reka UI (USelect) forbids an empty-string item value (reserved for clearing),
-// so the "none" option uses a non-empty sentinel — host/identity ids are UUIDs
-// and the OS values are a fixed enum, so 'none' never collides.
-const NONE = 'none'
-
 const schema = z.object({
   label: z.string().optional(),
   address: z.string().min(1, 'Required'),
   port: z.number().int().positive().optional(),
   username: z.string().optional(),
-  authType: z.enum(['password', 'key', 'agent']),
+  authType: z.enum(['password', 'key']),
   password: z.string().optional(),
-  keyIdentityId: z.string().optional(),
-  os: z.string().optional(),
+  sshKeyId: z.string().optional(),
   description: z.string().optional(),
   groupId: z.string().optional()
 })
@@ -39,56 +34,54 @@ type Schema = z.output<typeof schema>
 
 const state = reactive<Partial<Schema>>({})
 const showMore = ref(false)
+const showPassword = ref(false)
 
 // Credentials live on Identity, not Host. When editing, prefill from the host's
-// linked identity (the password is never returned by the API — blank means
-// "unchanged").
+// linked identity; the stored password (if any) is loaded via ?reveal=true below.
 const currentIdentity = computed(() =>
   props.host?.identityId ? props.identities.find(i => i.id === props.host!.identityId) ?? null : null)
 
-watch(open, (isOpen) => {
+watch(open, async (isOpen) => {
   if (!isOpen) return
   const identity = currentIdentity.value
+  const hostId = props.host?.id
   state.label = props.host?.label ?? ''
   state.address = props.host?.address ?? ''
   state.port = props.host?.port ?? 22
   state.username = identity?.username ?? ''
   state.authType = identity?.authType ?? 'password'
   state.password = ''
-  state.keyIdentityId = identity?.authType === 'key' ? identity.id : NONE
-  state.os = props.host?.os ?? NONE
+  state.sshKeyId = identity?.authType === 'key' ? (identity.sshKeyId ?? SELECT_NONE) : SELECT_NONE
   state.description = props.host?.description ?? ''
-  state.groupId = props.host?.groupId ?? NONE
+  state.groupId = props.host?.groupId ?? SELECT_NONE
   showMore.value = false
+  showPassword.value = false
+
+  // Show the existing password when editing a host that uses a password identity.
+  if (identity && identity.authType === 'password') {
+    try {
+      const revealed = await $fetch<{ password: string | null }>(`/api/identities/${identity.id}?reveal=true`)
+      // Ignore a stale response if the form was closed or reopened for another
+      // host while this request was in flight.
+      if (!open.value || props.host?.id !== hostId) return
+      state.password = revealed.password ?? ''
+    } catch {
+      // Leave the password blank if the reveal request fails.
+    }
+  }
 })
 
-const authTypeItems = [
-  { label: 'Password', value: 'password' },
-  { label: 'Key', value: 'key' },
-  { label: 'SSH Agent', value: 'agent' }
-]
-
-const osItems = [
-  { label: '—', value: NONE },
-  { label: 'Linux', value: 'linux' },
-  { label: 'macOS', value: 'macos' },
-  { label: 'Windows', value: 'windows' },
-  { label: 'Other', value: 'other' }
-]
-
 const groupItems = computed(() => [
-  { label: 'No group', value: NONE },
+  { label: 'No group', value: SELECT_NONE },
   ...props.groups.map(g => ({ label: g.name, value: g.id }))
 ])
 
-// Key auth re-uses a saved key-based identity from the Keychain (creating new
-// SSH keys is a separate, deferred flow — it needs the public key material).
-const keyIdentityItems = computed(() => {
-  const keys = props.identities.filter(i => i.authType === 'key')
-  return keys.length
-    ? keys.map(i => ({ label: i.label || i.username, value: i.id }))
-    : [{ label: 'No saved keys yet', value: NONE }]
-})
+// Key auth picks an SSH key straight from the Keychain; the linking Identity
+// (username + key) is created/updated behind the scenes on submit.
+const sshKeyItems = computed(() =>
+  props.sshKeys.length
+    ? props.sshKeys.map(k => ({ label: k.label, value: k.id }))
+    : [{ label: 'No saved keys yet', value: SELECT_NONE }])
 
 const toast = useToast()
 
@@ -96,9 +89,20 @@ const toast = useToast()
 // (vault-encrypts the password server-side) as needed.
 async function resolveIdentityId(d: Schema): Promise<string | undefined> {
   if (d.authType === 'key') {
-    return d.keyIdentityId && d.keyIdentityId !== NONE ? d.keyIdentityId : props.host?.identityId ?? undefined
+    if (!d.sshKeyId || d.sshKeyId === SELECT_NONE) return props.host?.identityId ?? undefined
+    // Bundle username + chosen key into a key-based Identity. Reuse the host's
+    // current identity only when it is already key-based (changing a shared
+    // password identity's type would affect other hosts), else create one.
+    const body = { username: d.username || 'root', authType: 'key', sshKeyId: d.sshKeyId }
+    const existing = currentIdentity.value
+    if (existing && existing.authType === 'key') {
+      await $fetch(`/api/identities/${existing.id}`, { method: 'PUT', body })
+      return existing.id
+    }
+    const created = await $fetch<Identity>('/api/identities', { method: 'POST', body })
+    return created.id
   }
-  // password / agent need a username to form an identity. Default to 'root'
+  // password needs a username to form an identity. Default to 'root'
   // when a password was given but the username was left blank (otherwise the
   // host would be saved with no credentials). With nothing to store, keep
   // whatever the host already had.
@@ -120,9 +124,9 @@ async function resolveIdentityId(d: Schema): Promise<string | undefined> {
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   const d = event.data
 
-  // Key auth needs a saved key identity; don't silently save a host with no
+  // Key auth needs a chosen SSH key; don't silently save a host with no
   // credentials when the Keychain is empty or none is picked.
-  if (d.authType === 'key' && (!d.keyIdentityId || d.keyIdentityId === NONE)) {
+  if (d.authType === 'key' && (!d.sshKeyId || d.sshKeyId === SELECT_NONE)) {
     toast.add({ title: 'Select an SSH key — none are saved yet', color: 'error' })
     return
   }
@@ -134,9 +138,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     address: d.address
   }
   if (d.port) payload.port = d.port
-  if (d.os && d.os !== NONE) payload.os = d.os
   if (d.description) payload.description = d.description
-  if (d.groupId && d.groupId !== NONE) payload.groupId = d.groupId
+  if (d.groupId && d.groupId !== SELECT_NONE) payload.groupId = d.groupId
 
   try {
     const identityId = await resolveIdentityId(d)
@@ -178,12 +181,28 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
           </UFormField>
         </div>
 
+        <UFormField label="Label" name="label">
+          <UInput v-model="state.label" placeholder="Optional — defaults to the address" class="w-full" />
+        </UFormField>
+
+        <USeparator label="SSH" />
+
         <UFormField label="Username" name="username">
           <UInput v-model="state.username" placeholder="root" class="w-full" />
         </UFormField>
 
         <UFormField label="Authentication" name="authType">
-          <USelect v-model="state.authType" :items="authTypeItems" class="w-full" />
+          <UButtonGroup class="w-full">
+            <UButton
+              v-for="opt in AUTH_TYPE_ITEMS"
+              :key="opt.value"
+              :label="opt.label"
+              :color="state.authType === opt.value ? 'primary' : 'neutral'"
+              :variant="state.authType === opt.value ? 'solid' : 'outline'"
+              class="flex-1 justify-center"
+              @click="state.authType = opt.value"
+            />
+          </UButtonGroup>
         </UFormField>
 
         <UFormField
@@ -193,22 +212,29 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
         >
           <UInput
             v-model="state.password"
-            type="password"
-            :placeholder="isEdit ? 'Unchanged' : 'Enter password'"
+            :type="showPassword ? 'text' : 'password'"
+            placeholder="Enter password"
             class="w-full"
-          />
+          >
+            <template #trailing>
+              <UButton
+                :icon="showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                color="neutral"
+                variant="link"
+                size="sm"
+                :aria-label="showPassword ? 'Hide password' : 'Show password'"
+                @click="showPassword = !showPassword"
+              />
+            </template>
+          </UInput>
         </UFormField>
 
         <UFormField
           v-else-if="state.authType === 'key'"
           label="SSH key"
-          name="keyIdentityId"
+          name="sshKeyId"
         >
-          <USelect v-model="state.keyIdentityId" :items="keyIdentityItems" class="w-full" />
-        </UFormField>
-
-        <UFormField label="Label" name="label">
-          <UInput v-model="state.label" placeholder="Optional — defaults to the address" class="w-full" />
+          <USelect v-model="state.sshKeyId" :items="sshKeyItems" class="w-full" />
         </UFormField>
 
         <UButton
@@ -222,14 +248,9 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
         />
 
         <template v-if="showMore">
-          <div class="flex gap-4">
-            <UFormField label="OS" name="os" class="flex-1">
-              <USelect v-model="state.os" :items="osItems" class="w-full" />
-            </UFormField>
-            <UFormField label="Group" name="groupId" class="flex-1">
-              <USelect v-model="state.groupId" :items="groupItems" class="w-full" />
-            </UFormField>
-          </div>
+          <UFormField label="Group" name="groupId">
+            <USelect v-model="state.groupId" :items="groupItems" class="w-full" />
+          </UFormField>
 
           <UFormField label="Description" name="description">
             <UTextarea v-model="state.description" :rows="2" class="w-full" />

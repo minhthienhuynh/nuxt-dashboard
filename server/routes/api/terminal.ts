@@ -9,6 +9,7 @@ import { prisma } from '~~/server/utils/prisma'
 import { decryptSecret } from '~~/server/utils/vault'
 import { buildConnectConfig } from '~~/server/utils/terminal/connect-config'
 import type { ConnectSecrets } from '~~/server/utils/terminal/connect-config'
+import { detectOs } from '~~/server/utils/terminal/os-detect'
 import { verifyHostKey } from '~~/server/utils/terminal/host-key'
 import { decodeClient, encodeServer } from '~~/server/utils/terminal/protocol'
 
@@ -24,6 +25,26 @@ interface Session {
 // One independent session per WebSocket peer — multiple tabs open multiple
 // peers, so multi-session needs nothing extra here.
 const sessions = new Map<object, Session>()
+
+// Run `uname -s` over a one-off exec channel and persist the detected OS on the
+// host when it differs from what's stored. Best-effort — any failure (no exec,
+// missing `uname`, write error) is swallowed and leaves the stored value as-is.
+function detectAndStoreOs(client: Client, hostId: string, currentOs: string | null) {
+  // Read /etc/os-release for the distro (Ubuntu/Debian/…); fall back to uname.
+  client.exec('cat /etc/os-release 2>/dev/null || uname -s', (err, stream) => {
+    if (err) return
+    let out = ''
+    stream.on('data', (chunk: Buffer) => {
+      out += chunk.toString('utf8')
+    })
+    stream.on('close', () => {
+      const os = detectOs(out)
+      if (os && os !== currentOs) {
+        hostRepository.update(hostId, { os }).catch(() => { /* best-effort */ })
+      }
+    })
+  })
+}
 
 export default defineWebSocketHandler({
   async open(peer) {
@@ -55,7 +76,7 @@ export default defineWebSocketHandler({
       }
       config = buildConnectConfig(
         { address: host.address, port: host.port },
-        identity ? { username: identity.username, authType: identity.authType as 'password' | 'key' | 'agent' } : null,
+        identity ? { username: identity.username, authType: identity.authType as 'password' | 'key' } : null,
         secrets
       )
     } catch (err) {
@@ -80,6 +101,11 @@ export default defineWebSocketHandler({
     }
 
     client.on('ready', () => {
+      // Auto-detect the OS over a side channel (like Termius) and persist it so
+      // the host card shows the right icon. Best-effort: never blocks the shell,
+      // and a missing `uname` (e.g. Windows) leaves the stored value untouched.
+      detectAndStoreOs(client, host.id, host.os)
+
       client.shell({ term: 'xterm-256color' }, async (err, stream) => {
         if (err) {
           peer.send(encodeServer({ type: 'error', message: err.message }))

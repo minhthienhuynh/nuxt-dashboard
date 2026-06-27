@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Host } from '../../types/ssh'
 
-defineProps<{
+const props = defineProps<{
   host: Host
   groupName?: string | null
 }>()
@@ -11,12 +11,8 @@ const emit = defineEmits<{
   connect: []
 }>()
 
-const osIcon: Record<string, string> = {
-  linux: 'i-lucide-server',
-  macos: 'i-lucide-apple',
-  windows: 'i-lucide-app-window',
-  other: 'i-lucide-monitor'
-}
+// Brand icon + color for the host's detected OS (see utils/os.ts).
+const os = computed(() => osMeta(props.host.os))
 </script>
 
 <template>
@@ -24,7 +20,12 @@ const osIcon: Record<string, string> = {
     class="group flex items-center gap-3 p-3 rounded-lg border border-default cursor-pointer transition-colors hover:border-primary hover:bg-primary/5"
     @click="emit('select')"
   >
-    <UIcon :name="osIcon[host.os ?? 'other'] ?? 'i-lucide-monitor'" class="size-8 text-dimmed shrink-0" />
+    <UIcon
+      :name="os.icon"
+      class="size-8 shrink-0"
+      :class="{ 'text-dimmed': !os.color }"
+      :style="os.color ? { color: os.color } : undefined"
+    />
 
     <div class="min-w-0 flex-1">
       <p class="text-sm font-semibold text-highlighted truncate">

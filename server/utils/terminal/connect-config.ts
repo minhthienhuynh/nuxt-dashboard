@@ -12,7 +12,7 @@ export interface ConnectHost {
 
 export interface ConnectIdentity {
   username: string
-  authType: 'password' | 'key' | 'agent'
+  authType: 'password' | 'key'
 }
 
 export interface ConnectSecrets {
@@ -34,11 +34,6 @@ export function buildConnectConfig(
     username: identity.username
   }
 
-  if (identity.authType === 'password') {
-    if (!secrets.password) throw new Error('Password identity is missing a password')
-    return { ...base, password: secrets.password }
-  }
-
   if (identity.authType === 'key') {
     if (!secrets.privateKey) throw new Error('Key identity is missing a private key')
     return {
@@ -48,8 +43,7 @@ export function buildConnectConfig(
     }
   }
 
-  // agent: use the server's SSH agent socket (agent forwarding is out of scope).
-  const agentSock = process.env.SSH_AUTH_SOCK
-  if (!agentSock) throw new Error('Agent identity requires SSH_AUTH_SOCK to be set')
-  return { ...base, agent: agentSock }
+  // password
+  if (!secrets.password) throw new Error('Password identity is missing a password')
+  return { ...base, password: secrets.password }
 }

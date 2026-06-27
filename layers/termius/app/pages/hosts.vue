@@ -2,14 +2,14 @@
 import { computed, ref } from 'vue'
 import { buildGroupTree, filterHostsByGroup, filterHostsBySearch } from '../utils/hosts'
 import { openTerminalWindow } from '../utils/terminal-windows'
-import type { Group, GroupSelection, Host, HostWithRelations, Identity, Tag } from '../types/ssh'
+import type { Group, GroupSelection, Host, HostWithRelations, Identity, SSHKey, Tag } from '../types/ssh'
 
 // --- Data -------------------------------------------------------------------
 const { data: groups, refresh: refreshGroups } = await useFetch<Group[]>('/api/groups', { default: () => [], lazy: true })
 const { data: identities } = await useFetch<Identity[]>('/api/identities', { default: () => [], lazy: true })
+const { data: sshKeys } = await useFetch<SSHKey[]>('/api/ssh-keys', { default: () => [], lazy: true })
 const { data: tags } = await useFetch<Tag[]>('/api/tags', { default: () => [], lazy: true })
 
-const ALL_TAGS = '__all__'
 const tagFilter = ref(ALL_TAGS)
 const { data: hosts, refresh: refreshHosts } = await useFetch<Host[]>(
   () => (tagFilter.value && tagFilter.value !== ALL_TAGS ? `/api/hosts?tag=${encodeURIComponent(tagFilter.value)}` : '/api/hosts'),
@@ -20,6 +20,10 @@ const { data: hosts, refresh: refreshHosts } = await useFetch<Host[]>(
 const selection = ref<GroupSelection>('all')
 const search = ref('')
 const view = ref<'grid' | 'list'>('grid')
+const viewItems = [
+  { label: 'Grid', value: 'grid', icon: 'i-lucide-layout-grid' },
+  { label: 'List', value: 'list', icon: 'i-lucide-list' }
+]
 
 const tree = computed(() => buildGroupTree(groups.value))
 const isSearching = computed(() => search.value.trim().length > 0)
@@ -75,10 +79,11 @@ const tagItems = computed(() => [
   ...tags.value.map(t => ({ label: t.name, value: t.name }))
 ])
 
-const newMenu = computed(() => [[
+// A single "New" dropdown holds both create actions.
+const newMenu = [[
   { label: 'New host', icon: 'i-lucide-server', onSelect: () => addHost() },
-  { label: 'New group', icon: 'i-lucide-folder-plus', onSelect: () => addGroup() }
-]])
+  { label: 'New group', icon: 'i-lucide-group', onSelect: () => addGroup() }
+]]
 
 function openGroup(id: GroupSelection) {
   selection.value = id
@@ -193,12 +198,9 @@ function onDetailDelete(host: HostWithRelations) {
 
       <!-- Toolbar -->
       <div class="flex items-center gap-2 px-4 py-3">
-        <UButtonGroup>
-          <UButton label="New host" icon="i-lucide-plus" @click="addHost" />
-          <UDropdownMenu :items="newMenu">
-            <UButton icon="i-lucide-chevron-down" color="primary" />
-          </UDropdownMenu>
-        </UButtonGroup>
+        <UDropdownMenu :items="newMenu">
+          <UButton icon="i-lucide-plus" aria-label="New host or group" />
+        </UDropdownMenu>
 
         <div class="flex-1" />
 
@@ -209,24 +211,12 @@ function onDetailDelete(host: HostWithRelations) {
           size="sm"
           class="w-40"
         />
-        <UButtonGroup>
-          <UButton
-            icon="i-lucide-layout-grid"
-            size="sm"
-            :color="view === 'grid' ? 'primary' : 'neutral'"
-            :variant="view === 'grid' ? 'solid' : 'ghost'"
-            aria-label="Grid view"
-            @click="view = 'grid'"
-          />
-          <UButton
-            icon="i-lucide-list"
-            size="sm"
-            :color="view === 'list' ? 'primary' : 'neutral'"
-            :variant="view === 'list' ? 'solid' : 'ghost'"
-            aria-label="List view"
-            @click="view = 'list'"
-          />
-        </UButtonGroup>
+        <USelect
+          v-model="view"
+          :items="viewItems"
+          size="sm"
+          class="w-28"
+        />
       </div>
 
       <!-- Breadcrumb -->
@@ -321,6 +311,7 @@ function onDetailDelete(host: HostWithRelations) {
       :host="editingHost"
       :groups="groups"
       :identities="identities"
+      :ssh-keys="sshKeys"
       @saved="refreshHosts"
     />
 
