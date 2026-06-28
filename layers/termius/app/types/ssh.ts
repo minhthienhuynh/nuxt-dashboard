@@ -79,3 +79,6 @@ export interface GroupNode extends Group {
 
 // Group filter selection: a real group id, or one of the two virtual entries.
 export type GroupSelection = 'all' | 'ungrouped' | string
+
+// Host list sort order: by name (label) or creation date, each direction.
+export type HostSort = 'name-asc' | 'name-desc' | 'created-desc' | 'created-asc'

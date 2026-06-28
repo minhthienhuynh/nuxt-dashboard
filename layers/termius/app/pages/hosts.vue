@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { buildGroupTree, filterHostsByGroup, filterHostsBySearch } from '../utils/hosts'
+import { DEFAULT_HOST_SORT, HOST_SORT_OPTIONS, buildGroupTree, filterHostsByGroup, filterHostsBySearch, isHostSort, sortHosts } from '../utils/hosts'
 import { openTerminalWindow } from '../utils/terminal-windows'
-import type { Group, GroupSelection, Host, HostWithRelations, Identity, SSHKey, Tag } from '../types/ssh'
+import type { Group, GroupSelection, Host, HostSort, HostWithRelations, Identity, SSHKey, Tag } from '../types/ssh'
 
 // --- Data -------------------------------------------------------------------
 const { data: groups, refresh: refreshGroups } = await useFetch<Group[]>('/api/groups', { default: () => [], lazy: true })
@@ -31,12 +31,32 @@ const viewItems = [
 
 // Icon for the dropdown trigger reflects the active view.
 const currentViewIcon = computed(() => viewItems.find(i => i.value === view.value)?.icon)
-// Dropdown items mirror the old select: selecting one switches the view.
 const viewMenu = computed(() => [
   viewItems.map(item => ({
     label: item.label,
     icon: item.icon,
+    type: 'checkbox' as const,
+    checked: view.value === item.value,
     onSelect: () => { view.value = item.value }
+  }))
+])
+
+// Persisted sort, applied only after mount so the first client render matches
+// the server (default order) — applying localStorage during SSR would cause a
+// hydration mismatch.
+const sort = useLocalStorage<HostSort>('hosts:sort', DEFAULT_HOST_SORT)
+const mounted = useMounted()
+// Fall back to the default for a stale/unknown stored value.
+const activeSort = computed(() =>
+  mounted.value && isHostSort(sort.value) ? sort.value : DEFAULT_HOST_SORT)
+const currentSortIcon = computed(() => HOST_SORT_OPTIONS.find(o => o.value === activeSort.value)?.icon)
+const sortMenu = computed(() => [
+  HOST_SORT_OPTIONS.map(o => ({
+    label: o.label,
+    icon: o.icon,
+    type: 'checkbox' as const,
+    checked: activeSort.value === o.value,
+    onSelect: () => { sort.value = o.value }
   }))
 ])
 
@@ -71,7 +91,8 @@ const showUngroupedCard = computed(() => selection.value === 'all' && !isFiltere
 
 const visibleHosts = computed(() => {
   const scoped = isFiltered.value ? hosts.value : filterHostsByGroup(hosts.value, selection.value, tree.value)
-  return filterHostsBySearch(scoped, search.value)
+  const searched = filterHostsBySearch(scoped, search.value)
+  return sortHosts(searched, activeSort.value)
 })
 
 // Breadcrumb trail (after the leading "All hosts"): the path from root to the
@@ -270,7 +291,7 @@ function onDetailDelete(host: HostWithRelations) {
 
       <!-- Toolbar -->
       <div class="flex items-center gap-2 px-4 py-3">
-        <UDropdownMenu :items="newMenu">
+        <UDropdownMenu :items="newMenu" :content="{ align: 'start', side: 'right' }">
           <UButton icon="i-lucide-plus" aria-label="New host or group" />
         </UDropdownMenu>
 
@@ -280,12 +301,19 @@ function onDetailDelete(host: HostWithRelations) {
           v-model="tagFilter"
           :items="tagItems"
           multiple
-          icon="i-lucide-tag"
-          placeholder="All tags"
+          :color="tagActive ? 'primary' : 'neutral'"
+          variant="outline"
           size="sm"
-          class="w-50"
-          :ui="{ itemTrailingIcon: 'hidden' }"
+          aria-label="Filter by tag"
+          :ui="{ base: 'px-1.5!', content: 'min-w-52', trailingIcon: 'hidden', itemTrailingIcon: 'hidden' }"
         >
+          <!-- Icon-only trigger: render the tag icon in-flow (not via the `icon`
+               prop, which reserves leading padding) so the trigger stays square
+               like the view/sort buttons. -->
+          <template #default>
+            <UIcon name="i-lucide-tag" class="size-4 shrink-0" :class="tagActive ? 'text-primary' : 'text-dimmed'" />
+          </template>
+
           <template #item-leading="{ item }">
             <UIcon
               :name="tagFilter.includes(String(item)) ? 'i-lucide-circle-check' : 'i-lucide-circle'"
@@ -339,6 +367,15 @@ function onDetailDelete(host: HostWithRelations) {
             variant="outline"
             size="sm"
             aria-label="Change view"
+          />
+        </UDropdownMenu>
+        <UDropdownMenu :items="sortMenu">
+          <UButton
+            :icon="currentSortIcon"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            aria-label="Sort hosts"
           />
         </UDropdownMenu>
       </div>
