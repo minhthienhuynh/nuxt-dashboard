@@ -101,11 +101,6 @@ export default defineWebSocketHandler({
     }
 
     client.on('ready', () => {
-      // Auto-detect the OS over a side channel (like Termius) and persist it so
-      // the host card shows the right icon. Best-effort: never blocks the shell,
-      // and a missing `uname` (e.g. Windows) leaves the stored value untouched.
-      detectAndStoreOs(client, host.id, host.os)
-
       client.shell({ term: 'xterm-256color' }, async (err, stream) => {
         if (err) {
           peer.send(encodeServer({ type: 'error', message: err.message }))
@@ -114,16 +109,20 @@ export default defineWebSocketHandler({
           return
         }
         session.stream = stream
-        // Record history only once the shell is actually open.
-        try {
-          const row = await prisma.connectionHistory.create({ data: { hostId: host.id, status: 'success' } })
-          session.historyId = row.id
-        } catch { /* history is best-effort */ }
         stream.on('data', (chunk: Buffer) => peer.send(encodeServer({ type: 'data', data: chunk.toString('utf8') })))
         stream.on('close', () => {
           peer.send(encodeServer({ type: 'exit' }))
           client.end()
         })
+        // OS detection runs a side-channel exec AFTER the shell opens: opening an
+        // exec channel first suppresses the login MOTD on Ubuntu (shown only on a
+        // connection's first session channel). Best-effort, never blocks the shell.
+        detectAndStoreOs(client, host.id, host.os)
+        // Record history only once the shell is actually open.
+        try {
+          const row = await prisma.connectionHistory.create({ data: { hostId: host.id, status: 'success' } })
+          session.historyId = row.id
+        } catch { /* history is best-effort */ }
       })
     })
 
