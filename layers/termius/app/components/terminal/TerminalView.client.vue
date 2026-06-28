@@ -125,12 +125,23 @@ function connect() {
   awaitingReconnect = false
   setStatus('connecting')
   const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-  ws = new WebSocket(`${proto}://${location.host}/api/terminal?hostId=${encodeURIComponent(props.hostId)}`)
+  // Pass the initial size so the server opens the PTY at the right dimensions.
+  // A resize sent after onopen races the SSH shell opening and gets dropped
+  // (the server ignores resize until the stream exists), leaving the PTY at its
+  // 80x24 default — which wraps long lines (e.g. recalled history) incorrectly.
+  const cols = term?.cols ?? 80
+  const rows = term?.rows ?? 24
+  const query = `hostId=${encodeURIComponent(props.hostId)}&cols=${cols}&rows=${rows}`
+  ws = new WebSocket(`${proto}://${location.host}/api/terminal?${query}`)
 
   ws.onopen = () => {
     setStatus('connected')
     fit?.fit()
     if (term) send({ type: 'resize', cols: term.cols, rows: term.rows })
+    // Focus the terminal so the user can type immediately (and after a toolbar
+    // reconnect, which moves focus to the button); otherwise keys go to <body>
+    // and Space scrolls the page.
+    term?.focus()
   }
   ws.onmessage = (event) => {
     let msg: { type?: string, data?: string, message?: string }

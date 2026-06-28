@@ -26,6 +26,12 @@ interface Session {
 // peers, so multi-session needs nothing extra here.
 const sessions = new Map<object, Session>()
 
+// Clamp an untrusted PTY dimension (from the client) to sane bounds.
+function clampPty(value: string | number | null | undefined, fallback: number): number {
+  const n = Math.floor(Number(value))
+  return Number.isFinite(n) && n >= 1 ? Math.min(1000, n) : fallback
+}
+
 // Run `uname -s` over a one-off exec channel and persist the detected OS on the
 // host when it differs from what's stored. Best-effort — any failure (no exec,
 // missing `uname`, write error) is swallowed and leaves the stored value as-is.
@@ -50,7 +56,13 @@ export default defineWebSocketHandler({
   async open(peer) {
     // Use a base so a relative URL still parses (avoids "Invalid URL").
     const rawUrl = peer.request?.url
-    const hostId = rawUrl ? new URL(rawUrl, 'http://localhost').searchParams.get('hostId') : null
+    const url = rawUrl ? new URL(rawUrl, 'http://localhost') : null
+    const hostId = url?.searchParams.get('hostId') ?? null
+    // Initial PTY size from the client (untrusted → clamp). Opening the shell at
+    // the right size avoids the resize-after-connect race that would otherwise
+    // leave the PTY at its 80x24 default.
+    const cols = clampPty(url?.searchParams.get('cols'), 80)
+    const rows = clampPty(url?.searchParams.get('rows'), 24)
     const host = hostId ? await hostRepository.withRelations(hostId) : null
     if (!host) {
       peer.send(encodeServer({ type: 'error', message: 'Unknown host' }))
@@ -101,7 +113,7 @@ export default defineWebSocketHandler({
     }
 
     client.on('ready', () => {
-      client.shell({ term: 'xterm-256color' }, async (err, stream) => {
+      client.shell({ term: 'xterm-256color', cols, rows }, async (err, stream) => {
         if (err) {
           peer.send(encodeServer({ type: 'error', message: err.message }))
           await recordFailed()
@@ -180,9 +192,7 @@ export default defineWebSocketHandler({
       session.stream.write(msg.data)
     } else if (msg.type === 'resize') {
       // Clamp to sane PTY bounds — the client value is untrusted.
-      const cols = Math.min(1000, Math.max(1, Math.floor(msg.cols)))
-      const rows = Math.min(1000, Math.max(1, Math.floor(msg.rows)))
-      session.stream.setWindow(rows, cols, 0, 0)
+      session.stream.setWindow(clampPty(msg.rows, 24), clampPty(msg.cols, 80), 0, 0)
     }
   },
 
