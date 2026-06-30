@@ -25,7 +25,12 @@ const isEdit = computed(() => !!props.host)
 const schema = z.object({
   label: z.string().optional(),
   address: z.string().min(1, 'Required'),
-  port: z.number().int().positive().optional(),
+  // `v-model.number` on an empty/cleared field yields '' or NaN; normalize both
+  // to undefined so the optional check passes instead of erroring on the field.
+  port: z.preprocess(
+    v => (v === '' || v === null || (typeof v === 'number' && Number.isNaN(v)) ? undefined : v),
+    z.number().int().positive().optional()
+  ),
   username: z.string().optional(),
   authType: z.enum(['password', 'key']),
   password: z.string().optional(),
@@ -71,7 +76,9 @@ watch(open, async (isOpen) => {
       const full = await $fetch<HostWithRelations>(`/api/hosts/${props.host.id}?relations=true`)
       // Ignore a stale response if the form was closed/reopened for another host.
       if (open.value && props.host?.id === hostId) {
-        state.tags = full.tags.map(l => l.tag.name)
+        // Guard a dangling link (tag deleted while the link lingered) so a null
+        // tag can't throw here and block the form from opening.
+        state.tags = full.tags.map(l => l.tag?.name).filter((n): n is string => !!n)
         tagsLoaded.value = true
       }
     } catch {

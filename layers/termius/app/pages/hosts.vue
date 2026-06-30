@@ -6,7 +6,7 @@ import type { Group, GroupSelection, Host, HostSort, HostWithRelations, Identity
 
 // --- Data -------------------------------------------------------------------
 const { data: groups, refresh: refreshGroups } = await useFetch<Group[]>('/api/groups', { default: () => [], lazy: true })
-const { data: identities } = await useFetch<Identity[]>('/api/identities', { default: () => [], lazy: true })
+const { data: identities, refresh: refreshIdentities } = await useFetch<Identity[]>('/api/identities', { default: () => [], lazy: true })
 const { data: sshKeys } = await useFetch<SSHKey[]>('/api/ssh-keys', { default: () => [], lazy: true })
 const { data: tags, refresh: refreshTags } = await useFetch<Tag[]>('/api/tags', { default: () => [], lazy: true })
 
@@ -167,9 +167,11 @@ function addHost() {
 }
 
 // Saving a host may find-or-create tags, so refresh the tag list (filter
-// options) alongside the hosts.
+// options) alongside the hosts. It also creates/updates an Identity server-side
+// (see HostsFormModal.resolveIdentityId), so refresh identities too — otherwise
+// editing the just-saved host can't resolve its identity and would duplicate it.
 async function onHostSaved() {
-  await Promise.all([refreshHosts(), refreshTags()])
+  await Promise.all([refreshHosts(), refreshTags(), refreshIdentities()])
 }
 
 function editHost(host: Host) {

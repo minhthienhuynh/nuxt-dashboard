@@ -17,11 +17,16 @@ const emit = defineEmits<{
 
 <template>
   <div
+    role="button"
+    tabindex="0"
+    :aria-label="`Open ${name}`"
     :class="[
-      'group relative flex items-center gap-3 p-4 cursor-pointer transition-colors hover:bg-primary/5',
+      'group relative flex items-center gap-3 p-4 cursor-pointer transition-colors hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-primary',
       list ? '' : 'rounded-lg border border-default hover:border-primary'
     ]"
     @click="emit('open')"
+    @keydown.enter="emit('open')"
+    @keydown.space.prevent="emit('open')"
   >
     <div class="flex items-center justify-center size-10 rounded-md bg-primary/10 text-primary shrink-0">
       <UIcon :name="icon ?? 'i-lucide-group'" class="size-5" />

@@ -34,14 +34,42 @@ watch(open, (isOpen) => {
   state.parentId = props.group ? (props.group.parentId ?? SELECT_NONE) : (props.defaultParentId ?? SELECT_NONE)
 })
 
-// A group cannot be its own parent. (Deeper cycle prevention is left to the
-// backend / future work — this just removes the obvious self-reference.)
-const parentItems = computed(() => [
-  { label: 'No parent (root)', value: SELECT_NONE },
-  ...props.groups
-    .filter(g => g.id !== props.group?.id)
-    .map(g => ({ label: g.name, value: g.id }))
-])
+// A group cannot be its own parent, nor a parent of one of its descendants
+// (that would create a cycle and make `buildGroupTree` recurse forever). The
+// backend is trusted to reject cycles, but we filter them client-side too so
+// the picker can't offer an impossible choice.
+const parentItems = computed(() => {
+  const excluded = new Set<string>()
+  const editingId = props.group?.id
+  if (editingId) {
+    excluded.add(editingId)
+    // Collect descendants via a children map built from the flat list.
+    const childrenByParent = new Map<string, Group[]>()
+    for (const g of props.groups) {
+      if (g.parentId) {
+        const arr = childrenByParent.get(g.parentId)
+        if (arr) arr.push(g)
+        else childrenByParent.set(g.parentId, [g])
+      }
+    }
+    const stack = [...(childrenByParent.get(editingId) ?? [])]
+    while (stack.length) {
+      const g = stack.pop()!
+      // Set.add() returns the Set (always truthy), so it cannot double as a
+      // visited guard — check membership first or a cyclic parent chain loops
+      // forever.
+      if (excluded.has(g.id)) continue
+      excluded.add(g.id)
+      stack.push(...(childrenByParent.get(g.id) ?? []))
+    }
+  }
+  return [
+    { label: 'No parent (root)', value: SELECT_NONE },
+    ...props.groups
+      .filter(g => !excluded.has(g.id))
+      .map(g => ({ label: g.name, value: g.id }))
+  ]
+})
 
 const toast = useToast()
 

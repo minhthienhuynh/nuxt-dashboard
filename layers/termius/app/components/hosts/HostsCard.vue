@@ -20,11 +20,16 @@ const os = computed(() => osMeta(props.host.os))
 
 <template>
   <div
+    role="button"
+    tabindex="0"
+    :aria-label="`Open ${host.label}`"
     :class="[
-      'group flex items-center gap-3 p-3 cursor-pointer transition-colors hover:bg-primary/5',
+      'group flex items-center gap-3 p-3 cursor-pointer transition-colors hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-primary',
       list ? '' : 'rounded-lg border border-default hover:border-primary'
     ]"
     @click="emit('select')"
+    @keydown.enter="emit('select')"
+    @keydown.space.prevent="emit('select')"
   >
     <UIcon
       :name="os.icon"
