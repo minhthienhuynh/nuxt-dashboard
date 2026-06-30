@@ -78,4 +78,46 @@ describe('hostRepository', () => {
     const twoTags = await hostRepository.findByTags(['prod', 'db'])
     expect(twoTags.map(h => h.id)).toEqual([both.id])
   })
+
+  it('recordConnectionStart writes a success row with no endedAt', async () => {
+    const host = await hostRepository.create({ label: 'h', address: '10.0.0.41' })
+
+    const row = await hostRepository.recordConnectionStart(host.id)
+    expect(row.status).toBe('success')
+    expect(row.endedAt).toBeNull()
+    expect(row.hostId).toBe(host.id)
+  })
+
+  it('recordConnectionFailed writes a terminal failed row with endedAt set', async () => {
+    const host = await hostRepository.create({ label: 'h', address: '10.0.0.42' })
+
+    const row = await hostRepository.recordConnectionFailed(host.id)
+    expect(row.status).toBe('failed')
+    expect(row.endedAt).toBeInstanceOf(Date)
+  })
+
+  it('finishConnection finalizes a success row as disconnected', async () => {
+    const host = await hostRepository.create({ label: 'h', address: '10.0.0.43' })
+    const row = await hostRepository.recordConnectionStart(host.id)
+
+    await hostRepository.finishConnection(row.id)
+
+    const updated = await prisma.connectionHistory.findUnique({ where: { id: row.id } })
+    expect(updated?.status).toBe('disconnected')
+    expect(updated?.endedAt).toBeInstanceOf(Date)
+  })
+
+  it('finishConnection swallows errors for a missing row', async () => {
+    await expect(hostRepository.finishConnection('does-not-exist')).resolves.not.toThrow()
+  })
+
+  it('addKnownHost persists a fingerprint loadable via withRelations', async () => {
+    const host = await hostRepository.create({ label: 'h', address: '10.0.0.44' })
+
+    await hostRepository.addKnownHost(host.id, 'ssh-ed25519', 'SHA256:xyz')
+
+    const full = await hostRepository.withRelations(host.id)
+    expect(full?.knownHosts).toHaveLength(1)
+    expect(full?.knownHosts[0]).toMatchObject({ keyType: 'ssh-ed25519', fingerprint: 'SHA256:xyz' })
+  })
 })

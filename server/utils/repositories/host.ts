@@ -49,5 +49,24 @@ export const hostRepository = {
         // Newest first so "recent connections" shows the latest sessions.
         history: { orderBy: { startedAt: 'desc' }, take: 10 }
       }
-    })
+    }),
+  // --- Connection history (a Host dependent — written through the aggregate,
+  // never via the raw prisma.connectionHistory delegate from callers). ---
+  // Record an opened, successful session. Returns the row id so the caller can
+  // finalize it on close.
+  recordConnectionStart: (hostId: string) =>
+    prisma.connectionHistory.create({ data: { hostId, status: 'success' } }),
+  // Record a failed attempt as a terminal row (endedAt set up front) so a later
+  // finishConnection cannot downgrade it to 'disconnected'.
+  recordConnectionFailed: (hostId: string) =>
+    prisma.connectionHistory.create({ data: { hostId, status: 'failed', endedAt: new Date() } }),
+  // Finalize a successful session as 'disconnected'. Best-effort: a missing row
+  // or write error is swallowed so close handling never throws.
+  finishConnection: (historyId: string) =>
+    prisma.connectionHistory
+      .update({ where: { id: historyId }, data: { endedAt: new Date(), status: 'disconnected' } })
+      .catch(() => {}),
+  // --- Known hosts (TOFU fingerprint, a Host dependent). ---
+  addKnownHost: (hostId: string, keyType: string, fingerprint: string) =>
+    prisma.knownHost.create({ data: { hostId, keyType, fingerprint } })
 }

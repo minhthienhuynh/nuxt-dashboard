@@ -9,6 +9,8 @@ import '@xterm/xterm/css/xterm.css'
 import { terminalTheme } from '../../utils/terminal-theme'
 import { FONT_SIZE_DEFAULT, clampFontSize } from '../../utils/terminal'
 import type { SessionStatus } from '../../utils/terminal-status'
+import { decodeServer, encodeClient } from '#shared/terminal-protocol'
+import type { ClientMessage } from '#shared/terminal-protocol'
 
 const props = defineProps<{
   hostId: string
@@ -110,8 +112,8 @@ function setStatus(status: SessionStatus) {
   emit('status', status)
 }
 
-function send(msg: Record<string, unknown>) {
-  if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg))
+function send(msg: ClientMessage) {
+  if (ws?.readyState === WebSocket.OPEN) ws.send(encodeClient(msg))
 }
 
 function enterClosed() {
@@ -144,16 +146,12 @@ function connect() {
     term?.focus()
   }
   ws.onmessage = (event) => {
-    let msg: { type?: string, data?: string, message?: string }
-    try {
-      msg = JSON.parse(event.data)
-    } catch {
-      return
-    }
-    if (msg.type === 'data' && typeof msg.data === 'string') {
+    const msg = decodeServer(event.data)
+    if (!msg) return
+    if (msg.type === 'data') {
       term?.write(msg.data)
     } else if (msg.type === 'error') {
-      term?.write(`\r\n\x1b[31m${msg.message ?? 'Error'}\x1b[0m\r\n`)
+      term?.write(`\r\n\x1b[31m${msg.message}\x1b[0m\r\n`)
       setStatus('error')
       enterClosed()
     } else if (msg.type === 'exit') {
