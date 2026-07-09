@@ -19,13 +19,13 @@ const term = useTemplateRef<{
   disconnect: () => void
   clear: () => void
   search: () => void
-  zoomIn: () => void
-  zoomOut: () => void
-  zoomReset: () => void
   requestHistory: () => void
   paste: (command: string) => void
   runCommand: (command: string) => void
 }>('term')
+
+// --- Appearance slideover ---------------------------------------------------
+const appearanceOpen = ref(false)
 
 // --- Shell history slideover ------------------------------------------------
 const historyOpen = ref(false)
@@ -109,9 +109,7 @@ useHead(() => ({ title: `${target.value} — Terminal` }))
       @clear="term?.clear()"
       @search="term?.search()"
       @history="toggleHistory()"
-      @zoom-in="term?.zoomIn()"
-      @zoom-out="term?.zoomOut()"
-      @zoom-reset="term?.zoomReset()"
+      @appearance="appearanceOpen = true"
     />
     <div class="flex-1 min-h-0 p-2">
       <TerminalView
@@ -132,5 +130,7 @@ useHead(() => ({ title: `${target.value} — Terminal` }))
       @run="onRun"
       @refresh="fetchHistory"
     />
+
+    <TerminalAppearancePanel v-model:open="appearanceOpen" />
   </div>
 </template>

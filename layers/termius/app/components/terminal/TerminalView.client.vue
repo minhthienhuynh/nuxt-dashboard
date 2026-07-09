@@ -6,8 +6,13 @@ import { SearchAddon } from '@xterm/addon-search'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { WebglAddon } from '@xterm/addon-webgl'
 import '@xterm/xterm/css/xterm.css'
-import { terminalTheme } from '../../utils/terminal-theme'
-import { FONT_SIZE_DEFAULT, clampFontSize } from '../../utils/terminal'
+// Self-hosted coding fonts offered by the Appearance slideover (400 weight).
+// Imported here so they only load with the client-only terminal chunk; xterm
+// waits for the chosen face to load before re-measuring glyphs (see below).
+import '@fontsource/jetbrains-mono/400.css'
+import '@fontsource/fira-code/400.css'
+import '@fontsource/source-code-pro/400.css'
+import '@fontsource/ibm-plex-mono/400.css'
 import type { SessionStatus } from '../../utils/terminal-status'
 import { decodeServer, encodeClient } from '#shared/terminal-protocol'
 import type { ClientMessage, HistoryError } from '#shared/terminal-protocol'
@@ -33,9 +38,9 @@ let resizeObserver: ResizeObserver | null = null
 // being forwarded to the (dead) socket.
 let awaitingReconnect = false
 
-const colorMode = useColorMode()
-// Persisted across sessions; client-only component so no SSR/hydration concern.
-const fontSize = useLocalStorage('terminal:fontSize', FONT_SIZE_DEFAULT)
+// Shared, persisted appearance preferences (font family, size, theme). Client-
+// only component so no SSR/hydration concern.
+const { fontSize, fontFamilyStack, resolvedTheme, zoomIn, zoomOut, zoomReset } = useTerminalAppearance()
 
 // --- Search overlay ---------------------------------------------------------
 const searchOpen = ref(false)
@@ -86,15 +91,9 @@ function toggleSearch() {
 }
 
 // --- Font size --------------------------------------------------------------
-function zoomIn() {
-  fontSize.value = clampFontSize(fontSize.value + 1)
-}
-function zoomOut() {
-  fontSize.value = clampFontSize(fontSize.value - 1)
-}
-function zoomReset() {
-  fontSize.value = FONT_SIZE_DEFAULT
-}
+// Zoom controls live in the shared appearance composable so the toolbar
+// buttons, keyboard shortcuts, and the Appearance slideover slider all stay in
+// sync. This component just reacts to font size / family / theme changes below.
 
 watch(fontSize, (size) => {
   if (!term) return
@@ -102,11 +101,36 @@ watch(fontSize, (size) => {
   fit?.fit() // re-fit; the resulting onResize forwards new cols/rows to the PTY
 })
 
-watch(() => colorMode.value, (mode) => {
+watch(fontFamilyStack, stack => applyFontFamily(stack))
+
+watch(resolvedTheme, (theme) => {
   if (!term) return
-  term.options.theme = terminalTheme(mode === 'light' ? 'light' : 'dark')
+  term.options.theme = theme
   webgl?.clearTextureAtlas() // rebuild the GPU glyph atlas with the new colors
 })
+
+// Apply a font stack to xterm. A web font that hasn't finished loading is
+// invisible because xterm measures glyph metrics eagerly and would size cells
+// against the fallback face; so we wait for the primary family to load, THEN
+// set the option (which triggers xterm's re-measure) and re-fit. The primary
+// family is the first entry in the CSS stack; generic keywords (e.g.
+// `ui-monospace`) can't be loaded explicitly and throw — that's fine, they are
+// always available.
+async function applyFontFamily(stack: string) {
+  if (!term) return
+  const family = stack.split(',')[0]?.trim()
+  if (family) {
+    try {
+      await document.fonts.load(`${fontSize.value}px ${family}`)
+    } catch {
+      // generic/system family — nothing to preload
+    }
+  }
+  if (!term) return
+  term.options.fontFamily = stack
+  webgl?.clearTextureAtlas() // rebuild the GPU glyph atlas for the new font
+  fit?.fit() // font metrics changed — re-fit and forward the new cols/rows
+}
 
 // --- Connection -------------------------------------------------------------
 function setStatus(status: SessionStatus) {
@@ -222,7 +246,7 @@ function runCommand(command: string) {
   term?.focus()
 }
 
-defineExpose({ reconnect, disconnect, clear, search: toggleSearch, zoomIn, zoomOut, zoomReset, requestHistory, paste, runCommand })
+defineExpose({ reconnect, disconnect, clear, search: toggleSearch, requestHistory, paste, runCommand })
 
 onMounted(async () => {
   // Wait a tick so the (non-root) container ref is reliably populated under
@@ -231,9 +255,9 @@ onMounted(async () => {
   if (!container.value) return
   term = new Terminal({
     cursorBlink: true,
-    fontFamily: 'monospace',
+    fontFamily: fontFamilyStack.value,
     fontSize: fontSize.value,
-    theme: terminalTheme(colorMode.value === 'light' ? 'light' : 'dark'),
+    theme: resolvedTheme.value,
     allowProposedApi: true
   })
   fit = new FitAddon()
@@ -307,6 +331,10 @@ onMounted(async () => {
   resizeObserver.observe(container.value)
 
   connect()
+
+  // The persisted font may be a web font that isn't loaded yet at creation
+  // time; re-apply it so xterm re-measures once the face is available.
+  void applyFontFamily(fontFamilyStack.value)
 })
 
 onBeforeUnmount(() => {

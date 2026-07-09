@@ -12,9 +12,7 @@ const emit = defineEmits<{
   clear: []
   search: []
   history: []
-  zoomIn: []
-  zoomOut: []
-  zoomReset: []
+  appearance: []
 }>()
 
 // Status is shown as an icon only; the text is exposed via tooltip, not a label.
@@ -56,36 +54,6 @@ const statusColor: Record<SessionStatus, string> = {
 
       <span class="mx-1 h-4 w-px bg-default" aria-hidden="true" />
 
-      <UTooltip text="Zoom out (⌘−)">
-        <UButton
-          icon="i-lucide-zoom-out"
-          color="neutral"
-          variant="ghost"
-          size="xs"
-          aria-label="Zoom out"
-          @click="emit('zoomOut')"
-        />
-      </UTooltip>
-      <UTooltip text="Reset zoom (⌘0)">
-        <UButton
-          icon="i-lucide-type"
-          color="neutral"
-          variant="ghost"
-          size="xs"
-          aria-label="Reset zoom"
-          @click="emit('zoomReset')"
-        />
-      </UTooltip>
-      <UTooltip text="Zoom in (⌘+)">
-        <UButton
-          icon="i-lucide-zoom-in"
-          color="neutral"
-          variant="ghost"
-          size="xs"
-          aria-label="Zoom in"
-          @click="emit('zoomIn')"
-        />
-      </UTooltip>
       <UTooltip text="Search (⌘F)">
         <UButton
           icon="i-lucide-search"
@@ -105,6 +73,16 @@ const statusColor: Record<SessionStatus, string> = {
           :disabled="status !== 'connected'"
           aria-label="Shell history"
           @click="emit('history')"
+        />
+      </UTooltip>
+      <UTooltip text="Appearance">
+        <UButton
+          icon="i-lucide-palette"
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          aria-label="Appearance"
+          @click="emit('appearance')"
         />
       </UTooltip>
 

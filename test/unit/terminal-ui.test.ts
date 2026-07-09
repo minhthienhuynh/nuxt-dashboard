@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { FONT_SIZE_DEFAULT, FONT_SIZE_MAX, FONT_SIZE_MIN, clampFontSize, formatSshTarget } from '../../layers/termius/app/utils/terminal'
-import { terminalTheme } from '../../layers/termius/app/utils/terminal-theme'
+import { FONT_FAMILY_DEFAULT, FONT_SIZE_DEFAULT, FONT_SIZE_MAX, FONT_SIZE_MIN, TERMINAL_FONTS, clampFontSize, formatSshTarget, resolveFontStack } from '../../layers/termius/app/utils/terminal'
+import { TERMINAL_THEMES, THEME_DEFAULT, resolveTheme, terminalTheme } from '../../layers/termius/app/utils/terminal-theme'
 
 describe('formatSshTarget', () => {
   it('renders user@host:port when a username is present', () => {
@@ -40,5 +40,31 @@ describe('terminalTheme', () => {
     expect(light.background).toBe('#ffffff')
     expect(dark.background).toBe('#18181b')
     expect(light.background).not.toBe(dark.background)
+  })
+})
+
+describe('resolveTheme', () => {
+  it('resolves a known theme id to its palette', () => {
+    expect(resolveTheme('light').background).toBe('#ffffff')
+    expect(resolveTheme('dark').background).toBe('#18181b')
+  })
+
+  it('falls back to the default theme for an unknown id', () => {
+    const fallback = resolveTheme('does-not-exist')
+    const expected = TERMINAL_THEMES.find(t => t.id === THEME_DEFAULT)!.palette
+    expect(fallback).toEqual(expected)
+  })
+})
+
+describe('resolveFontStack', () => {
+  it('resolves a known font id to a stack ending in monospace', () => {
+    for (const font of TERMINAL_FONTS) {
+      expect(resolveFontStack(font.id)).toMatch(/monospace$/)
+    }
+  })
+
+  it('falls back to the default font for an unknown id', () => {
+    const expected = TERMINAL_FONTS.find(f => f.id === FONT_FAMILY_DEFAULT)!.stack
+    expect(resolveFontStack('does-not-exist')).toBe(expected)
   })
 })
