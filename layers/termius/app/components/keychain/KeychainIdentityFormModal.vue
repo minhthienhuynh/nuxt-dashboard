@@ -28,6 +28,7 @@ type Schema = z.output<typeof schema>
 
 const state = reactive<Partial<Schema>>({})
 const showPassword = ref(false)
+const { reveal } = useRevealSecret()
 
 // On edit, the stored password is loaded via ?reveal=true so the form shows
 // existing material; it is re-encrypted on save (or kept if left blank).
@@ -43,16 +44,9 @@ watch(open, async (isOpen) => {
 
   // Only password identities have a password to reveal.
   if (editingId && props.identity?.authType === 'password') {
-    try {
-      const revealed = await $fetch<{ password: string | null }>(
-        `/api/identities/${editingId}?reveal=true`)
-      // Ignore a stale response if the form was closed or reopened for a
-      // different identity while this request was in flight.
-      if (!open.value || props.identity?.id !== editingId) return
-      state.password = revealed.password ?? ''
-    } catch {
-      // Leave the password blank if the reveal request fails.
-    }
+    const revealed = await reveal<{ password: string | null }>(
+      'identities', editingId, () => open.value && props.identity?.id === editingId)
+    if (revealed) state.password = revealed.password ?? ''
   }
 })
 

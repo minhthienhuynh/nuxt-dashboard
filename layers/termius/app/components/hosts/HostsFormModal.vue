@@ -43,6 +43,7 @@ type Schema = z.output<typeof schema>
 const state = reactive<Partial<Schema>>({})
 const showMore = ref(false)
 const showPassword = ref(false)
+const { reveal } = useRevealSecret()
 // On edit, only reconcile tags once the host's current tags have loaded — a
 // failed/in-flight load must not let an empty selection wipe existing links.
 const tagsLoaded = ref(false)
@@ -88,15 +89,9 @@ watch(open, async (isOpen) => {
 
   // Show the existing password when editing a host that uses a password identity.
   if (identity && identity.authType === 'password') {
-    try {
-      const revealed = await $fetch<{ password: string | null }>(`/api/identities/${identity.id}?reveal=true`)
-      // Ignore a stale response if the form was closed or reopened for another
-      // host while this request was in flight.
-      if (!open.value || props.host?.id !== hostId) return
-      state.password = revealed.password ?? ''
-    } catch {
-      // Leave the password blank if the reveal request fails.
-    }
+    const revealed = await reveal<{ password: string | null }>(
+      'identities', identity.id, () => open.value && props.host?.id === hostId)
+    if (revealed) state.password = revealed.password ?? ''
   }
 })
 

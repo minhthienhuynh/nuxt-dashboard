@@ -4,6 +4,8 @@ import { DEFAULT_HOST_SORT, HOST_SORT_OPTIONS, buildGroupTree, filterHostsByGrou
 import { openTerminalWindow } from '../utils/terminal-windows'
 import type { Group, GroupSelection, Host, HostSort, HostWithRelations, Identity, SSHKey, Tag } from '../types/ssh'
 
+definePageMeta({ layout: 'dashboard' })
+
 // --- Data -------------------------------------------------------------------
 const { data: groups, refresh: refreshGroups } = await useFetch<Group[]>('/api/groups', { default: () => [], lazy: true })
 const { data: identities, refresh: refreshIdentities } = await useFetch<Identity[]>('/api/identities', { default: () => [], lazy: true })
@@ -479,12 +481,18 @@ function onDetailDelete(host: HostWithRelations) {
       @saved="onTagRenamed"
     />
 
-    <HostsDeleteModal
+    <ConfirmDeleteModal
       :id="deleteId"
       v-model:open="deleteOpen"
       :resource="deleteResource"
       :label="deleteLabel"
       @deleted="onDeleted"
-    />
+    >
+      <template #warning>
+        <template v-if="deleteResource === 'groups'">
+          Hosts in this group are kept — they become ungrouped rather than deleted.
+        </template>
+      </template>
+    </ConfirmDeleteModal>
   </UDashboardPanel>
 </template>

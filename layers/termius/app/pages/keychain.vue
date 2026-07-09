@@ -4,6 +4,8 @@ import { filterKeychainBySearch, parseImportedKeyFiles } from '../utils/keychain
 import type { KeyFormPrefill } from '../utils/keychain'
 import type { Identity, SSHKey } from '../types/ssh'
 
+definePageMeta({ layout: 'dashboard' })
+
 // --- Data -------------------------------------------------------------------
 const { data: sshKeys, refresh: refreshKeys } = await useFetch<SSHKey[]>('/api/ssh-keys', { default: () => [], lazy: true })
 const { data: identities, refresh: refreshIdentities } = await useFetch<Identity[]>('/api/identities', { default: () => [], lazy: true })
@@ -240,12 +242,21 @@ async function onDeleted() {
       @saved="refreshIdentities"
     />
 
-    <KeychainDeleteModal
+    <ConfirmDeleteModal
       :id="deleteId"
       v-model:open="deleteOpen"
       :resource="deleteResource"
       :label="deleteLabel"
       @deleted="onDeleted"
-    />
+    >
+      <template #warning>
+        <template v-if="deleteResource === 'ssh-keys'">
+          Identities using this key keep existing — they lose the key reference rather than being deleted.
+        </template>
+        <template v-else>
+          Hosts using this identity keep existing — they become credential-less rather than being deleted.
+        </template>
+      </template>
+    </ConfirmDeleteModal>
   </UDashboardPanel>
 </template>

@@ -1,4 +1,6 @@
 import type { Client, ClientChannel, ConnectConfig } from 'ssh2'
+import { SHELL_HISTORY_PROBE, parseShellHistory } from '~~/server/utils/terminal/shell-history'
+import type { ShellHistoryResult } from '~~/server/utils/terminal/shell-history'
 import type { ServerMessage } from '#shared/terminal-protocol'
 
 // Clamp an untrusted PTY dimension (from the client) to sane bounds.
@@ -100,6 +102,40 @@ export class SshSession {
   // Apply a resize to the PTY. Values are untrusted → clamped.
   resize(cols: number, rows: number) {
     this.stream?.setWindow(clampPty(rows, 24), clampPty(cols, 80), 0, 0)
+  }
+
+  // Read the remote shell history over a one-off exec side channel on the live
+  // client, mirroring OS detection. Read-only, never touches the interactive
+  // stream, and resolves to 'probe-failed' on any error (no shell, no exec
+  // channel, timeout) so the caller can report it without breaking the session.
+  fetchHistory(): Promise<ShellHistoryResult> {
+    if (!this.isReady) return Promise.resolve({ error: 'probe-failed' })
+    const { client } = this.deps
+    return new Promise((resolve) => {
+      let settled = false
+      const done = (result: ShellHistoryResult) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        resolve(result)
+      }
+      // Bound the wait so a hung exec channel does not leave the client spinning.
+      const timer = setTimeout(() => done({ error: 'probe-failed' }), 10_000)
+      try {
+        client.exec(SHELL_HISTORY_PROBE, (err, stream) => {
+          if (err || !stream) return done({ error: 'probe-failed' })
+          let out = ''
+          stream.on('data', (chunk: Buffer) => {
+            out += chunk.toString('utf8')
+          })
+          stream.stderr.on('data', () => { /* swallow probe stderr */ })
+          stream.on('close', () => done(parseShellHistory(out)))
+          stream.on('error', () => done({ error: 'probe-failed' }))
+        })
+      } catch {
+        done({ error: 'probe-failed' })
+      }
+    })
   }
 
   // True once the shell is open and input can be written.

@@ -9,6 +9,7 @@ import { detectOs } from '~~/server/utils/terminal/os-detect'
 import { createHostKeyVerifier } from '~~/server/utils/terminal/host-key-verifier'
 import { SshSession, clampPty } from '~~/server/utils/terminal/session'
 import { decodeClient, encodeServer } from '#shared/terminal-protocol'
+import type { ServerMessage } from '#shared/terminal-protocol'
 
 // One independent session per WebSocket peer — multiple tabs open multiple
 // peers, so multi-session needs nothing extra here.
@@ -103,11 +104,22 @@ export default defineWebSocketHandler({
     session.start()
   },
 
-  message(peer, message) {
+  async message(peer, message) {
     const session = sessions.get(peer)
-    if (!session?.isReady) return
+    if (!session) return
     const msg = decodeClient(message.text())
     if (!msg) return
+    // History is served even before the shell is ready: fetchHistory() replies
+    // 'probe-failed' when there is no live shell rather than doing SSH work.
+    if (msg.type === 'history') {
+      const result = await session.fetchHistory()
+      const reply: ServerMessage = 'entries' in result
+        ? { type: 'history', entries: result.entries }
+        : { type: 'history', error: result.error }
+      peer.send(encodeServer(reply))
+      return
+    }
+    if (!session.isReady) return
     if (msg.type === 'input') {
       session.write(msg.data)
     } else if (msg.type === 'resize') {

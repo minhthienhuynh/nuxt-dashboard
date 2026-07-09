@@ -30,6 +30,17 @@ logs
 .claude
 openspec
 
+# Editor / tooling (kept locally, not committed)
+.vscode
+.opencode
+opencode.json
+
+# MCP / agent session artifacts
+.playwright-mcp
+
+# Screenshots captured at the repo root during dev/smoke runs
+/*.png
+
 # Prisma (generated client + local SQLite db)
 prisma/generated
 prisma/*.db

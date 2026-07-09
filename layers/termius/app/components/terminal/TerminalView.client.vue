@@ -10,7 +10,7 @@ import { terminalTheme } from '../../utils/terminal-theme'
 import { FONT_SIZE_DEFAULT, clampFontSize } from '../../utils/terminal'
 import type { SessionStatus } from '../../utils/terminal-status'
 import { decodeServer, encodeClient } from '#shared/terminal-protocol'
-import type { ClientMessage } from '#shared/terminal-protocol'
+import type { ClientMessage, HistoryError } from '#shared/terminal-protocol'
 
 const props = defineProps<{
   hostId: string
@@ -19,6 +19,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   status: [status: SessionStatus]
+  historyResult: [result: { entries: string[] } | { error: HistoryError }]
 }>()
 
 const container = ref<HTMLElement | null>(null)
@@ -157,6 +158,8 @@ function connect() {
     } else if (msg.type === 'exit') {
       setStatus('closed')
       enterClosed()
+    } else if (msg.type === 'history') {
+      emit('historyResult', 'entries' in msg ? { entries: msg.entries } : { error: msg.error })
     }
   }
   ws.onclose = () => {
@@ -199,7 +202,27 @@ function clear() {
   term?.clear()
 }
 
-defineExpose({ reconnect, disconnect, clear, search: toggleSearch, zoomIn, zoomOut, zoomReset })
+// --- Shell history ----------------------------------------------------------
+// Ask the server for the remote shell history; the reply arrives as a 'history'
+// server message and is relayed to the parent via the historyResult event.
+function requestHistory() {
+  send({ type: 'history' })
+}
+
+// Paste a command into the shell without a trailing newline so the user can
+// edit it before executing.
+function paste(command: string) {
+  send({ type: 'input', data: command })
+  term?.focus()
+}
+
+// Run a command immediately by sending it with a trailing newline.
+function runCommand(command: string) {
+  send({ type: 'input', data: `${command}\n` })
+  term?.focus()
+}
+
+defineExpose({ reconnect, disconnect, clear, search: toggleSearch, zoomIn, zoomOut, zoomReset, requestHistory, paste, runCommand })
 
 onMounted(async () => {
   // Wait a tick so the (non-root) container ref is reliably populated under

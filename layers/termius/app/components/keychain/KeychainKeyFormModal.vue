@@ -30,6 +30,7 @@ type Schema = z.output<typeof schema>
 
 const state = reactive<Partial<Schema>>({})
 const showPassphrase = ref(false)
+const { reveal } = useRevealSecret()
 
 // publicKey/label/keyType are non-secret and returned by the list API, so seed
 // them straight from the row (or from imported-file `prefill` when creating).
@@ -46,16 +47,11 @@ watch(open, async (isOpen) => {
   showPassphrase.value = false
 
   if (editingId) {
-    try {
-      const revealed = await $fetch<{ privateKey: string | null, passphrase: string | null }>(
-        `/api/ssh-keys/${editingId}?reveal=true`)
-      // Ignore a stale response if the form was closed or reopened for a
-      // different key while this request was in flight.
-      if (!open.value || props.sshKey?.id !== editingId) return
+    const revealed = await reveal<{ privateKey: string | null, passphrase: string | null }>(
+      'ssh-keys', editingId, () => open.value && props.sshKey?.id === editingId)
+    if (revealed) {
       state.privateKey = revealed.privateKey ?? ''
       state.passphrase = revealed.passphrase ?? ''
-    } catch {
-      // Leave the secret fields blank if the reveal request fails.
     }
   }
 })

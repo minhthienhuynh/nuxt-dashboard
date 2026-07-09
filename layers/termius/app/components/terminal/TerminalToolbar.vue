@@ -11,6 +11,7 @@ const emit = defineEmits<{
   disconnect: []
   clear: []
   search: []
+  history: []
   zoomIn: []
   zoomOut: []
   zoomReset: []
@@ -93,6 +94,17 @@ const statusColor: Record<SessionStatus, string> = {
           size="xs"
           aria-label="Search"
           @click="emit('search')"
+        />
+      </UTooltip>
+      <UTooltip text="Shell history">
+        <UButton
+          icon="i-lucide-history"
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          :disabled="status !== 'connected'"
+          aria-label="Shell history"
+          @click="emit('history')"
         />
       </UTooltip>
 

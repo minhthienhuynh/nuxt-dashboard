@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
+// Shared delete-confirmation modal for any REST resource. Replaces the
+// near-identical HostsDeleteModal/KeychainDeleteModal: confirm → DELETE the
+// resource → toast → emit('deleted'). The warning copy (which differs per
+// resource) is supplied by the caller via the #warning slot.
 const props = defineProps<{
-  resource: 'hosts' | 'groups' | 'tags'
+  resource: string
   id: string | null
   label?: string
+  // Display noun for the title/toasts; falls back to a built-in map, then 'item'.
+  noun?: string
 }>()
 
 const emit = defineEmits<{
@@ -13,8 +19,15 @@ const emit = defineEmits<{
 
 const open = defineModel<boolean>('open', { default: false })
 
-const isGroup = computed(() => props.resource === 'groups')
-const noun = computed(() => ({ hosts: 'host', groups: 'group', tags: 'tag' }[props.resource]))
+const NOUNS: Record<string, string> = {
+  'hosts': 'host',
+  'groups': 'group',
+  'tags': 'tag',
+  'ssh-keys': 'key',
+  'identities': 'identity'
+}
+
+const noun = computed(() => props.noun ?? NOUNS[props.resource] ?? 'item')
 
 const toast = useToast()
 
@@ -38,9 +51,9 @@ async function onConfirm() {
     description="This action cannot be undone."
   >
     <template #body>
-      <p v-if="isGroup" class="text-sm text-toned mb-4">
-        Hosts in this group are kept — they become ungrouped rather than deleted.
-      </p>
+      <div class="text-sm text-toned mb-4">
+        <slot name="warning" :resource="resource" :noun="noun" />
+      </div>
 
       <div class="flex justify-end gap-2">
         <UButton
