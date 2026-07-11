@@ -11,8 +11,10 @@ const hostShape = {
   address: z.string().min(1),
   port: z.number().int().positive().optional(),
   os: z.string().optional(),
-  groupId: z.string().optional(),
-  identityId: z.string().optional(),
+  // Nullable so an update can clear the link (move the host to the root /
+  // unlink its identity); omitting the field leaves the existing value.
+  groupId: z.string().nullable().optional(),
+  identityId: z.string().nullable().optional(),
   // Tag names to attach. Reconciled into HostTag links (find-or-create by name)
   // by the host repository — not a Host column.
   tags: z.array(z.string().trim().min(1)).optional()
@@ -60,7 +62,10 @@ export const tagUpdateSchema = z.strictObject(tagShape).partial()
 const snippetShape = {
   label: z.string().min(1),
   command: z.string().min(1),
-  hostId: z.string().optional()
+  // Host scope. An empty/omitted array means global (applies to every host).
+  // Reconciled into SnippetHost rows by the repository. Groups are a UI-only
+  // convenience (expanded to host ids client-side) and are not accepted here.
+  hostIds: z.array(z.string().min(1)).optional()
 }
 export const snippetCreateSchema = z.strictObject(snippetShape)
 export const snippetUpdateSchema = z.strictObject(snippetShape).partial()

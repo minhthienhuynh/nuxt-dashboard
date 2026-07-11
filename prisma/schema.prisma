@@ -48,7 +48,7 @@ model Host {
   tags         HostTag[]
   portForwards PortForward[]
   knownHosts   KnownHost[]
-  snippets     Snippet[]
+  snippetHosts SnippetHost[]
   history      ConnectionHistory[]
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
@@ -128,16 +128,26 @@ model KnownHost {
   @@unique([hostId, keyType])
 }
 
-// Saved command. Global when hostId is null, otherwise scoped to that host.
+// Saved command. Scope is expressed via SnippetHost links: no links at all
+// means global (applies to every host); host links scope it to those hosts.
+// Grouping is a UI-only convenience for picking hosts and is not persisted.
 model Snippet {
-  id        String   @id @default(uuid(7))
+  id        String        @id @default(uuid(7))
   label     String
   command   String
-  hostId    String?
-  host      Host?    @relation(fields: [hostId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  hosts     SnippetHost[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
 
+// Join model: a snippet applies to a specific host.
+model SnippetHost {
+  snippetId String
+  snippet   Snippet @relation(fields: [snippetId], references: [id], onDelete: Cascade)
+  hostId    String
+  host      Host    @relation(fields: [hostId], references: [id], onDelete: Cascade)
+
+  @@id([snippetId, hostId])
   @@index([hostId])
 }
 

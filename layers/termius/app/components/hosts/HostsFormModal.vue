@@ -178,7 +178,11 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     address: d.address
   }
   if (d.port) payload.port = d.port
+  // Group: a real id sets the link; "No group" clears it. On edit send an
+  // explicit null so PUT unlinks the existing group (omitting it would keep the
+  // old value); on create just omit it (defaults to no group).
   if (d.groupId && d.groupId !== SELECT_NONE) payload.groupId = d.groupId
+  else if (isEdit.value) payload.groupId = null
   // Reconcile tags only when the current set is known (always on create, on edit
   // only after a successful preload) so a failed load can't clear existing links.
   if (tagsLoaded.value) payload.tags = d.tags ?? []

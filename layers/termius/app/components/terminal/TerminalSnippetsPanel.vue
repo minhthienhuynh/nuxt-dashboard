@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { HistoryError } from '#shared/terminal-protocol'
+import type { SSHSnippet } from '../../types/ssh'
 
 const props = defineProps<{
   loading: boolean
-  entries: string[]
-  error: HistoryError | null
+  snippets: SSHSnippet[]
 }>()
 
 const open = defineModel<boolean>('open', { default: false })
@@ -15,25 +14,20 @@ const emit = defineEmits<{
   paste: [command: string]
   // Run a command immediately.
   run: [command: string]
-  // Re-fetch the history from the remote host.
+  // Re-fetch the applicable snippets from the API.
   refresh: []
-  // Save this command as a reusable snippet (opens the snippet form).
-  save: [command: string]
+  // Request deletion of a snippet (parent confirms + calls the API).
+  delete: [snippet: SSHSnippet]
 }>()
 
 const query = ref('')
 
 const filtered = computed(() => {
   const q = query.value.trim().toLowerCase()
-  if (!q) return props.entries
-  return props.entries.filter(entry => entry.toLowerCase().includes(q))
+  if (!q) return props.snippets
+  return props.snippets.filter(s =>
+    s.label.toLowerCase().includes(q) || s.command.toLowerCase().includes(q))
 })
-
-const errorMessage: Record<HistoryError, string> = {
-  'unsupported-shell': 'Shell history is only available for bash and zsh sessions.',
-  'not-found': 'No shell history was found on this host.',
-  'probe-failed': 'Could not read the shell history. Try refreshing.'
-}
 
 // Paste/run close the slideover, after which the parent focuses the terminal.
 // Stop reka-ui from restoring focus to the toolbar trigger on close so that
@@ -46,8 +40,8 @@ function onCloseAutoFocus(event: Event) {
 <template>
   <USlideover
     v-model:open="open"
-    title="Shell history"
-    description="Commands from the remote shell — double-click to paste, run to execute"
+    title="Snippets"
+    description="Saved commands for this host — double-click to paste, run to execute"
     :content="{ onCloseAutoFocus }"
   >
     <template #body>
@@ -56,10 +50,10 @@ function onCloseAutoFocus(event: Event) {
           <UInput
             v-model="query"
             icon="i-lucide-search"
-            placeholder="Filter commands…"
+            placeholder="Filter snippets…"
             size="sm"
             class="flex-1"
-            :disabled="loading || !!error"
+            :disabled="loading"
           />
           <UTooltip text="Refresh">
             <UButton
@@ -68,7 +62,7 @@ function onCloseAutoFocus(event: Event) {
               variant="subtle"
               size="sm"
               :loading="loading"
-              aria-label="Refresh history"
+              aria-label="Refresh snippets"
               @click="emit('refresh')"
             />
           </UTooltip>
@@ -79,42 +73,36 @@ function onCloseAutoFocus(event: Event) {
         </div>
 
         <div
-          v-else-if="error"
+          v-else-if="snippets.length === 0"
           class="flex flex-col items-center gap-2 py-8 text-center text-sm text-dimmed"
         >
-          <UIcon name="i-lucide-info" class="size-6" />
-          <p>{{ errorMessage[error] }}</p>
+          <UIcon name="i-lucide-square-terminal" class="size-6" />
+          <p>No snippets for this host yet. Add some from the Snippets page.</p>
         </div>
 
         <p v-else-if="filtered.length === 0" class="py-8 text-center text-sm text-dimmed">
-          No matching commands.
+          No matching snippets.
         </p>
 
         <ul v-else class="flex-1 min-h-0 overflow-y-auto divide-y divide-default">
           <li
-            v-for="(command, index) in filtered"
-            :key="`${index}-${command}`"
-            class="group flex items-center gap-2 py-1.5"
+            v-for="snippet in filtered"
+            :key="snippet.id"
+            class="group flex items-center gap-2 py-2"
           >
             <button
               type="button"
-              class="flex-1 min-w-0 truncate text-left font-mono text-xs text-toned hover:text-highlighted"
-              :title="`${command}\n\nDouble-click to paste`"
-              @dblclick="emit('paste', command)"
+              class="flex-1 min-w-0 text-left"
+              :title="`${snippet.command}\n\nDouble-click to paste`"
+              @dblclick="emit('paste', snippet.command)"
             >
-              {{ command }}
+              <span class="block truncate text-xs font-medium text-toned group-hover:text-highlighted">
+                {{ snippet.label }}
+              </span>
+              <span class="block truncate font-mono text-xs text-dimmed">
+                {{ snippet.command }}
+              </span>
             </button>
-            <UTooltip text="Save as snippet">
-              <UButton
-                icon="i-lucide-bookmark-plus"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                class="opacity-0 group-hover:opacity-100"
-                aria-label="Save as snippet"
-                @click="emit('save', command)"
-              />
-            </UTooltip>
             <UTooltip text="Run">
               <UButton
                 icon="i-lucide-play"
@@ -122,8 +110,19 @@ function onCloseAutoFocus(event: Event) {
                 variant="ghost"
                 size="xs"
                 class="opacity-0 group-hover:opacity-100"
-                aria-label="Run command"
-                @click="emit('run', command)"
+                aria-label="Run snippet"
+                @click="emit('run', snippet.command)"
+              />
+            </UTooltip>
+            <UTooltip text="Delete">
+              <UButton
+                icon="i-lucide-trash-2"
+                color="error"
+                variant="ghost"
+                size="xs"
+                class="opacity-0 group-hover:opacity-100"
+                aria-label="Delete snippet"
+                @click="emit('delete', snippet)"
               />
             </UTooltip>
           </li>

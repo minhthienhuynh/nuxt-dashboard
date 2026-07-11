@@ -7,6 +7,7 @@ export async function resetDb() {
   await prisma.portForward.deleteMany()
   await prisma.knownHost.deleteMany()
   await prisma.hostTag.deleteMany()
+  await prisma.snippetHost.deleteMany()
   await prisma.snippet.deleteMany()
   await prisma.host.deleteMany()
   await prisma.identity.deleteMany()

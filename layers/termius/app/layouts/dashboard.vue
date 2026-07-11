@@ -21,6 +21,13 @@ const links = [[{
   onSelect: () => {
     open.value = false
   }
+}, {
+  label: 'Snippets',
+  icon: 'i-lucide-square-terminal',
+  to: '/snippets',
+  onSelect: () => {
+    open.value = false
+  }
 }]] satisfies NavigationMenuItem[][]
 
 const groups = computed(() => [{
@@ -33,7 +40,8 @@ const groups = computed(() => [{
 // demo `useDashboard` composable so the product shell stays self-contained.
 defineShortcuts({
   'g-t': () => router.push('/hosts'),
-  'g-k': () => router.push('/keychain')
+  'g-k': () => router.push('/keychain'),
+  'g-n': () => router.push('/snippets')
 })
 </script>
 

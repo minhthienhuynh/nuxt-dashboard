@@ -47,6 +47,20 @@ describe('hosts API handlers (h3 v1 runtime)', () => {
     await expect(hostItem(created.id)).rejects.toMatchObject({ statusCode: 404 })
   })
 
+  it('PUT with groupId null clears the host group; omitting it leaves the group', async () => {
+    const group = await prisma.group.create({ data: { name: 'prod' } })
+    const created = await createHost({ label: 'h', address: '1.1.1.1', groupId: group.id })
+    expect(created.groupId).toBe(group.id)
+
+    // Omitting groupId leaves the existing link.
+    const renamed = await hostItem(created.id, { method: 'PUT', body: { label: 'h2' } })
+    expect(renamed.groupId).toBe(group.id)
+
+    // Explicit null unlinks the group (host moves to the root).
+    const cleared = await hostItem(created.id, { method: 'PUT', body: { groupId: null } })
+    expect(cleared.groupId).toBeNull()
+  })
+
   it('?relations=true includes relations with the identity secret redacted', async () => {
     const identity = await prisma.identity.create({ data: { username: 'deploy', authType: 'password', password: 'CIPHER' } })
     const created = await createHost({ label: 'h', address: '1.1.1.1', identityId: identity.id })

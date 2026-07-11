@@ -28,6 +28,7 @@ logs
 
 # AI config
 .claude
+.kiro
 openspec
 
 # Editor / tooling (kept locally, not committed)

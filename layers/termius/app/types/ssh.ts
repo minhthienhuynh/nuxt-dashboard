@@ -50,6 +50,24 @@ export interface Tag {
   name: string
 }
 
+// Snippet host-scope link rows (many-to-many join records returned with a snippet).
+export interface SnippetHostLink {
+  snippetId: string
+  hostId: string
+}
+
+// Saved command snippet. Scope is expressed via `hosts` links: no links at all
+// means global (applies to every host); host links scope it to those hosts.
+// Grouping is a UI-only convenience for picking hosts and is not persisted.
+export interface SSHSnippet {
+  id: string
+  label: string
+  command: string
+  hosts: SnippetHostLink[]
+  createdAt: string
+  updatedAt: string
+}
+
 export interface HostTagLink {
   hostId: string
   tagId: string

@@ -12,6 +12,7 @@ const emit = defineEmits<{
   clear: []
   search: []
   history: []
+  snippets: []
   appearance: []
 }>()
 
@@ -73,6 +74,17 @@ const statusColor: Record<SessionStatus, string> = {
           :disabled="status !== 'connected'"
           aria-label="Shell history"
           @click="emit('history')"
+        />
+      </UTooltip>
+      <UTooltip text="Snippets">
+        <UButton
+          icon="i-lucide-square-terminal"
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          :disabled="status !== 'connected'"
+          aria-label="Snippets"
+          @click="emit('snippets')"
         />
       </UTooltip>
       <UTooltip text="Appearance">

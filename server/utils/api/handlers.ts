@@ -38,7 +38,15 @@ export const tagHandlers = createCrudHandlers({
 export const snippetHandlers = createCrudHandlers({
   repo: snippetRepository,
   createSchema: snippetCreateSchema,
-  updateSchema: snippetUpdateSchema
+  updateSchema: snippetUpdateSchema,
+  // ?hostId=<id> scopes the list to snippets applicable to that host (global +
+  // host-linked); no hostId falls through to the default findMany (all snippets).
+  listQuery: (event) => {
+    const hostId = getQuery(event).hostId
+    return typeof hostId === 'string' && hostId.length > 0
+      ? snippetRepository.findForHost(hostId)
+      : undefined
+  }
 })
 
 export const identityHandlers = createCrudHandlers({
