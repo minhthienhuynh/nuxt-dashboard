@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { DEFAULT_HOST_SORT, HOST_SORT_OPTIONS, buildGroupTree, filterHostsByGroup, filterHostsBySearch, isHostSort, sortHosts } from '../utils/hosts'
 import { openTerminalWindow } from '../utils/terminal-windows'
+import { openSftpWindow } from '../utils/sftp-windows'
 import type { Group, GroupSelection, Host, HostSort, HostWithRelations, Identity, SSHKey, Tag } from '../types/ssh'
 
 definePageMeta({ layout: 'dashboard' })
@@ -157,6 +158,12 @@ function openDetail(host: Host) {
 // would kill the live session). See utils/terminal-windows.
 function connect(id: string) {
   openTerminalWindow(id)
+}
+
+// Mirrors connect(): a dedicated tab per host for the SFTP browser. See
+// utils/sftp-windows.
+function sftp(id: string) {
+  openSftpWindow(id)
 }
 
 // --- Host create / edit -----------------------------------------------------
@@ -436,6 +443,7 @@ function onDetailDelete(host: HostWithRelations) {
               :list="view === 'list'"
               @select="openDetail(host)"
               @connect="connect(host.id)"
+              @sftp="sftp(host.id)"
             />
           </div>
           <div v-else class="flex flex-col items-center justify-center py-12 text-dimmed">
@@ -452,6 +460,7 @@ function onDetailDelete(host: HostWithRelations) {
       v-model:open="detailOpen"
       :host-id="selectedHostId"
       @connect="connect"
+      @sftp="sftp"
       @edit="onDetailEdit"
       @delete="onDetailDelete"
     />

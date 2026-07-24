@@ -12,6 +12,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   select: []
   connect: []
+  sftp: []
 }>()
 
 // Brand icon + color for the host's detected OS (see utils/os.ts).
@@ -55,13 +56,25 @@ const os = computed(() => osMeta(props.host.os))
       />
     </div>
 
-    <UButton
-      label="Connect"
-      icon="i-lucide-terminal"
-      size="xs"
-      color="primary"
-      variant="soft"
-      @click.stop="emit('connect')"
-    />
+    <div class="flex items-center gap-1.5 shrink-0">
+      <UTooltip text="SFTP">
+        <UButton
+          icon="i-lucide-folder-open"
+          size="xs"
+          color="neutral"
+          variant="soft"
+          aria-label="Open SFTP"
+          @click.stop="emit('sftp')"
+        />
+      </UTooltip>
+      <UButton
+        label="Connect"
+        icon="i-lucide-terminal"
+        size="xs"
+        color="primary"
+        variant="soft"
+        @click.stop="emit('connect')"
+      />
+    </div>
   </div>
 </template>

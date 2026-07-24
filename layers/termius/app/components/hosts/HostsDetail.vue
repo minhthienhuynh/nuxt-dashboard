@@ -9,6 +9,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   connect: [hostId: string]
+  sftp: [hostId: string]
   edit: [host: HostWithRelations]
   delete: [host: HostWithRelations]
 }>()
@@ -48,6 +49,13 @@ watch([open, () => props.hostId], async ([isOpen, id]) => {
             icon="i-lucide-terminal"
             color="primary"
             @click="emit('connect', host.id)"
+          />
+          <UButton
+            label="SFTP"
+            icon="i-lucide-folder-open"
+            color="neutral"
+            variant="subtle"
+            @click="emit('sftp', host.id)"
           />
           <UButton
             label="Edit"
