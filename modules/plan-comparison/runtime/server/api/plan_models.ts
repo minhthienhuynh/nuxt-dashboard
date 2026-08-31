@@ -305,6 +305,17 @@ export const planModels: PlanModelEstimate[] = [
     }
   },
   {
+    plan_id: 'oc-go',
+    model_id: 'qwen/qwen3.8-flash',
+    monthly_credits_usd: 30,
+    estimates: {
+      per_5h: 5400,
+      per_week: 13500,
+      per_month: 27000
+    },
+    note: 'Synced 2026-08-31 from https://opencode.ai/docs/go — Qwen3.8 Flash $30 on $10 Go'
+  },
+  {
     plan_id: 'cmd-go',
     model_id: 'deepseek/deepseek-v4-flash',
     monthly_credits_usd: 10,
@@ -490,16 +501,6 @@ export const planModels: PlanModelEstimate[] = [
       per_5h: 144,
       per_week: 360,
       per_month: 719
-    }
-  },
-  {
-    plan_id: 'oc-go',
-    model_id: 'xai/grok-4.5',
-    monthly_credits_usd: 15,
-    estimates: {
-      per_5h: 120,
-      per_week: 300,
-      per_month: 600
     }
   },
   {
@@ -1014,13 +1015,6 @@ export const planModels: PlanModelEstimate[] = [
       per_month: 10582
     },
     note: 'Derived from usage calculator formula (800 in / provider out / 50K cache read); GOAT page publishes no per-model estimates'
-  },
-  {
-    plan_id: 'oc-go',
-    model_id: 'minimaxai/minimax-m2.5',
-    monthly_credits_usd: 60,
-    estimates: null,
-    note: 'Listed in Go pricing table but page does not publish usage estimates'
   },
   {
     plan_id: 'cmd-go',
