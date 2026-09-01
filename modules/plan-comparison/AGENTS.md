@@ -22,9 +22,18 @@ Chỉ dẫn riêng cho thư mục này; các quy ước chung của repo xem `AG
 
 ## Nguồn cập nhật dữ liệu
 
-- Command Code (plans `cmd-go`, `cmd-goat`): pricing/limits từ `https://commandcode.ai/docs/resources/pricing-limits`; usage limits GOAT từ `https://commandcode.ai/docs/plans/goat#usage-limits`.
+- Command Code (plans `cmd-go`, `cmd-goat`): pricing/limits từ `https://commandcode.ai/docs/resources/pricing-limits`; usage limits GOAT từ `https://commandcode.ai/docs/plans/goat#usage-limits`; usage limits Go từ `https://commandcode.ai/docs/plans/go#usage-limits`.
 - OpenCode Go (plan `oc-go`): pricing và usage per request từ `https://opencode.ai/docs/go`.
 - Khi sync số liệu mới từ các trang trên, ghi note vào row tương ứng trong `runtime/server/api/plan_models.ts` theo pattern sẵn có: `Synced <ngày> from <URL> — <điểm chính>`; số liệu tính tay cũng ghi note kèm ngày (`Derived from usage calculator formula ...` / `Recalc <ngày>: ...`).
+
+## Model free (KHÔNG đưa vào dataset)
+
+- Trang Command Code có thể có model free 100% (vd: `Laguna S 2.1` — deal "FREE while capacity lasts", $0.00 input/output/cache read, không tiêu credit, có row riêng "FREE" trên bảng plans).
+- **Quy ước: KHÔNG thêm model free vào `models.ts` / `pricing.ts` / `deals.ts` / `plan_models.ts`.** Lý do:
+  - `estimates.per_month = budget / 0` → chia cho 0 (Infinity), phá vỡ sort `cheapest`/`priciest` và domain log-scale của dot chart.
+  - So sánh credit/request trở nên vô nghĩa vì model free không tiêu credit của plan nào.
+  - Deal free là tạm thời ("while capacity lasts"), thêm vào rồi phải kéo ra khi hết hạn.
+- Khi check sync deals/usage: đếm số model trên bảng live **trừ các row FREE** trước khi đối chiếu với dataset (vd: bảng Go live 39 dòng = 38 model + 1 row Laguna S 2.1 FREE).
 
 ## Điểm dễ miss
 
