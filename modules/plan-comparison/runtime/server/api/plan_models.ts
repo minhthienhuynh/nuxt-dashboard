@@ -112,11 +112,11 @@ export const planModels: PlanModelEstimate[] = [
     model_id: 'deepseek/deepseek-v4-flash-fast',
     monthly_credits_usd: 20,
     estimates: {
-      per_5h: 1042,
-      per_week: 2607,
-      per_month: 5214
+      per_5h: 1040,
+      per_week: 2610,
+      per_month: 5210
     },
-    note: 'Synced 2026-08-31 from https://commandcode.ai/docs/plans/goat — Flash Fast $20 (new-model rate); estimates 800 in / 200 out / 50K cache at $0.28/$0.56/$0.07 per 1M'
+    note: 'Synced 2026-08-31 from https://commandcode.ai/docs/plans/goat#usage-limits — Flash Fast 1040/2610/5210 on GOAT $20'
   },
   {
     plan_id: 'oc-go',
@@ -183,13 +183,13 @@ export const planModels: PlanModelEstimate[] = [
   {
     plan_id: 'cmd-goat',
     model_id: 'google/gemini-3.7-flash',
-    monthly_credits_usd: 20,
+    monthly_credits_usd: 40,
     estimates: {
       per_5h: 784,
       per_week: 1960,
       per_month: 3920
     },
-    note: '50% off through Dec 31, 2026; $20 credits on GOAT (was $40) — recalc 2026-08-27'
+    note: 'Synced 2026-08-31 from https://commandcode.ai/docs/plans/goat#usage-limits — Gemini 3.7 Flash $40 credits on GOAT'
   },
   {
     plan_id: 'cmd-go',
@@ -336,6 +336,17 @@ export const planModels: PlanModelEstimate[] = [
       per_month: 15198
     },
     note: 'Derived from usage calculator formula (800 in / provider out / 50K cache read); Go page publishes no per-model estimates'
+  },
+  {
+    plan_id: 'cmd-go',
+    model_id: 'deepseek/deepseek-v4-flash-fast',
+    monthly_credits_usd: 10,
+    estimates: {
+      per_5h: 782,
+      per_week: 1564,
+      per_month: 2607
+    },
+    note: 'Derived from usage calculator formula (800 in / 200 out / 50K cache read) at $0.28/$0.56/$0.07 per 1M; Go $10 limits 3/6/10'
   },
   {
     plan_id: 'cmd-goat',
