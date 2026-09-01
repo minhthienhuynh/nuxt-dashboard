@@ -197,6 +197,21 @@ export const models: Model[] = [
     aa: 52
   },
   {
+    id: 'deepseek/deepseek-v4-flash-fast',
+    slug: 'deepseek-v4-flash-fast',
+    name: 'DeepSeek V4 Flash Fast',
+    context_tokens: 1000000,
+    intelligence: null,
+    tok_per_sec: null,
+    open_weight: true,
+    release_date: null,
+    has_text: true,
+    has_vision: false,
+    has_reasoning: true,
+    best_for: 'low-latency V4 Flash deployment',
+    aa: null
+  },
+  {
     id: 'thinkingmachines/inkling-small',
     slug: 'inkling-small',
     name: 'Inkling Small',

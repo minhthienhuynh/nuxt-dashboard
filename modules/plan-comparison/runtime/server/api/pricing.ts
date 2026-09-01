@@ -289,6 +289,17 @@ export const pricing: PricingEntry[] = [
   },
   {
     provider_id: 'command-code',
+    model_id: 'deepseek/deepseek-v4-flash-fast',
+    tier: 'off_peak',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 0.28,
+    output: 0.56,
+    cache_read: 0.07,
+    cache_write: null
+  },
+  {
+    provider_id: 'command-code',
     model_id: 'deepseek/deepseek-v4-flash',
     tier: 'peak',
     max_context_tokens: null,

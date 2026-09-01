@@ -108,6 +108,17 @@ export const planModels: PlanModelEstimate[] = [
     }
   },
   {
+    plan_id: 'cmd-goat',
+    model_id: 'deepseek/deepseek-v4-flash-fast',
+    monthly_credits_usd: 20,
+    estimates: {
+      per_5h: 1042,
+      per_week: 2607,
+      per_month: 5214
+    },
+    note: 'Synced 2026-08-31 from https://commandcode.ai/docs/plans/goat — Flash Fast $20 (new-model rate); estimates 800 in / 200 out / 50K cache at $0.28/$0.56/$0.07 per 1M'
+  },
+  {
     plan_id: 'oc-go',
     model_id: 'deepseek/deepseek-v4-flash-vision-exp',
     monthly_credits_usd: 15,
