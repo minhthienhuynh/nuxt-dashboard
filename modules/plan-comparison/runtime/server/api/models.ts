@@ -204,7 +204,7 @@ export const models: Model[] = [
     intelligence: null,
     tok_per_sec: null,
     open_weight: true,
-    release_date: null,
+    release_date: '2026-08-22',
     has_text: true,
     has_vision: false,
     has_reasoning: true,
@@ -354,7 +354,7 @@ export const models: Model[] = [
     intelligence: null,
     tok_per_sec: null,
     open_weight: true,
-    release_date: '2026-06-17',
+    release_date: '2026-06-23',
     has_text: true,
     has_vision: false,
     has_reasoning: false,
@@ -479,7 +479,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: true,
     best_for: 'frontier coding & long-horizon agent execution',
-    aa: null
+    aa: 47
   },
   {
     id: 'xiaomi/mimo-v2.5',
@@ -524,7 +524,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: false,
     best_for: 'long-horizon coding with vision',
-    aa: null
+    aa: 45
   },
   {
     id: 'qwen/qwen3.6-max-preview',
@@ -539,7 +539,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: true,
     best_for: 'vibe coding & efficient agent execution',
-    aa: null
+    aa: 41
   },
   {
     id: 'zai-org/glm-5.1',
@@ -549,12 +549,12 @@ export const models: Model[] = [
     intelligence: 41,
     tok_per_sec: 28,
     open_weight: true,
-    release_date: '2026-04-08',
+    release_date: '2026-04-07',
     has_text: true,
     has_vision: false,
     has_reasoning: false,
     best_for: 'long-horizon autonomous coding agent',
-    aa: null
+    aa: 41
   },
   {
     id: 'qwen/qwen3.6-plus',
@@ -569,7 +569,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'agentic coding & reasoning',
-    aa: null
+    aa: 40
   },
   {
     id: 'minimaxai/minimax-m2.7',
@@ -584,7 +584,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: false,
     best_for: 'end-to-end software engineering agent',
-    aa: null
+    aa: 39
   },
   {
     id: 'minimaxai/minimax-m2.5',
@@ -594,12 +594,12 @@ export const models: Model[] = [
     intelligence: 34.5,
     tok_per_sec: null,
     open_weight: true,
-    release_date: '2026-02-13',
+    release_date: '2026-02-12',
     has_text: true,
     has_vision: false,
     has_reasoning: false,
     best_for: 'cross-platform full-stack agentic dev',
-    aa: null
+    aa: 34
   },
   {
     id: 'zai-org/glm-5',
@@ -614,7 +614,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: false,
     best_for: 'multi-mode thinking & long-range planning',
-    aa: null
+    aa: 41
   },
   {
     id: 'stepfun/step-3.5-flash',
@@ -624,12 +624,12 @@ export const models: Model[] = [
     intelligence: 26.5,
     tok_per_sec: null,
     open_weight: true,
-    release_date: '2026-02-02',
+    release_date: '2026-01-29',
     has_text: true,
     has_vision: false,
     has_reasoning: true,
     best_for: 'fast sparse-MoE agentic reasoning',
-    aa: null
+    aa: 27
   },
   {
     id: 'moonshotai/kimi-k2.5',
@@ -639,11 +639,11 @@ export const models: Model[] = [
     intelligence: 36,
     tok_per_sec: null,
     open_weight: true,
-    release_date: '2026-01-01',
+    release_date: '2026-01-27',
     has_text: true,
     has_vision: true,
     has_reasoning: false,
     best_for: 'multimodal frontend coding',
-    aa: null
+    aa: 36
   }
 ]
