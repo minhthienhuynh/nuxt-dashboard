@@ -338,6 +338,17 @@ export const planModels: PlanModelEstimate[] = [
     note: 'Derived from usage calculator formula (800 in / provider out / 50K cache read); Go page publishes no per-model estimates'
   },
   {
+    plan_id: 'cmd-go',
+    model_id: 'deepseek/deepseek-v4-flash-fast',
+    monthly_credits_usd: 10,
+    estimates: {
+      per_5h: 782,
+      per_week: 1564,
+      per_month: 2607
+    },
+    note: 'Derived from usage calculator formula (800 in / 200 out / 50K cache read) at $0.28/$0.56/$0.07 per 1M; Go $10 limits 3/6/10'
+  },
+  {
     plan_id: 'cmd-goat',
     model_id: 'deepseek/deepseek-v4-flash',
     monthly_credits_usd: 60,
