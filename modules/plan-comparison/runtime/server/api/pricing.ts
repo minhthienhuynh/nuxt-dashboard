@@ -265,6 +265,18 @@ export const pricing: PricingEntry[] = [
     cache_read: 0.25,
     cache_write: 2.5
   },
+
+  {
+    provider_id: 'command-code',
+    model_id: 'qwen/qwen3.8-max-0902',
+    tier: 'standard',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 2,
+    output: 6,
+    cache_read: 0.25,
+    cache_write: null
+  },
   {
     provider_id: 'opencode',
     model_id: 'qwen/qwen3.8-max',

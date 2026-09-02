@@ -181,6 +181,22 @@ export const models: Model[] = [
     best_for: 'autonomous long-horizon coding & professional work',
     aa: 58
   },
+
+  {
+    id: 'qwen/qwen3.8-max-0902',
+    slug: 'qwen3-8-max-0902',
+    name: 'Qwen 3.8 Max 0902',
+    context_tokens: 1000000,
+    intelligence: null,
+    tok_per_sec: null,
+    open_weight: true,
+    release_date: '2026-09-02',
+    has_text: true,
+    has_vision: true,
+    has_reasoning: true,
+    best_for: 'upgraded Qwen 3.8 Max: stronger coding & agentic tool use',
+    aa: null
+  },
   {
     id: 'deepseek/deepseek-v4-flash',
     slug: 'deepseek-v4-flash',

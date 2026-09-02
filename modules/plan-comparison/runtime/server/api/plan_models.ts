@@ -295,6 +295,18 @@ export const planModels: PlanModelEstimate[] = [
     },
     note: 'Derived from usage calculator formula (800 in / provider out / 50K cache read); Go page publishes no per-model estimates'
   },
+
+  {
+    plan_id: 'cmd-go',
+    model_id: 'qwen/qwen3.8-max-0902',
+    monthly_credits_usd: 10,
+    estimates: {
+      per_5h: 196,
+      per_week: 392,
+      per_month: 654
+    },
+    note: 'Synced 2026-09-02 from https://commandcode.ai/docs/plans/go — Qwen 3.8 Max 0902 new on Go; estimates derived from usage calculator formula (same rate as qwen3.8-max: $2 in / $6 out / $0.25 cache read)'
+  },
   {
     plan_id: 'cmd-goat',
     model_id: 'qwen/qwen3.8-max',
@@ -304,6 +316,18 @@ export const planModels: PlanModelEstimate[] = [
       per_week: 654,
       per_month: 1310
     }
+  },
+
+  {
+    plan_id: 'cmd-goat',
+    model_id: 'qwen/qwen3.8-max-0902',
+    monthly_credits_usd: 20,
+    estimates: {
+      per_5h: 261,
+      per_week: 654,
+      per_month: 1310
+    },
+    note: 'Synced 2026-09-02 from https://commandcode.ai/docs/plans/goat — Qwen 3.8 Max 0902 new-model allowance $20, estimates published in GOAT usage-limits table (261/654/1310, same as qwen3.8-max)'
   },
   {
     plan_id: 'oc-go',

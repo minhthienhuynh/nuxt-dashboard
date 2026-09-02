@@ -13,8 +13,7 @@ const DEAL_EFFECTIVE_PRICING: Record<string, EffectivePricing> = {
   'google/gemini-3.7-flash': { input: 0.75, output: 3.75, cache_read: 0.075 },
   'xiaomi/mimo-v2.5': { input: 0.14, output: 0.28, cache_read: 0.0028 },
   'xiaomi/mimo-v2.5-pro': { input: 0.435, output: 0.87, cache_read: 0.0036 },
-  'minimaxai/minimax-m3': { input: 0.30, output: 1.20, cache_read: 0.06 },
-  'qwen/qwen3.7-flash': { input: 0.10, output: 0.40, cache_read: 0.02 }
+  'minimaxai/minimax-m3': { input: 0.30, output: 1.20, cache_read: 0.06 }
 }
 
 // Assumed output-token count per model family for the effective-cost formula; models not listed use DEFAULT_OUTPUT_TOKENS.
