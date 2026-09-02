@@ -107,6 +107,21 @@ export const models: Model[] = [
     aa: 56
   },
   {
+    id: 'google/gemini-3.8-flash',
+    slug: 'gemini-3-8-flash',
+    name: 'Gemini 3.8 Flash',
+    context_tokens: 1000000,
+    intelligence: null,
+    tok_per_sec: null,
+    open_weight: false,
+    release_date: '2026-09-02',
+    has_text: true,
+    has_vision: true,
+    has_reasoning: true,
+    best_for: 'newest Gemini Flash, improved core reasoning',
+    aa: 58.68
+  },
+  {
     id: 'deepseek/deepseek-v4-pro',
     slug: 'deepseek-v4-pro',
     name: 'DeepSeek V4 Pro (latest)',

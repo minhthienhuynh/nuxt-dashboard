@@ -192,6 +192,17 @@ export const planModels: PlanModelEstimate[] = [
     note: 'Synced 2026-08-31 from https://commandcode.ai/docs/plans/goat#usage-limits — Gemini 3.7 Flash $40 credits on GOAT'
   },
   {
+    plan_id: 'cmd-goat',
+    model_id: 'google/gemini-3.8-flash',
+    monthly_credits_usd: 40,
+    estimates: {
+      per_5h: 784,
+      per_week: 1960,
+      per_month: 3920
+    },
+    note: 'Synced 2026-09-02 from https://commandcode.ai/docs/plans/goat#usage-limits — Gemini 3.8 Flash GOAT-only, $40 credits; released 2026-09-02, same rates as 3.7 Flash minus cache write; usage shape 800/200/50K'
+  },
+  {
     plan_id: 'cmd-go',
     model_id: 'deepseek/deepseek-v4-pro',
     monthly_credits_usd: 10,
