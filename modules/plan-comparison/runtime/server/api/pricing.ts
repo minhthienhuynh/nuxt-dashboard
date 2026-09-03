@@ -3,6 +3,61 @@ import type { PricingEntry } from '../../app/types'
 export const pricing: PricingEntry[] = [
   {
     provider_id: 'command-code',
+    model_id: 'google/gemini-3.8-flash',
+    tier: 'standard',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 1.5,
+    output: 7.5,
+    cache_read: 0.15,
+    cache_write: null
+  },
+  {
+    provider_id: 'command-code',
+    model_id: 'meta/muse-spark-1.3',
+    tier: 'standard',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 1.25,
+    output: 4.25,
+    cache_read: 0.15,
+    cache_write: null
+  },
+  {
+    provider_id: 'command-code',
+    model_id: 'meta/muse-spark-1.3-contributor',
+    tier: 'standard',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 0.1,
+    output: 0.2,
+    cache_read: 0.002,
+    cache_write: null
+  },
+  {
+    provider_id: 'opencode',
+    model_id: 'meta/muse-spark-1.3-contributor',
+    tier: 'standard',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 0.1,
+    output: 0.2,
+    cache_read: 0.002,
+    cache_write: null
+  },
+  {
+    provider_id: 'command-code',
+    model_id: 'qwen/qwen3.8-max-0902',
+    tier: 'standard',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 2,
+    output: 6,
+    cache_read: 0.25,
+    cache_write: null
+  },
+  {
+    provider_id: 'command-code',
     model_id: 'tencent/hy4-preview',
     tier: 'standard',
     max_context_tokens: null,
@@ -43,6 +98,17 @@ export const pricing: PricingEntry[] = [
     input: 0.15,
     output: 0.5,
     cache_read: 0.03,
+    cache_write: null
+  },
+  {
+    provider_id: 'opencode',
+    model_id: 'meituan/longcat-2.0',
+    tier: 'standard',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 0.3,
+    output: 1.2,
+    cache_read: 0.006,
     cache_write: null
   },
   {
@@ -66,6 +132,17 @@ export const pricing: PricingEntry[] = [
     output: 0.47,
     cache_read: 0.016,
     cache_write: 0.20
+  },
+  {
+    provider_id: 'command-code',
+    model_id: 'deepseek/deepseek-v4-flash-fast',
+    tier: 'off_peak',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 0.28,
+    output: 0.56,
+    cache_read: 0.07,
+    cache_write: null
   },
   {
     provider_id: 'command-code',
@@ -146,6 +223,50 @@ export const pricing: PricingEntry[] = [
   },
   {
     provider_id: 'command-code',
+    model_id: 'deepseek/deepseek-v4-pro',
+    tier: 'off_peak',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 0.66,
+    output: 1.98,
+    cache_read: 0.022,
+    cache_write: null
+  },
+  {
+    provider_id: 'command-code',
+    model_id: 'deepseek/deepseek-v4-pro',
+    tier: 'peak',
+    max_context_tokens: null,
+    peak_utc_hours: '01-04,06-10',
+    input: 1.32,
+    output: 3.96,
+    cache_read: 0.044,
+    cache_write: null
+  },
+  {
+    provider_id: 'opencode',
+    model_id: 'deepseek/deepseek-v4-pro',
+    tier: 'off_peak',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 0.66,
+    output: 1.98,
+    cache_read: 0.022,
+    cache_write: null
+  },
+  {
+    provider_id: 'opencode',
+    model_id: 'deepseek/deepseek-v4-pro',
+    tier: 'peak',
+    max_context_tokens: null,
+    peak_utc_hours: '01-04,06-10',
+    input: 1.32,
+    output: 3.96,
+    cache_read: 0.044,
+    cache_write: null
+  },
+  {
+    provider_id: 'command-code',
     model_id: 'google/gemini-3.7-flash',
     tier: 'standard',
     max_context_tokens: null,
@@ -154,50 +275,6 @@ export const pricing: PricingEntry[] = [
     output: 7.5,
     cache_read: 0.15,
     cache_write: 0.08334
-  },
-  {
-    provider_id: 'command-code',
-    model_id: 'deepseek/deepseek-v4-pro',
-    tier: 'off_peak',
-    max_context_tokens: null,
-    peak_utc_hours: null,
-    input: 0.66,
-    output: 1.98,
-    cache_read: 0.022,
-    cache_write: null
-  },
-  {
-    provider_id: 'command-code',
-    model_id: 'deepseek/deepseek-v4-pro',
-    tier: 'peak',
-    max_context_tokens: null,
-    peak_utc_hours: '01-04,06-10',
-    input: 1.32,
-    output: 3.96,
-    cache_read: 0.044,
-    cache_write: null
-  },
-  {
-    provider_id: 'opencode',
-    model_id: 'deepseek/deepseek-v4-pro',
-    tier: 'off_peak',
-    max_context_tokens: null,
-    peak_utc_hours: null,
-    input: 0.66,
-    output: 1.98,
-    cache_read: 0.022,
-    cache_write: null
-  },
-  {
-    provider_id: 'opencode',
-    model_id: 'deepseek/deepseek-v4-pro',
-    tier: 'peak',
-    max_context_tokens: null,
-    peak_utc_hours: '01-04,06-10',
-    input: 1.32,
-    output: 3.96,
-    cache_read: 0.044,
-    cache_write: null
   },
   {
     provider_id: 'command-code',
@@ -265,6 +342,7 @@ export const pricing: PricingEntry[] = [
     cache_read: 0.25,
     cache_write: 2.5
   },
+
   {
     provider_id: 'opencode',
     model_id: 'qwen/qwen3.8-max',
@@ -285,17 +363,6 @@ export const pricing: PricingEntry[] = [
     input: 0.22,
     output: 0.66,
     cache_read: 0.007,
-    cache_write: null
-  },
-  {
-    provider_id: 'command-code',
-    model_id: 'deepseek/deepseek-v4-flash-fast',
-    tier: 'off_peak',
-    max_context_tokens: null,
-    peak_utc_hours: null,
-    input: 0.28,
-    output: 0.56,
-    cache_read: 0.07,
     cache_write: null
   },
   {
@@ -344,28 +411,6 @@ export const pricing: PricingEntry[] = [
   },
   {
     provider_id: 'command-code',
-    model_id: 'moonshotai/kimi-k3',
-    tier: 'standard',
-    max_context_tokens: null,
-    peak_utc_hours: null,
-    input: 3,
-    output: 15,
-    cache_read: 0.3,
-    cache_write: null
-  },
-  {
-    provider_id: 'opencode',
-    model_id: 'moonshotai/kimi-k3',
-    tier: 'standard',
-    max_context_tokens: null,
-    peak_utc_hours: null,
-    input: 3,
-    output: 15,
-    cache_read: 0.3,
-    cache_write: null
-  },
-  {
-    provider_id: 'command-code',
     model_id: 'qwen/qwen3.7-flash',
     tier: 'standard',
     max_context_tokens: null,
@@ -384,6 +429,28 @@ export const pricing: PricingEntry[] = [
     input: 1,
     output: 4.05,
     cache_read: 0.17,
+    cache_write: null
+  },
+  {
+    provider_id: 'command-code',
+    model_id: 'moonshotai/kimi-k3',
+    tier: 'standard',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 3,
+    output: 15,
+    cache_read: 0.3,
+    cache_write: null
+  },
+  {
+    provider_id: 'opencode',
+    model_id: 'moonshotai/kimi-k3',
+    tier: 'standard',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 3,
+    output: 15,
+    cache_read: 0.3,
     cache_write: null
   },
   {
@@ -475,17 +542,6 @@ export const pricing: PricingEntry[] = [
     cache_write: null
   },
   {
-    provider_id: 'opencode',
-    model_id: 'meituan/longcat-2.0',
-    tier: 'standard',
-    max_context_tokens: null,
-    peak_utc_hours: null,
-    input: 0.3,
-    output: 1.2,
-    cache_read: 0.006,
-    cache_write: null
-  },
-  {
     provider_id: 'command-code',
     model_id: 'zai-org/glm-5.2-fast',
     tier: 'standard',
@@ -564,6 +620,28 @@ export const pricing: PricingEntry[] = [
   },
   {
     provider_id: 'command-code',
+    model_id: 'minimaxai/minimax-m3',
+    tier: 'standard',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 0.6,
+    output: 2.4,
+    cache_read: 0.12,
+    cache_write: null
+  },
+  {
+    provider_id: 'opencode',
+    model_id: 'minimaxai/minimax-m3',
+    tier: 'standard',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 0.3,
+    output: 1.2,
+    cache_read: 0.06,
+    cache_write: null
+  },
+  {
+    provider_id: 'command-code',
     model_id: 'qwen/qwen3.7-plus',
     tier: 'standard',
     max_context_tokens: null,
@@ -597,28 +675,6 @@ export const pricing: PricingEntry[] = [
   },
   {
     provider_id: 'command-code',
-    model_id: 'minimaxai/minimax-m3',
-    tier: 'standard',
-    max_context_tokens: null,
-    peak_utc_hours: null,
-    input: 0.6,
-    output: 2.4,
-    cache_read: 0.12,
-    cache_write: null
-  },
-  {
-    provider_id: 'opencode',
-    model_id: 'minimaxai/minimax-m3',
-    tier: 'standard',
-    max_context_tokens: null,
-    peak_utc_hours: null,
-    input: 0.3,
-    output: 1.2,
-    cache_read: 0.06,
-    cache_write: null
-  },
-  {
-    provider_id: 'command-code',
     model_id: 'stepfun/step-3.7-flash',
     tier: 'standard',
     max_context_tokens: null,
@@ -627,28 +683,6 @@ export const pricing: PricingEntry[] = [
     output: 1.15,
     cache_read: 0.04,
     cache_write: null
-  },
-  {
-    provider_id: 'command-code',
-    model_id: 'qwen/qwen3.7-max',
-    tier: 'standard',
-    max_context_tokens: null,
-    peak_utc_hours: null,
-    input: 2.5,
-    output: 7.5,
-    cache_read: 0.5,
-    cache_write: 3.13
-  },
-  {
-    provider_id: 'opencode',
-    model_id: 'qwen/qwen3.7-max',
-    tier: 'standard',
-    max_context_tokens: null,
-    peak_utc_hours: null,
-    input: 2.5,
-    output: 7.5,
-    cache_read: 0.5,
-    cache_write: 3.125
   },
   {
     provider_id: 'command-code',
@@ -696,25 +730,80 @@ export const pricing: PricingEntry[] = [
   },
   {
     provider_id: 'command-code',
-    model_id: 'moonshotai/kimi-k2.6',
+    model_id: 'qwen/qwen3.7-max',
     tier: 'standard',
     max_context_tokens: null,
     peak_utc_hours: null,
-    input: 0.95,
-    output: 4,
-    cache_read: 0.16,
+    input: 2.5,
+    output: 7.5,
+    cache_read: 0.5,
+    cache_write: 3.13
+  },
+  {
+    provider_id: 'opencode',
+    model_id: 'qwen/qwen3.7-max',
+    tier: 'standard',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 2.5,
+    output: 7.5,
+    cache_read: 0.5,
+    cache_write: 3.125
+  },
+  {
+    provider_id: 'command-code',
+    model_id: 'stepfun/step-3.5-flash',
+    tier: 'standard',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 0.1,
+    output: 0.3,
+    cache_read: 0.02,
+    cache_write: null
+  },
+  {
+    provider_id: 'command-code',
+    model_id: 'zai-org/glm-5.1',
+    tier: 'standard',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 1.4,
+    output: 4.4,
+    cache_read: 0.26,
     cache_write: null
   },
   {
     provider_id: 'opencode',
-    model_id: 'moonshotai/kimi-k2.6',
+    model_id: 'zai-org/glm-5.1',
     tier: 'standard',
     max_context_tokens: null,
     peak_utc_hours: null,
-    input: 0.95,
-    output: 4,
-    cache_read: 0.16,
+    input: 1.4,
+    output: 4.4,
+    cache_read: 0.26,
     cache_write: null
+  },
+  {
+    provider_id: 'command-code',
+    model_id: 'minimaxai/minimax-m2.7',
+    tier: 'standard',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 0.3,
+    output: 1.2,
+    cache_read: 0.06,
+    cache_write: null
+  },
+  {
+    provider_id: 'opencode',
+    model_id: 'minimaxai/minimax-m2.7',
+    tier: 'standard',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 0.3,
+    output: 1.2,
+    cache_read: 0.06,
+    cache_write: 0.375
   },
   {
     provider_id: 'command-code',
@@ -726,28 +815,6 @@ export const pricing: PricingEntry[] = [
     output: 7.8,
     cache_read: 0.26,
     cache_write: 1.63
-  },
-  {
-    provider_id: 'command-code',
-    model_id: 'zai-org/glm-5.1',
-    tier: 'standard',
-    max_context_tokens: null,
-    peak_utc_hours: null,
-    input: 1.4,
-    output: 4.4,
-    cache_read: 0.26,
-    cache_write: null
-  },
-  {
-    provider_id: 'opencode',
-    model_id: 'zai-org/glm-5.1',
-    tier: 'standard',
-    max_context_tokens: null,
-    peak_utc_hours: null,
-    input: 1.4,
-    output: 4.4,
-    cache_read: 0.26,
-    cache_write: null
   },
   {
     provider_id: 'command-code',
@@ -784,25 +851,47 @@ export const pricing: PricingEntry[] = [
   },
   {
     provider_id: 'command-code',
-    model_id: 'minimaxai/minimax-m2.7',
+    model_id: 'moonshotai/kimi-k2.6',
     tier: 'standard',
     max_context_tokens: null,
     peak_utc_hours: null,
-    input: 0.3,
-    output: 1.2,
-    cache_read: 0.06,
+    input: 0.95,
+    output: 4,
+    cache_read: 0.16,
     cache_write: null
   },
   {
     provider_id: 'opencode',
-    model_id: 'minimaxai/minimax-m2.7',
+    model_id: 'moonshotai/kimi-k2.6',
     tier: 'standard',
     max_context_tokens: null,
     peak_utc_hours: null,
-    input: 0.3,
-    output: 1.2,
-    cache_read: 0.06,
-    cache_write: 0.375
+    input: 0.95,
+    output: 4,
+    cache_read: 0.16,
+    cache_write: null
+  },
+  {
+    provider_id: 'command-code',
+    model_id: 'zai-org/glm-5',
+    tier: 'standard',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 1,
+    output: 3.2,
+    cache_read: 0.2,
+    cache_write: null
+  },
+  {
+    provider_id: 'command-code',
+    model_id: 'moonshotai/kimi-k2.5',
+    tier: 'standard',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 0.6,
+    output: 3,
+    cache_read: 0.1,
+    cache_write: null
   },
   {
     provider_id: 'command-code',
@@ -825,38 +914,5 @@ export const pricing: PricingEntry[] = [
     output: 1.2,
     cache_read: 0.06,
     cache_write: 0.375
-  },
-  {
-    provider_id: 'command-code',
-    model_id: 'zai-org/glm-5',
-    tier: 'standard',
-    max_context_tokens: null,
-    peak_utc_hours: null,
-    input: 1,
-    output: 3.2,
-    cache_read: 0.2,
-    cache_write: null
-  },
-  {
-    provider_id: 'command-code',
-    model_id: 'stepfun/step-3.5-flash',
-    tier: 'standard',
-    max_context_tokens: null,
-    peak_utc_hours: null,
-    input: 0.1,
-    output: 0.3,
-    cache_read: 0.02,
-    cache_write: null
-  },
-  {
-    provider_id: 'command-code',
-    model_id: 'moonshotai/kimi-k2.5',
-    tier: 'standard',
-    max_context_tokens: null,
-    peak_utc_hours: null,
-    input: 0.6,
-    output: 3,
-    cache_read: 0.1,
-    cache_write: null
   }
 ]
