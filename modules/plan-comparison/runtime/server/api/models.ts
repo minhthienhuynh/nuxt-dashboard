@@ -2,6 +2,66 @@ import type { Model } from '../../app/types'
 
 export const models: Model[] = [
   {
+    id: 'google/gemini-3.8-flash',
+    slug: 'gemini-3-8-flash',
+    name: 'Gemini 3.8 Flash',
+    context_tokens: 1000000,
+    intelligence: null,
+    tok_per_sec: null,
+    open_weight: false,
+    release_date: '2026-09-02',
+    has_text: true,
+    has_vision: true,
+    has_reasoning: true,
+    best_for: 'newest Gemini Flash, improved core reasoning',
+    aa: 58.68
+  },
+  {
+    id: 'meta/muse-spark-1.3',
+    slug: 'muse-spark-1-3',
+    name: 'Muse Spark 1.3',
+    context_tokens: 1000000,
+    intelligence: null,
+    tok_per_sec: null,
+    open_weight: true,
+    release_date: '2026-09-02',
+    has_text: true,
+    has_vision: true,
+    has_reasoning: true,
+    best_for: 'multimodal reasoning for long-horizon agentic and coding workflows',
+    aa: 62.09
+  },
+  {
+    id: 'meta/muse-spark-1.3-contributor',
+    slug: 'muse-spark-1-3-contributor',
+    name: 'Muse Spark 1.3 Contributor',
+    context_tokens: 1000000,
+    intelligence: null,
+    tok_per_sec: null,
+    open_weight: true,
+    release_date: '2026-09-02',
+    has_text: true,
+    has_vision: true,
+    has_reasoning: true,
+    best_for: 'Muse Spark 1.3 at up to 95% off',
+    aa: 62.09
+  },
+  {
+    id: 'qwen/qwen3.8-max-0902',
+    slug: 'qwen3-8-max-0902',
+    name: 'Qwen 3.8 Max 0902',
+    context_tokens: 1000000,
+    intelligence: null,
+    tok_per_sec: null,
+    open_weight: true,
+    release_date: '2026-09-02',
+    has_text: true,
+    has_vision: true,
+    has_reasoning: true,
+    best_for: 'upgraded Qwen 3.8 Max: stronger coding & agentic tool use',
+    aa: null
+  },
+  {
     id: 'tencent/hy4-preview',
     slug: 'hy4-preview',
     name: 'Tencent Hy4 Preview',
@@ -29,7 +89,22 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: true,
     best_for: 'fast, affordable GLM coding with 1M context',
-    aa: 57
+    aa: 57.46
+  },
+  {
+    id: 'meituan/longcat-2.0',
+    slug: 'longcat-2-0',
+    name: 'LongCat 2.0',
+    context_tokens: 1048576,
+    intelligence: null,
+    tok_per_sec: null,
+    open_weight: true,
+    release_date: '2026-06-30',
+    has_text: true,
+    has_vision: false,
+    has_reasoning: true,
+    best_for: 'trillion-param MoE coding & agentic work with 1M context',
+    aa: 33.97
   },
   {
     id: 'qwen/qwen3.8-flash',
@@ -44,7 +119,22 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'fast low-cost agentic coding & reasoning — production commercial build of Flash-Next (AA 56)',
-    aa: 56
+    aa: 55.81
+  },
+  {
+    id: 'deepseek/deepseek-v4-flash-fast',
+    slug: 'deepseek-v4-flash-fast',
+    name: 'DeepSeek V4 Flash Fast',
+    context_tokens: 1000000,
+    intelligence: null,
+    tok_per_sec: null,
+    open_weight: true,
+    release_date: '2026-08-22',
+    has_text: true,
+    has_vision: false,
+    has_reasoning: true,
+    best_for: 'low-latency V4 Flash deployment',
+    aa: null
   },
   {
     id: 'deepseek/deepseek-v4-flash-vision-exp',
@@ -74,7 +164,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: true,
     best_for: 'frontier coding with emergent cyber capabilities',
-    aa: 60
+    aa: 59.51
   },
   {
     id: 'qwen/qwen3.8-27b',
@@ -89,22 +179,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'compact vision-language coding & agentic work',
-    aa: 52
-  },
-  {
-    id: 'google/gemini-3.7-flash',
-    slug: 'gemini-3-7-flash',
-    name: 'Gemini 3.7 Flash',
-    context_tokens: 1000000,
-    intelligence: 56,
-    tok_per_sec: 366,
-    open_weight: false,
-    release_date: '2026-08-13',
-    has_text: true,
-    has_vision: true,
-    has_reasoning: true,
-    best_for: 'higher-quality coding & agentic workflows, fewer tokens',
-    aa: 56
+    aa: 52.02
   },
   {
     id: 'deepseek/deepseek-v4-pro',
@@ -119,7 +194,22 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: true,
     best_for: 'hybrid-attention long-context reasoning',
-    aa: 53
+    aa: 53.20
+  },
+  {
+    id: 'google/gemini-3.7-flash',
+    slug: 'gemini-3-7-flash',
+    name: 'Gemini 3.7 Flash',
+    context_tokens: 1000000,
+    intelligence: 56,
+    tok_per_sec: 366,
+    open_weight: false,
+    release_date: '2026-08-13',
+    has_text: true,
+    has_vision: true,
+    has_reasoning: true,
+    best_for: 'higher-quality coding & agentic workflows, fewer tokens',
+    aa: 56.03
   },
   {
     id: 'xai/grok-4.6',
@@ -134,7 +224,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: true,
     best_for: 'frontier performance on coding, knowledge work, and STEM',
-    aa: 61
+    aa: 60.92
   },
   {
     id: 'meta/muse-spark-1.2',
@@ -149,7 +239,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'coding-optimized for agentic workflows and large codebases',
-    aa: 57
+    aa: 56.76
   },
   {
     id: 'meta/muse-spark-1.2-contributor',
@@ -164,7 +254,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'Muse Spark 1.2 at ~95% off',
-    aa: 57
+    aa: 56.76
   },
   {
     id: 'qwen/qwen3.8-max',
@@ -179,7 +269,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'autonomous long-horizon coding & professional work',
-    aa: 58
+    aa: 58.08
   },
   {
     id: 'deepseek/deepseek-v4-flash',
@@ -194,22 +284,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: true,
     best_for: 'fast hybrid-attention reasoning',
-    aa: 52
-  },
-  {
-    id: 'deepseek/deepseek-v4-flash-fast',
-    slug: 'deepseek-v4-flash-fast',
-    name: 'DeepSeek V4 Flash Fast',
-    context_tokens: 1000000,
-    intelligence: null,
-    tok_per_sec: null,
-    open_weight: true,
-    release_date: '2026-08-22',
-    has_text: true,
-    has_vision: false,
-    has_reasoning: true,
-    best_for: 'low-latency V4 Flash deployment',
-    aa: null
+    aa: 51.77
   },
   {
     id: 'thinkingmachines/inkling-small',
@@ -224,22 +299,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'lightweight MoE reasoning at lower cost and latency',
-    aa: 41
-  },
-  {
-    id: 'moonshotai/kimi-k3',
-    slug: 'kimi-k3',
-    name: 'Kimi K3',
-    context_tokens: 1000000,
-    intelligence: 59.7,
-    tok_per_sec: 38,
-    open_weight: true,
-    release_date: '2026-07-16',
-    has_text: true,
-    has_vision: true,
-    has_reasoning: true,
-    best_for: 'long-horizon coding & knowledge work with 1M context',
-    aa: 60
+    aa: 41.18
   },
   {
     id: 'qwen/qwen3.7-flash',
@@ -269,7 +329,22 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'multimodal MoE reasoning',
-    aa: 42
+    aa: 42.29
+  },
+  {
+    id: 'moonshotai/kimi-k3',
+    slug: 'kimi-k3',
+    name: 'Kimi K3',
+    context_tokens: 1000000,
+    intelligence: 59.7,
+    tok_per_sec: 38,
+    open_weight: true,
+    release_date: '2026-07-16',
+    has_text: true,
+    has_vision: true,
+    has_reasoning: true,
+    best_for: 'long-horizon coding & knowledge work with 1M context',
+    aa: 59.70
   },
   {
     id: 'gpt-5.6-luna',
@@ -284,7 +359,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'optimized for cost-sensitive workloads',
-    aa: 52
+    aa: 52.32
   },
   {
     id: 'gpt-5.6-sol',
@@ -299,7 +374,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'frontier model for complex professional work',
-    aa: 61
+    aa: 60.93
   },
   {
     id: 'xai/grok-4.5',
@@ -314,7 +389,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'smartest model for coding, agentic tasks, knowledge work',
-    aa: 56
+    aa: 55.76
   },
   {
     id: 'tencent/hy3-paid',
@@ -329,22 +404,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: true,
     best_for: 'sparse-MoE reasoning & agentic tool use',
-    aa: 42
-  },
-  {
-    id: 'meituan/longcat-2.0',
-    slug: 'longcat-2-0',
-    name: 'LongCat 2.0',
-    context_tokens: 1048576,
-    intelligence: null,
-    tok_per_sec: null,
-    open_weight: true,
-    release_date: '2026-06-30',
-    has_text: true,
-    has_vision: false,
-    has_reasoning: true,
-    best_for: 'trillion-param MoE coding & agentic work with 1M context',
-    aa: 34
+    aa: 42.21
   },
   {
     id: 'zai-org/glm-5.2-fast',
@@ -374,7 +434,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: true,
     best_for: 'powerful coding with 1M context and long-horizon tasks',
-    aa: 53
+    aa: 52.64
   },
   {
     id: 'moonshotai/kimi-k2.7-code-highspeed',
@@ -404,7 +464,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'improved long-horizon coding with vision',
-    aa: 43
+    aa: 43.02
   },
   {
     id: 'nvidia/nemotron-3-ultra-550b-a55b',
@@ -419,22 +479,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: true,
     best_for: 'open reasoning model for long-horizon autonomous agents',
-    aa: 38
-  },
-  {
-    id: 'qwen/qwen3.7-plus',
-    slug: 'qwen3-7-plus',
-    name: 'Qwen 3.7 Plus',
-    context_tokens: 1000000,
-    intelligence: 39.4,
-    tok_per_sec: 56,
-    open_weight: true,
-    release_date: '2026-06-02',
-    has_text: true,
-    has_vision: true,
-    has_reasoning: true,
-    best_for: 'agentic coding & reasoning at lower cost',
-    aa: 39
+    aa: 38.32
   },
   {
     id: 'minimaxai/minimax-m3',
@@ -449,7 +494,22 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'frontier coding, agents & native multimodality',
-    aa: 45
+    aa: 45.40
+  },
+  {
+    id: 'qwen/qwen3.7-plus',
+    slug: 'qwen3-7-plus',
+    name: 'Qwen 3.7 Plus',
+    context_tokens: 1000000,
+    intelligence: 39.4,
+    tok_per_sec: 56,
+    open_weight: true,
+    release_date: '2026-06-02',
+    has_text: true,
+    has_vision: true,
+    has_reasoning: true,
+    best_for: 'agentic coding & reasoning at lower cost',
+    aa: 39.37
   },
   {
     id: 'stepfun/step-3.7-flash',
@@ -464,22 +524,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'multimodal sparse-MoE reasoning',
-    aa: 31
-  },
-  {
-    id: 'qwen/qwen3.7-max',
-    slug: 'qwen3-7-max',
-    name: 'Qwen 3.7 Max',
-    context_tokens: 1000000,
-    intelligence: 46.7,
-    tok_per_sec: null,
-    open_weight: true,
-    release_date: '2026-05-21',
-    has_text: true,
-    has_vision: false,
-    has_reasoning: true,
-    best_for: 'frontier coding & long-horizon agent execution',
-    aa: 47
+    aa: 30.90
   },
   {
     id: 'xiaomi/mimo-v2.5',
@@ -494,7 +539,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: false,
     best_for: 'efficient long-context agentic coding',
-    aa: 38
+    aa: 38.04
   },
   {
     id: 'xiaomi/mimo-v2.5-pro',
@@ -509,112 +554,22 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: false,
     best_for: 'high-capability long-context agentic coding',
-    aa: 43
+    aa: 42.88
   },
   {
-    id: 'moonshotai/kimi-k2.6',
-    slug: 'kimi-k2-6',
-    name: 'Kimi K2.6',
-    context_tokens: 256000,
-    intelligence: 45.1,
+    id: 'qwen/qwen3.7-max',
+    slug: 'qwen3-7-max',
+    name: 'Qwen 3.7 Max',
+    context_tokens: 1000000,
+    intelligence: 46.7,
     tok_per_sec: null,
     open_weight: true,
-    release_date: '2026-04-21',
-    has_text: true,
-    has_vision: true,
-    has_reasoning: false,
-    best_for: 'long-horizon coding with vision',
-    aa: 45
-  },
-  {
-    id: 'qwen/qwen3.6-max-preview',
-    slug: 'qwen3-6-max-preview',
-    name: 'Qwen 3.6 Max Preview',
-    context_tokens: 200000,
-    intelligence: 41.1,
-    tok_per_sec: null,
-    open_weight: true,
-    release_date: '2026-04-20',
+    release_date: '2026-05-21',
     has_text: true,
     has_vision: false,
     has_reasoning: true,
-    best_for: 'vibe coding & efficient agent execution',
-    aa: 41
-  },
-  {
-    id: 'zai-org/glm-5.1',
-    slug: 'glm-5-1',
-    name: 'GLM-5.1',
-    context_tokens: 200000,
-    intelligence: 41,
-    tok_per_sec: 28,
-    open_weight: true,
-    release_date: '2026-04-07',
-    has_text: true,
-    has_vision: false,
-    has_reasoning: false,
-    best_for: 'long-horizon autonomous coding agent',
-    aa: 41
-  },
-  {
-    id: 'qwen/qwen3.6-plus',
-    slug: 'qwen3-6-plus',
-    name: 'Qwen 3.6 Plus',
-    context_tokens: 200000,
-    intelligence: 40.5,
-    tok_per_sec: null,
-    open_weight: true,
-    release_date: '2026-04-02',
-    has_text: true,
-    has_vision: true,
-    has_reasoning: true,
-    best_for: 'agentic coding & reasoning',
-    aa: 40
-  },
-  {
-    id: 'minimaxai/minimax-m2.7',
-    slug: 'minimax-m2-7',
-    name: 'MiniMax M2.7',
-    context_tokens: 200000,
-    intelligence: 38.9,
-    tok_per_sec: null,
-    open_weight: true,
-    release_date: '2026-03-18',
-    has_text: true,
-    has_vision: false,
-    has_reasoning: false,
-    best_for: 'end-to-end software engineering agent',
-    aa: 39
-  },
-  {
-    id: 'minimaxai/minimax-m2.5',
-    slug: 'minimax-m2-5',
-    name: 'MiniMax M2.5',
-    context_tokens: 200000,
-    intelligence: 34.5,
-    tok_per_sec: null,
-    open_weight: true,
-    release_date: '2026-02-12',
-    has_text: true,
-    has_vision: false,
-    has_reasoning: false,
-    best_for: 'cross-platform full-stack agentic dev',
-    aa: 34
-  },
-  {
-    id: 'zai-org/glm-5',
-    slug: 'glm-5',
-    name: 'GLM-5',
-    context_tokens: 200000,
-    intelligence: 40.6,
-    tok_per_sec: null,
-    open_weight: true,
-    release_date: '2026-02-12',
-    has_text: true,
-    has_vision: false,
-    has_reasoning: false,
-    best_for: 'multi-mode thinking & long-range planning',
-    aa: 41
+    best_for: 'frontier coding & long-horizon agent execution',
+    aa: 46.71
   },
   {
     id: 'stepfun/step-3.5-flash',
@@ -629,7 +584,97 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: true,
     best_for: 'fast sparse-MoE agentic reasoning',
-    aa: 27
+    aa: 26.52
+  },
+  {
+    id: 'zai-org/glm-5.1',
+    slug: 'glm-5-1',
+    name: 'GLM-5.1',
+    context_tokens: 200000,
+    intelligence: 41,
+    tok_per_sec: 28,
+    open_weight: true,
+    release_date: '2026-04-07',
+    has_text: true,
+    has_vision: false,
+    has_reasoning: false,
+    best_for: 'long-horizon autonomous coding agent',
+    aa: 40.97
+  },
+  {
+    id: 'minimaxai/minimax-m2.7',
+    slug: 'minimax-m2-7',
+    name: 'MiniMax M2.7',
+    context_tokens: 200000,
+    intelligence: 38.9,
+    tok_per_sec: null,
+    open_weight: true,
+    release_date: '2026-03-18',
+    has_text: true,
+    has_vision: false,
+    has_reasoning: false,
+    best_for: 'end-to-end software engineering agent',
+    aa: 38.87
+  },
+  {
+    id: 'qwen/qwen3.6-max-preview',
+    slug: 'qwen3-6-max-preview',
+    name: 'Qwen 3.6 Max Preview',
+    context_tokens: 200000,
+    intelligence: 41.1,
+    tok_per_sec: null,
+    open_weight: true,
+    release_date: '2026-04-20',
+    has_text: true,
+    has_vision: false,
+    has_reasoning: true,
+    best_for: 'vibe coding & efficient agent execution',
+    aa: 41.07
+  },
+  {
+    id: 'qwen/qwen3.6-plus',
+    slug: 'qwen3-6-plus',
+    name: 'Qwen 3.6 Plus',
+    context_tokens: 200000,
+    intelligence: 40.5,
+    tok_per_sec: null,
+    open_weight: true,
+    release_date: '2026-04-02',
+    has_text: true,
+    has_vision: true,
+    has_reasoning: true,
+    best_for: 'agentic coding & reasoning',
+    aa: 40.49
+  },
+  {
+    id: 'moonshotai/kimi-k2.6',
+    slug: 'kimi-k2-6',
+    name: 'Kimi K2.6',
+    context_tokens: 256000,
+    intelligence: 45.1,
+    tok_per_sec: null,
+    open_weight: true,
+    release_date: '2026-04-21',
+    has_text: true,
+    has_vision: true,
+    has_reasoning: false,
+    best_for: 'long-horizon coding with vision',
+    aa: 45.14
+  },
+  {
+    id: 'zai-org/glm-5',
+    slug: 'glm-5',
+    name: 'GLM-5',
+    context_tokens: 200000,
+    intelligence: 40.6,
+    tok_per_sec: null,
+    open_weight: true,
+    release_date: '2026-02-12',
+    has_text: true,
+    has_vision: false,
+    has_reasoning: false,
+    best_for: 'multi-mode thinking & long-range planning',
+    aa: 40.55
   },
   {
     id: 'moonshotai/kimi-k2.5',
@@ -644,6 +689,21 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: false,
     best_for: 'multimodal frontend coding',
-    aa: 36
+    aa: 36.02
+  },
+  {
+    id: 'minimaxai/minimax-m2.5',
+    slug: 'minimax-m2-5',
+    name: 'MiniMax M2.5',
+    context_tokens: 200000,
+    intelligence: 34.5,
+    tok_per_sec: null,
+    open_weight: true,
+    release_date: '2026-02-12',
+    has_text: true,
+    has_vision: false,
+    has_reasoning: false,
+    best_for: 'cross-platform full-stack agentic dev',
+    aa: 34.47
   }
 ]
