@@ -159,8 +159,8 @@ export function usePlanComparisonDatabase() {
   const status = ref<'idle' | 'pending' | 'success' | 'error'>('success')
   const error = ref<Error | null>(null)
 
-  const hideOldModels = ref(false)
-  const oldBefore = ref('2026-06-01')
+  const hideOldModels = ref(true)
+  const oldBefore = ref('2026-07-09')
   const hideLowAA = ref(false)
   const aaThreshold = ref(50)
   const sortOption = ref<SortOptionId>('newest')

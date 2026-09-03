@@ -36,7 +36,7 @@ const sortItems = (Object.keys(SORT_OPTIONS) as SortOptionId[])
   .map(id => ({ label: SORT_LABELS[id], value: id }))
 
 function onOldBeforeInput(value: string) {
-  oldBefore.value = value || '2026-06-01'
+  oldBefore.value = value || '2026-07-09'
 }
 
 function onAaThresholdInput(value: string | number) {
