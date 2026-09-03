@@ -182,6 +182,36 @@ export const models: Model[] = [
     aa: 57
   },
   {
+    id: 'meta/muse-spark-1.3',
+    slug: 'muse-spark-1-3',
+    name: 'Muse Spark 1.3',
+    context_tokens: 1000000,
+    intelligence: null,
+    tok_per_sec: null,
+    open_weight: true,
+    release_date: '2026-09-02',
+    has_text: true,
+    has_vision: true,
+    has_reasoning: true,
+    best_for: 'multimodal reasoning for long-horizon agentic and coding workflows',
+    aa: 62.09
+  },
+  {
+    id: 'meta/muse-spark-1.3-contributor',
+    slug: 'muse-spark-1-3-contributor',
+    name: 'Muse Spark 1.3 Contributor',
+    context_tokens: 1000000,
+    intelligence: null,
+    tok_per_sec: null,
+    open_weight: true,
+    release_date: '2026-09-02',
+    has_text: true,
+    has_vision: true,
+    has_reasoning: true,
+    best_for: 'Muse Spark 1.3 at up to 95% off',
+    aa: 62.09
+  },
+  {
     id: 'qwen/qwen3.8-max',
     slug: 'qwen3-8-max',
     name: 'Qwen 3.8 Max',

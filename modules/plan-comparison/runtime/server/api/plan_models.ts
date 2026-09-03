@@ -265,6 +265,28 @@ export const planModels: PlanModelEstimate[] = [
     }
   },
   {
+    plan_id: 'cmd-goat',
+    model_id: 'meta/muse-spark-1.3',
+    monthly_credits_usd: 20,
+    estimates: {
+      per_5h: 428,
+      per_week: 1070,
+      per_month: 2140
+    },
+    note: 'Synced 2026-09-02 from https://commandcode.ai/docs/plans/goat#usage-limits — Muse Spark 1.3 GOAT-only, $20 credits, published estimates 428/1,070/2,140'
+  },
+  {
+    plan_id: 'cmd-goat',
+    model_id: 'meta/muse-spark-1.3-contributor',
+    monthly_credits_usd: 20,
+    estimates: {
+      per_5h: 18200,
+      per_week: 45500,
+      per_month: 90900
+    },
+    note: 'Synced 2026-09-02 from https://commandcode.ai/docs/plans/goat#usage-limits — Muse Spark 1.3 Contributor, $20 credits, published estimates 18,200/45,500/90,900'
+  },
+  {
     plan_id: 'cmd-go',
     model_id: 'meta/muse-spark-1.2-contributor',
     monthly_credits_usd: 10,
@@ -274,6 +296,17 @@ export const planModels: PlanModelEstimate[] = [
       per_month: 45455
     },
     note: 'Derived from usage calculator formula (800 in / provider out / 50K cache read); Go page publishes no per-model estimates'
+  },
+  {
+    plan_id: 'cmd-go',
+    model_id: 'meta/muse-spark-1.3-contributor',
+    monthly_credits_usd: 10,
+    estimates: {
+      per_5h: 13636,
+      per_week: 27273,
+      per_month: 45455
+    },
+    note: 'Derived from usage calculator formula (800 in / 200 out / 50K cache read at $0.10/$0.20/$0.002); Go page publishes no per-model estimates'
   },
   {
     plan_id: 'cmd-goat',

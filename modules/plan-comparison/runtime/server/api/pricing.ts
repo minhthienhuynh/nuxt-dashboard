@@ -245,6 +245,28 @@ export const pricing: PricingEntry[] = [
   },
   {
     provider_id: 'command-code',
+    model_id: 'meta/muse-spark-1.3',
+    tier: 'standard',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 1.25,
+    output: 4.25,
+    cache_read: 0.15,
+    cache_write: null
+  },
+  {
+    provider_id: 'command-code',
+    model_id: 'meta/muse-spark-1.3-contributor',
+    tier: 'standard',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 0.1,
+    output: 0.2,
+    cache_read: 0.002,
+    cache_write: null
+  },
+  {
+    provider_id: 'command-code',
     model_id: 'meta/muse-spark-1.2-contributor',
     tier: 'standard',
     max_context_tokens: null,
