@@ -162,7 +162,7 @@ export function usePlanComparisonDatabase() {
   const hideOldModels = ref(true)
   const oldBefore = ref('2026-07-09')
   const hideLowAA = ref(false)
-  const aaThreshold = ref(50)
+  const aaThreshold = ref(40)
   const sortOption = ref<SortOptionId>('newest')
 
   const normalized = computed<NormalizedPlanComparisonData | null>(() => {

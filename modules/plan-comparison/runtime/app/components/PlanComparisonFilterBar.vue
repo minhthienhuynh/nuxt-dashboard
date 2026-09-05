@@ -41,7 +41,7 @@ function onOldBeforeInput(value: string) {
 
 function onAaThresholdInput(value: string | number) {
   const n = Number(value)
-  aaThreshold.value = value === '' || Number.isNaN(n) ? 50 : n
+  aaThreshold.value = value === '' || Number.isNaN(n) ? 40 : n
 }
 </script>
 

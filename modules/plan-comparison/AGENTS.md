@@ -35,6 +35,11 @@ Chỉ dẫn riêng cho thư mục này; các quy ước chung của repo xem `AG
   - Deal free là tạm thời ("while capacity lasts"), thêm vào rồi phải kéo ra khi hết hạn.
 - Khi check sync deals/usage: đếm số model trên bảng live **trừ các row FREE** trước khi đối chiếu với dataset (vd: bảng Go live 39 dòng = 38 model + 1 row Laguna S 2.1 FREE).
 
+## Model tạm / stealth (KHÔNG đưa vào dataset)
+
+- Model stealth ẩn danh, chỉ có trên 1 plan, không có thông số chính thức từ lab (vd: `Omen Alpha` — OpenCode Go 2026-09-04, maker không công bố, chỉ serve qua Go).
+- **Quy ước (user chốt 2026-09-05): KHÔNG thêm model tạm vào dataset**, tương tự model free — tránh thêm rồi phải kéo ra khi model bị rút/đổi tên sau reveal.
+
 ## Điểm dễ miss
 
 - Mapping planId hardcode ở 2 nơi: `PLAN_IDS` trong `usePlanComparisonDatabase.ts` và `PLAN_COMPARISON_PLANS` trong `plan-colors.ts`. Thêm/đổi plan phải sửa cả hai.

@@ -6,15 +6,6 @@ import type { Deal } from '../../app/types'
 export const deals: Deal[] = [
   {
     provider_id: 'command-code',
-    model_id: 'google/gemini-3.7-flash',
-    kind: 'percent_off',
-    percent_off: 50,
-    starts_at: null,
-    ends_at: '2026-12-31',
-    note: '50% off through December 31, 2026'
-  },
-  {
-    provider_id: 'command-code',
     model_id: 'minimaxai/minimax-m3',
     kind: 'percent_off',
     percent_off: 50,

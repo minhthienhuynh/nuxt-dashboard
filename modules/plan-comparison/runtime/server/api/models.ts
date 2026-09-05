@@ -14,7 +14,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'newest Gemini Flash, improved core reasoning',
-    aa: 58.68
+    aa: 47.07
   },
   {
     id: 'meta/muse-spark-1.3',
@@ -29,7 +29,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'multimodal reasoning for long-horizon agentic and coding workflows',
-    aa: 62.09
+    aa: 52.95
   },
   {
     id: 'meta/muse-spark-1.3-contributor',
@@ -44,7 +44,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'Muse Spark 1.3 at up to 95% off',
-    aa: 62.09
+    aa: 52.95
   },
   {
     id: 'qwen/qwen3.8-max-0902',
@@ -89,7 +89,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: true,
     best_for: 'fast, affordable GLM coding with 1M context',
-    aa: 57.46
+    aa: 46.22
   },
   {
     id: 'meituan/longcat-2.0',
@@ -104,7 +104,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: true,
     best_for: 'trillion-param MoE coding & agentic work with 1M context',
-    aa: 33.97
+    aa: 25.85
   },
   {
     id: 'qwen/qwen3.8-flash',
@@ -118,8 +118,8 @@ export const models: Model[] = [
     has_text: true,
     has_vision: true,
     has_reasoning: true,
-    best_for: 'fast low-cost agentic coding & reasoning — production commercial build of Flash-Next (AA 56)',
-    aa: 55.81
+    best_for: 'fast low-cost agentic coding & reasoning — production commercial build of Flash-Next (AA 46)',
+    aa: 45.58
   },
   {
     id: 'deepseek/deepseek-v4-flash-fast',
@@ -149,7 +149,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: null,
     best_for: 'fast hybrid-attention reasoning with vision; images billed as input tokens',
-    aa: 51
+    aa: 41.54
   },
   {
     id: 'zai-org/glm-5.3',
@@ -164,7 +164,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: true,
     best_for: 'frontier coding with emergent cyber capabilities',
-    aa: 59.51
+    aa: 48.58
   },
   {
     id: 'qwen/qwen3.8-27b',
@@ -179,7 +179,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'compact vision-language coding & agentic work',
-    aa: 52.02
+    aa: 41.41
   },
   {
     id: 'deepseek/deepseek-v4-pro',
@@ -194,7 +194,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: true,
     best_for: 'hybrid-attention long-context reasoning',
-    aa: 53.20
+    aa: 42.11
   },
   {
     id: 'google/gemini-3.7-flash',
@@ -209,7 +209,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'higher-quality coding & agentic workflows, fewer tokens',
-    aa: 56.03
+    aa: 45.24
   },
   {
     id: 'xai/grok-4.6',
@@ -224,7 +224,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: true,
     best_for: 'frontier performance on coding, knowledge work, and STEM',
-    aa: 60.92
+    aa: 50.58
   },
   {
     id: 'meta/muse-spark-1.2',
@@ -239,7 +239,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'coding-optimized for agentic workflows and large codebases',
-    aa: 56.76
+    aa: 46.84
   },
   {
     id: 'meta/muse-spark-1.2-contributor',
@@ -254,7 +254,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'Muse Spark 1.2 at ~95% off',
-    aa: 56.76
+    aa: 46.84
   },
   {
     id: 'qwen/qwen3.8-max',
@@ -269,7 +269,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'autonomous long-horizon coding & professional work',
-    aa: 58.08
+    aa: 46.91
   },
   {
     id: 'deepseek/deepseek-v4-flash',
@@ -284,7 +284,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: true,
     best_for: 'fast hybrid-attention reasoning',
-    aa: 51.77
+    aa: 40.84
   },
   {
     id: 'thinkingmachines/inkling-small',
@@ -299,7 +299,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'lightweight MoE reasoning at lower cost and latency',
-    aa: 41.18
+    aa: 32.30
   },
   {
     id: 'qwen/qwen3.7-flash',
@@ -329,7 +329,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'multimodal MoE reasoning',
-    aa: 42.29
+    aa: 32.17
   },
   {
     id: 'moonshotai/kimi-k3',
@@ -344,7 +344,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'long-horizon coding & knowledge work with 1M context',
-    aa: 59.70
+    aa: 50.23
   },
   {
     id: 'gpt-5.6-luna',
@@ -359,7 +359,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'optimized for cost-sensitive workloads',
-    aa: 52.32
+    aa: 43.44
   },
   {
     id: 'gpt-5.6-sol',
@@ -374,7 +374,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'frontier model for complex professional work',
-    aa: 60.93
+    aa: 51.26
   },
   {
     id: 'xai/grok-4.5',
@@ -389,7 +389,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'smartest model for coding, agentic tasks, knowledge work',
-    aa: 55.76
+    aa: 45.48
   },
   {
     id: 'tencent/hy3-paid',
@@ -404,7 +404,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: true,
     best_for: 'sparse-MoE reasoning & agentic tool use',
-    aa: 42.21
+    aa: 33.25
   },
   {
     id: 'zai-org/glm-5.2-fast',
@@ -434,7 +434,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: true,
     best_for: 'powerful coding with 1M context and long-horizon tasks',
-    aa: 52.64
+    aa: 42.54
   },
   {
     id: 'moonshotai/kimi-k2.7-code-highspeed',
@@ -464,7 +464,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'improved long-horizon coding with vision',
-    aa: 43.02
+    aa: 33.86
   },
   {
     id: 'nvidia/nemotron-3-ultra-550b-a55b',
@@ -479,7 +479,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: true,
     best_for: 'open reasoning model for long-horizon autonomous agents',
-    aa: 38.32
+    aa: 29.55
   },
   {
     id: 'minimaxai/minimax-m3',
@@ -494,7 +494,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'frontier coding, agents & native multimodality',
-    aa: 45.40
+    aa: 35.75
   },
   {
     id: 'qwen/qwen3.7-plus',
@@ -509,7 +509,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'agentic coding & reasoning at lower cost',
-    aa: 39.37
+    aa: 30.81
   },
   {
     id: 'stepfun/step-3.7-flash',
@@ -524,7 +524,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'multimodal sparse-MoE reasoning',
-    aa: 30.90
+    aa: 22.88
   },
   {
     id: 'xiaomi/mimo-v2.5',
@@ -539,7 +539,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: false,
     best_for: 'efficient long-context agentic coding',
-    aa: 38.04
+    aa: 29.53
   },
   {
     id: 'xiaomi/mimo-v2.5-pro',
@@ -554,7 +554,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: false,
     best_for: 'high-capability long-context agentic coding',
-    aa: 42.88
+    aa: 32.59
   },
   {
     id: 'qwen/qwen3.7-max',
@@ -569,7 +569,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: true,
     best_for: 'frontier coding & long-horizon agent execution',
-    aa: 46.71
+    aa: 36.98
   },
   {
     id: 'stepfun/step-3.5-flash',
@@ -584,7 +584,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: true,
     best_for: 'fast sparse-MoE agentic reasoning',
-    aa: 26.52
+    aa: 19.54
   },
   {
     id: 'zai-org/glm-5.1',
@@ -599,7 +599,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: false,
     best_for: 'long-horizon autonomous coding agent',
-    aa: 40.97
+    aa: 31.91
   },
   {
     id: 'minimaxai/minimax-m2.7',
@@ -614,7 +614,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: false,
     best_for: 'end-to-end software engineering agent',
-    aa: 38.87
+    aa: 30.06
   },
   {
     id: 'qwen/qwen3.6-max-preview',
@@ -629,7 +629,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: true,
     best_for: 'vibe coding & efficient agent execution',
-    aa: 41.07
+    aa: 32.87
   },
   {
     id: 'qwen/qwen3.6-plus',
@@ -644,7 +644,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: true,
     best_for: 'agentic coding & reasoning',
-    aa: 40.49
+    aa: 31.50
   },
   {
     id: 'moonshotai/kimi-k2.6',
@@ -659,7 +659,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: false,
     best_for: 'long-horizon coding with vision',
-    aa: 45.14
+    aa: 35.85
   },
   {
     id: 'zai-org/glm-5',
@@ -674,7 +674,7 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: false,
     best_for: 'multi-mode thinking & long-range planning',
-    aa: 40.55
+    aa: 32.40
   },
   {
     id: 'moonshotai/kimi-k2.5',
@@ -689,7 +689,7 @@ export const models: Model[] = [
     has_vision: true,
     has_reasoning: false,
     best_for: 'multimodal frontend coding',
-    aa: 36.02
+    aa: 27.63
   },
   {
     id: 'minimaxai/minimax-m2.5',
@@ -704,6 +704,6 @@ export const models: Model[] = [
     has_vision: false,
     has_reasoning: false,
     best_for: 'cross-platform full-stack agentic dev',
-    aa: 34.47
+    aa: 26.83
   }
 ]

@@ -1182,16 +1182,5 @@ export const planModels: PlanModelEstimate[] = [
       per_week: 2880,
       per_month: 5750
     }
-  },
-  {
-    plan_id: 'oc-go',
-    model_id: 'minimaxai/minimax-m2.5',
-    monthly_credits_usd: 60,
-    estimates: {
-      per_5h: 3200,
-      per_week: 8000,
-      per_month: 16000
-    },
-    note: 'Synced 2026-09-02 from https://opencode.ai/docs/go — added to Go lineup (was not on Go at module init)'
   }
 ]
