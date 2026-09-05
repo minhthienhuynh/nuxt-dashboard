@@ -56,8 +56,8 @@ describe('effectiveCost', () => {
     expect(effectiveCost('xiaomi/mimo-v2.5', pricingIndex)).toBeCloseTo(0.000308, 6)
   })
 
-  it('uses the deal-effective override price for gemini 3.7 flash', () => {
-    expect(effectiveCost('google/gemini-3.7-flash', pricingIndex)).toBeCloseTo(0.0051, 6)
+  it('falls back to the listed price when the deal expires (gemini 3.7 flash)', () => {
+    expect(effectiveCost('google/gemini-3.7-flash', pricingIndex)).toBeCloseTo(0.0102, 6)
   })
 
   it('uses the listed price and default output tokens for a non-overridden model', () => {
