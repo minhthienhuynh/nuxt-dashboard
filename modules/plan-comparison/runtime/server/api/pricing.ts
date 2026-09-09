@@ -80,7 +80,7 @@ export const pricing: PricingEntry[] = [
   },
   {
     provider_id: 'command-code',
-    model_id: 'zai-org/glm-5.3-flash',
+    model_id: 'z-ai/glm-5.3-flash',
     tier: 'standard',
     max_context_tokens: null,
     peak_utc_hours: null,
@@ -91,7 +91,7 @@ export const pricing: PricingEntry[] = [
   },
   {
     provider_id: 'opencode',
-    model_id: 'zai-org/glm-5.3-flash',
+    model_id: 'z-ai/glm-5.3-flash',
     tier: 'standard',
     max_context_tokens: null,
     peak_utc_hours: null,
