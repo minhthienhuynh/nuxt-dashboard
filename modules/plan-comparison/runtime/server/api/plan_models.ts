@@ -36,7 +36,7 @@ export const planModels: PlanModelEstimate[] = [
   },
   {
     plan_id: 'cmd-go',
-    model_id: 'zai-org/glm-5.3-flash',
+    model_id: 'z-ai/glm-5.3-flash',
     monthly_credits_usd: 10,
     estimates: {
       per_5h: 1744,
@@ -499,7 +499,7 @@ export const planModels: PlanModelEstimate[] = [
   },
   {
     plan_id: 'cmd-goat',
-    model_id: 'zai-org/glm-5.3-flash',
+    model_id: 'z-ai/glm-5.3-flash',
     monthly_credits_usd: 40,
     estimates: {
       per_5h: 4720,
@@ -942,7 +942,7 @@ export const planModels: PlanModelEstimate[] = [
   },
   {
     plan_id: 'oc-go',
-    model_id: 'zai-org/glm-5.3-flash',
+    model_id: 'z-ai/glm-5.3-flash',
     monthly_credits_usd: 15,
     estimates: {
       per_5h: 1580,
