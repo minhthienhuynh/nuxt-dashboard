@@ -150,11 +150,11 @@ export const planModels: PlanModelEstimate[] = [
     model_id: 'deepseek/deepseek-v4-flash',
     monthly_credits_usd: 10,
     estimates: {
-      per_5h: 4559,
-      per_week: 9119,
-      per_month: 15198
+      per_5h: 7692,
+      per_week: 15385,
+      per_month: 25641
     },
-    note: 'Derived from usage calculator formula (800 in / provider out / 50K cache read); Go page publishes no per-model estimates'
+    note: 'Recalc 2026-09-10: derived from usage calculator formula (800 in / 200 out / 50K cache) at off-peak $0.15/$0.60/$0.003 per 1M (V4 Flash repriced); Go $10 limits 3/6/10'
   },
   {
     plan_id: 'cmd-go',
@@ -647,10 +647,11 @@ export const planModels: PlanModelEstimate[] = [
     model_id: 'deepseek/deepseek-v4-flash',
     monthly_credits_usd: 60,
     estimates: {
-      per_5h: 18200,
-      per_week: 45600,
-      per_month: 91200
-    }
+      per_5h: 30800,
+      per_week: 76900,
+      per_month: 154000
+    },
+    note: 'Synced 2026-09-10 from https://commandcode.ai/docs/plans/goat#usage-limits — published requests raised to 30800/76900/154000 (V4 Flash now shares V4.1 Flash off-peak rates $0.15/$0.60/$0.003; same $60 monthly credits)'
   },
   {
     plan_id: 'cmd-goat',
@@ -976,12 +977,13 @@ export const planModels: PlanModelEstimate[] = [
   {
     plan_id: 'oc-go',
     model_id: 'z-ai/glm-5.3-flash',
-    monthly_credits_usd: 15,
+    monthly_credits_usd: 60,
     estimates: {
-      per_5h: 1580,
-      per_week: 3950,
-      per_month: 7900
-    }
+      per_5h: 6320,
+      per_week: 15790,
+      per_month: 31580
+    },
+    note: 'Synced 2026-09-10 from https://opencode.ai/docs/go — monthly limit corrected $15 -> $60 and published requests 6320/15790/31580 ($0.15/$0.50/$0.03)'
   },
   {
     plan_id: 'oc-go',
@@ -1009,10 +1011,11 @@ export const planModels: PlanModelEstimate[] = [
     model_id: 'deepseek/deepseek-v4-flash-vision-exp',
     monthly_credits_usd: 15,
     estimates: {
-      per_5h: 3800,
-      per_week: 9450,
-      per_month: 18900
-    }
+      per_5h: 6500,
+      per_week: 16250,
+      per_month: 32500
+    },
+    note: 'Synced 2026-09-10 from https://opencode.ai/docs/go — published requests 6500/16250/32500; OpenCode now lists off-peak $0.15/$0.60/$0.003, peak $0.30/$1.20/$0.006'
   },
   {
     plan_id: 'oc-go',
@@ -1070,10 +1073,11 @@ export const planModels: PlanModelEstimate[] = [
     model_id: 'deepseek/deepseek-v4-flash',
     monthly_credits_usd: 30,
     estimates: {
-      per_5h: 7600,
-      per_week: 18900,
-      per_month: 37800
-    }
+      per_5h: 13000,
+      per_week: 32500,
+      per_month: 65000
+    },
+    note: 'Synced 2026-09-10 from https://opencode.ai/docs/go — published requests 13000/32500/65000 (V4 Flash repriced to off-peak $0.15/$0.60/$0.003, peak $0.30/$1.20/$0.006)'
   },
   {
     plan_id: 'oc-go',
@@ -1168,13 +1172,13 @@ export const planModels: PlanModelEstimate[] = [
   {
     plan_id: 'oc-go',
     model_id: 'qwen/qwen3.7-max',
-    monthly_credits_usd: 60,
+    monthly_credits_usd: 30,
     estimates: {
       per_5h: 170,
       per_week: 420,
       per_month: 840
     },
-    note: 'Recalc 2026-09-02 from https://opencode.ai/docs/go usage table — request estimates halved (was 340/840/1690 at module init), same $2.50/$7.50/$0.50 rates'
+    note: 'Recalc 2026-09-10 from https://opencode.ai/docs/go — monthly limit corrected $60 -> $30; published requests 170/420/840 unchanged'
   },
   {
     plan_id: 'oc-go',

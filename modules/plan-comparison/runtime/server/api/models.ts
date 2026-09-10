@@ -133,8 +133,8 @@ export const models: Model[] = [
     has_text: true,
     has_vision: true,
     has_reasoning: true,
-    best_for: 'fast low-cost agentic coding & reasoning — production commercial build of Flash-Next (AA 42)',
-    aa: 42.24
+    best_for: 'fast low-cost agentic coding & reasoning — production commercial build of Flash-Next (AA 40)',
+    aa: 39.91
   },
   {
     id: 'deepseek/deepseek-v4-flash-fast',
