@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { DEFAULT_AA_THRESHOLD, DEFAULT_OLD_BEFORE } from './plan-filter-defaults'
 import { normalizePlanComparisonDatabase } from './usePlanComparisonDatabase'
 import type { Model, Plan, PlanModelEstimate, PlanComparisonDatabase } from '../types'
 
@@ -102,5 +103,34 @@ describe('normalizePlanComparisonDatabase - dot rows', () => {
     expect(result.creditRows.find(r => r.model.id === 'no-req')).toBeDefined()
     expect(result.dotRows.find(r => r.model.id === 'no-req')).toBeUndefined()
     expect(result.noRequestModelNames).toContain(model.name)
+  })
+})
+
+describe('plan comparison filter defaults', () => {
+  it('defaults the "hide old models" cutoff to 2026-08-14 and the AA threshold to 30', () => {
+    expect(DEFAULT_OLD_BEFORE).toBe('2026-08-14')
+    expect(DEFAULT_AA_THRESHOLD).toBe(30)
+  })
+
+  it('hides models released before the default cutoff but keeps the cutoff day itself', () => {
+    const dayBefore = makeModel({ id: 'day-before', name: 'Day Before', release_date: '2026-08-13' })
+    const onCutoff = makeModel({ id: 'on-cutoff', name: 'On Cutoff', release_date: '2026-08-14' })
+    const db = makeDatabase([dayBefore, onCutoff], [
+      { plan_id: 'cmd-go', model_id: 'day-before', monthly_credits_usd: 10, estimates: null },
+      { plan_id: 'cmd-go', model_id: 'on-cutoff', monthly_credits_usd: 10, estimates: null }
+    ])
+
+    const result = normalizePlanComparisonDatabase(db, {
+      hideOldModels: true,
+      oldBefore: DEFAULT_OLD_BEFORE,
+      hideLowAA: false,
+      aaThreshold: DEFAULT_AA_THRESHOLD
+    })
+
+    // Released the day before the cutoff -> filtered out entirely (not merely "unfunded").
+    expect(result.creditRows.find(r => r.model.id === 'day-before')).toBeUndefined()
+    expect(result.skippedModelNames).not.toContain(dayBefore.name)
+    // Released exactly on the cutoff -> kept, because the comparison is strict "<".
+    expect(result.creditRows.find(r => r.model.id === 'on-cutoff')).toBeDefined()
   })
 })

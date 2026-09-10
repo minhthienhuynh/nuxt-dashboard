@@ -40,6 +40,13 @@ Chỉ dẫn riêng cho thư mục này; các quy ước chung của repo xem `AG
 - Model stealth ẩn danh, chỉ có trên 1 plan, không có thông số chính thức từ lab (vd: `Omen Alpha` — OpenCode Go 2026-09-04, maker không công bố, chỉ serve qua Go).
 - **Quy ước (user chốt 2026-09-05): KHÔNG thêm model tạm vào dataset**, tương tự model free — tránh thêm rồi phải kéo ra khi model bị rút/đổi tên sau reveal.
 
+## Filter mặc định (FilterBar)
+
+- Default nằm ở `runtime/app/composables/plan-filter-defaults.ts` — nguồn duy nhất cho cả giá trị khởi tạo (ref trong `usePlanComparisonDatabase`) lẫn fallback khi user xoá trắng input (`PlanComparisonFilterBar.vue`). **Sửa default phải sửa ở đây**, không hardcode lại trong composable/component: trước 2026-09-10 cutoff `2026-07-09` và ngưỡng AA `30` bị lặp ở 2 file, chỉ cần sửa một chỗ là chúng lệch nhau (input xoá trắng sẽ nhảy về giá trị cũ).
+- `DEFAULT_OLD_BEFORE` = `2026-08-14` ("Ẩn model cũ" bật sẵn; so sánh là `<` nghiêm ngặt nên model phát hành ĐÚNG ngày cutoff vẫn hiện).
+- `DEFAULT_AA_THRESHOLD` = `30` ("Ẩn model AA < N" tắt sẵn). Mỗi lần rescale AA phải xem lại ngưỡng này — scale hạ toàn cục mà giữ ngưỡng cũ thì gần hết model bị ẩn.
+- Đổi cutoff ảnh hưởng số row hiển thị rất mạnh (07-09 → 08-14: 25 → 12 credit rows trên dataset 48 model) vì hầu hết model mới ra trong tháng gần nhất. Muốn biết chính xác model nào bị ẩn, chạy `normalizePlanComparisonDatabase` với 2 cutoff rồi so `creditRows` — đừng đoán theo `release_date`.
+
 ## Điểm dễ miss
 
 - Mapping planId hardcode ở 2 nơi: `PLAN_IDS` trong `usePlanComparisonDatabase.ts` và `PLAN_COMPARISON_PLANS` trong `plan-colors.ts`. Thêm/đổi plan phải sửa cả hai.

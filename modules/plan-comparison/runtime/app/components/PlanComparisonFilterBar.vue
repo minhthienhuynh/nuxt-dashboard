@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { SORT_OPTIONS } from '../composables/usePlanComparisonSort'
 import type { SortOptionId } from '../composables/usePlanComparisonSort'
+import { DEFAULT_AA_THRESHOLD, DEFAULT_OLD_BEFORE } from '../composables/plan-filter-defaults'
 
 const sortOption = defineModel<SortOptionId>('sortOption', { required: true })
 const hideOldModels = defineModel<boolean>('hideOldModels', { required: true })
@@ -36,12 +37,12 @@ const sortItems = (Object.keys(SORT_OPTIONS) as SortOptionId[])
   .map(id => ({ label: SORT_LABELS[id], value: id }))
 
 function onOldBeforeInput(value: string) {
-  oldBefore.value = value || '2026-07-09'
+  oldBefore.value = value || DEFAULT_OLD_BEFORE
 }
 
 function onAaThresholdInput(value: string | number) {
   const n = Number(value)
-  aaThreshold.value = value === '' || Number.isNaN(n) ? 30 : n
+  aaThreshold.value = value === '' || Number.isNaN(n) ? DEFAULT_AA_THRESHOLD : n
 }
 </script>
 

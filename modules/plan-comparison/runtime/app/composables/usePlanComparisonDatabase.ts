@@ -9,6 +9,7 @@ import { models } from '../../server/api/models'
 import { pricing } from '../../server/api/pricing'
 import { planModels } from '../../server/api/plan_models'
 import { deals } from '../../server/api/deals'
+import { DEFAULT_AA_THRESHOLD, DEFAULT_OLD_BEFORE } from './plan-filter-defaults'
 
 const staticDatabase: PlanComparisonDatabase = {
   providers,
@@ -160,9 +161,9 @@ export function usePlanComparisonDatabase() {
   const error = ref<Error | null>(null)
 
   const hideOldModels = ref(true)
-  const oldBefore = ref('2026-07-09')
+  const oldBefore = ref(DEFAULT_OLD_BEFORE)
   const hideLowAA = ref(false)
-  const aaThreshold = ref(30)
+  const aaThreshold = ref(DEFAULT_AA_THRESHOLD)
   const sortOption = ref<SortOptionId>('newest')
 
   const normalized = computed<NormalizedPlanComparisonData | null>(() => {
