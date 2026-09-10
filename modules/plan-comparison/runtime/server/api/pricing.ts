@@ -3,6 +3,50 @@ import type { PricingEntry } from '../../app/types'
 export const pricing: PricingEntry[] = [
   {
     provider_id: 'command-code',
+    model_id: 'deepseek/deepseek-v4.1-flash',
+    tier: 'off_peak',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 0.15,
+    output: 0.6,
+    cache_read: 0.003,
+    cache_write: null
+  },
+  {
+    provider_id: 'command-code',
+    model_id: 'deepseek/deepseek-v4.1-flash',
+    tier: 'peak',
+    max_context_tokens: null,
+    peak_utc_hours: '01-04,06-10',
+    input: 0.3,
+    output: 1.2,
+    cache_read: 0.006,
+    cache_write: null
+  },
+  {
+    provider_id: 'opencode',
+    model_id: 'deepseek/deepseek-v4.1-flash',
+    tier: 'off_peak',
+    max_context_tokens: null,
+    peak_utc_hours: null,
+    input: 0.15,
+    output: 0.6,
+    cache_read: 0.003,
+    cache_write: null
+  },
+  {
+    provider_id: 'opencode',
+    model_id: 'deepseek/deepseek-v4.1-flash',
+    tier: 'peak',
+    max_context_tokens: null,
+    peak_utc_hours: '01-04,06-10',
+    input: 0.3,
+    output: 1.2,
+    cache_read: 0.006,
+    cache_write: null
+  },
+  {
+    provider_id: 'command-code',
     model_id: 'google/gemini-3.8-flash',
     tier: 'standard',
     max_context_tokens: null,
