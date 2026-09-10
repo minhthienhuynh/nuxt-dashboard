@@ -216,9 +216,9 @@ export const pricing: PricingEntry[] = [
     tier: 'off_peak',
     max_context_tokens: null,
     peak_utc_hours: null,
-    input: 0.22,
-    output: 0.66,
-    cache_read: 0.007,
+    input: 0.15,
+    output: 0.6,
+    cache_read: 0.003,
     cache_write: null
   },
   {
@@ -227,9 +227,9 @@ export const pricing: PricingEntry[] = [
     tier: 'peak',
     max_context_tokens: null,
     peak_utc_hours: '01-04,06-10',
-    input: 0.44,
-    output: 1.32,
-    cache_read: 0.014,
+    input: 0.3,
+    output: 1.2,
+    cache_read: 0.006,
     cache_write: null
   },
   {
@@ -404,9 +404,9 @@ export const pricing: PricingEntry[] = [
     tier: 'off_peak',
     max_context_tokens: null,
     peak_utc_hours: null,
-    input: 0.22,
-    output: 0.66,
-    cache_read: 0.007,
+    input: 0.15,
+    output: 0.6,
+    cache_read: 0.003,
     cache_write: null
   },
   {
@@ -415,9 +415,9 @@ export const pricing: PricingEntry[] = [
     tier: 'peak',
     max_context_tokens: null,
     peak_utc_hours: '01-04,06-10',
-    input: 0.44,
-    output: 1.32,
-    cache_read: 0.014,
+    input: 0.3,
+    output: 1.2,
+    cache_read: 0.006,
     cache_write: null
   },
   {
@@ -426,9 +426,9 @@ export const pricing: PricingEntry[] = [
     tier: 'off_peak',
     max_context_tokens: null,
     peak_utc_hours: null,
-    input: 0.22,
-    output: 0.66,
-    cache_read: 0.007,
+    input: 0.15,
+    output: 0.6,
+    cache_read: 0.003,
     cache_write: null
   },
   {
@@ -437,9 +437,9 @@ export const pricing: PricingEntry[] = [
     tier: 'peak',
     max_context_tokens: null,
     peak_utc_hours: '01-04,06-10',
-    input: 0.44,
-    output: 1.32,
-    cache_read: 0.014,
+    input: 0.3,
+    output: 1.2,
+    cache_read: 0.006,
     cache_write: null
   },
   {

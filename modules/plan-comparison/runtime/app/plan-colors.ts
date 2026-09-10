@@ -11,7 +11,7 @@ export interface PlanComparisonPlanMeta {
 export const PLAN_COMPARISON_PLANS: PlanComparisonPlanMeta[] = [
   { key: 'cmd', planId: 'cmd-go', label: 'Cmd Go', color: '#10b981' },
   { key: 'goat', planId: 'cmd-goat', label: 'GOAT', color: '#2563eb' },
-  { key: 'go', planId: 'oc-go', label: 'OpenCode Go', color: '#f59e0b' }
+  { key: 'go', planId: 'oc-go', label: 'OpenCode Go', color: '#bdc053' }
 ]
 
 export function planColor(planId: string): string {
