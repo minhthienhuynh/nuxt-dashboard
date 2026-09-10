@@ -39,8 +39,7 @@ function makeDatabase(models: Model[], planModels: PlanModelEstimate[]): PlanCom
     plans: [makePlan('cmd-go'), makePlan('cmd-goat'), makePlan('oc-go')],
     models,
     pricing: [],
-    plan_models: planModels,
-    deals: []
+    plan_models: planModels
   }
 }
 

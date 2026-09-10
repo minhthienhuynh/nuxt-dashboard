@@ -41,7 +41,6 @@ export interface PricingEntry {
   provider_id: string
   model_id: string
   tier: string
-  max_context_tokens: number | null
   peak_utc_hours: string | null
   input: number
   output: number
@@ -63,22 +62,10 @@ export interface PlanModelEstimate {
   note?: string
 }
 
-export interface Deal {
-  provider_id: string
-  model_id: string
-  kind: string
-  // percent_off is relative to the listed input price ($/1M); per-component discounts live in `note`.
-  percent_off: number
-  starts_at: string | null
-  ends_at: string | null
-  note: string
-}
-
 export interface PlanComparisonDatabase {
   providers: Provider[]
   plans: Plan[]
   models: Model[]
   pricing: PricingEntry[]
   plan_models: PlanModelEstimate[]
-  deals: Deal[]
 }

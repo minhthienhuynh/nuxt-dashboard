@@ -28,15 +28,15 @@ const SORT_HINTS: Record<SortOptionId, string> = {
   'context-desc': 'Context lớn nhất trước, trùng thì tên A→Z.',
   'aa-desc': 'AA cao nhất trước, trùng điểm thì tên A→Z.',
   'tps-desc': 'Nhanh nhất trước (Tok/s).',
-  'cheapest': 'Rẻ nhất trước (giá hiệu dụng 800 in / provider out / 50K cache).',
-  'priciest': 'Đắt nhất trước (giá hiệu dụng 800 in / provider out / 50K cache).'
+  'cheapest': 'Rẻ nhất trước (theo giá Input $/1M tok).',
+  'priciest': 'Đắt nhất trước (theo giá Input $/1M tok).'
 }
 
 const sortItems = (Object.keys(SORT_OPTIONS) as SortOptionId[])
   .map(id => ({ label: SORT_LABELS[id], value: id }))
 
 function onOldBeforeInput(value: string) {
-  oldBefore.value = value || '2026-07-09'
+  oldBefore.value = value || '2026-08-14'
 }
 
 function onAaThresholdInput(value: string | number) {

@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import type { Model, Plan, PlanModelEstimate, PlanComparisonDatabase } from '../types'
-import { buildPricingIndex, effectiveCost } from './usePlanComparisonPricing'
+import { buildPricingIndex, inputPrice } from './usePlanComparisonPricing'
 import { sortRows } from './usePlanComparisonSort'
 import type { SortableModelRow, SortOptionId } from './usePlanComparisonSort'
 import { providers } from '../../server/api/providers'
@@ -8,15 +8,13 @@ import { plans } from '../../server/api/plans'
 import { models } from '../../server/api/models'
 import { pricing } from '../../server/api/pricing'
 import { planModels } from '../../server/api/plan_models'
-import { deals } from '../../server/api/deals'
 
 const staticDatabase: PlanComparisonDatabase = {
   providers,
   plans,
   models,
   pricing,
-  plan_models: planModels,
-  deals
+  plan_models: planModels
 }
 
 const PLAN_IDS = {
@@ -107,7 +105,7 @@ export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filt
     context: model.context_tokens,
     aa: model.aa,
     tps: model.tok_per_sec,
-    effective: effectiveCost(model.id, pricingIndex),
+    inputPrice: inputPrice(model.id, pricingIndex),
     cmd: getFunding(PLAN_IDS.cmd, model.id),
     goat: getFunding(PLAN_IDS.goat, model.id),
     go: getFunding(PLAN_IDS.go, model.id)
@@ -160,7 +158,7 @@ export function usePlanComparisonDatabase() {
   const error = ref<Error | null>(null)
 
   const hideOldModels = ref(true)
-  const oldBefore = ref('2026-07-09')
+  const oldBefore = ref('2026-08-14')
   const hideLowAA = ref(false)
   const aaThreshold = ref(30)
   const sortOption = ref<SortOptionId>('newest')
