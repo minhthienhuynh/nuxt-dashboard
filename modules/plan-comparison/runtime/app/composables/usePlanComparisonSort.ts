@@ -1,4 +1,4 @@
-export type SortKey = 'release' | 'name' | 'context' | 'aa' | 'tps' | 'effective'
+export type SortKey = 'release' | 'name' | 'context' | 'aa' | 'tps' | 'inputPrice'
 export type SortDirection = 'asc' | 'desc'
 
 export type SortOptionId
@@ -25,12 +25,12 @@ export const SORT_OPTIONS: Record<SortOptionId, SortOption> = {
   'context-desc': { key: 'context', dir: 'desc' },
   'aa-desc': { key: 'aa', dir: 'desc' },
   'tps-desc': { key: 'tps', dir: 'desc' },
-  'cheapest': { key: 'effective', dir: 'asc' },
-  'priciest': { key: 'effective', dir: 'desc' }
+  'cheapest': { key: 'inputPrice', dir: 'asc' },
+  'priciest': { key: 'inputPrice', dir: 'desc' }
 }
 
-// Ties on these keys fall back to comparing model name; matches the prototype's behavior.
-const TIE_BREAK_KEYS: SortKey[] = ['aa', 'context', 'effective']
+// Ties on these keys fall back to comparing model name.
+const TIE_BREAK_KEYS: SortKey[] = ['aa', 'context', 'inputPrice']
 
 // Numeric-aware collator so "GLM-5.2" sorts before "GLM-5.10" instead of alphabetically.
 const collator = new Intl.Collator('vi', { numeric: true, sensitivity: 'base' })
@@ -45,7 +45,7 @@ export interface SortableModelRow {
   context: number | null
   aa: number | null
   tps: number | null
-  effective: number | null
+  inputPrice: number | null
 }
 
 function accessorFor<T extends SortableModelRow>(key: SortKey) {

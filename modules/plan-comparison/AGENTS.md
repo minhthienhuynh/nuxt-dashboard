@@ -7,18 +7,19 @@ Chỉ dẫn riêng cho thư mục này; các quy ước chung của repo xem `AG
 - `index.ts` — entry Nuxt module: đăng ký `runtime/app/components` qua `addComponentsDir` và route `/plan-comparison` qua hook `pages:extend`. Page KHÔNG nằm trong `app/pages` của app chính.
 - `runtime/app/pages/plan-comparison.vue` — entry UI, dùng layout `default` của app chính.
 - `runtime/app/components/` — auto-registered, bắt buộc prefix `PlanComparison*` (page dùng trực tiếp không cần import; prefix tránh đụng namespace component của app chính).
-- `runtime/app/composables/` — `usePlanComparisonDatabase` (state + filters + normalize + sort option), `usePlanComparisonPricing` (pricing index, effective cost), `usePlanComparisonSort` (`sortRows`). Test colocated cùng thư mục.
+- `runtime/app/composables/` — `usePlanComparisonDatabase` (state + filters + normalize + sort option), `usePlanComparisonPricing` (pricing index, giá input), `usePlanComparisonSort` (`sortRows`). Test colocated cùng thư mục.
 - `runtime/app/types.ts` — types domain dùng chung; các file dataset import type từ đây.
 - `runtime/app/plan-colors.ts` — nguồn duy nhất cho planId/label/màu của 3 plans (cmd, goat, go) và thứ tự series trên bar/tooltip.
 - `runtime/server/api/*.ts` — dataset tĩnh có type, **không phải Nitro endpoint** (không `defineEventHandler`); composable import trực tiếp. Không thêm endpoint mới ở đây nếu không có ý định serve qua HTTP.
 
-## Công thức effective price (Command Code usage profile)
+## Sort theo giá
 
-- `effectiveCost()` trong `runtime/app/composables/usePlanComparisonPricing.ts` tính giá một request theo profile dùng cố định: `(input×800 + output×outTokens + cache_read×50000) / 1e6` — pricing là $/M tokens nên chia 1e6.
-- `outTokens`: lookup `OUTPUT_TOKENS_BY_MODEL` theo model (glm: 150, minimax: 125, gpt-luna: 160...), model không có trong bảng dùng `DEFAULT_OUTPUT_TOKENS = 200`.
-- `getEffectivePricing()` ưu tiên `DEAL_EFFECTIVE_PRICING` (giá deal thời hạn) trước giá list trong pricing index.
-- Kết quả gắn vào field `effective` trên mỗi row trong `normalizePlanComparisonDatabase` — là cơ sở cho sort `cheapest`/`priciest`.
-- Quy đổi quota: `estimates.per_month` trong `runtime/server/api/plan_models.ts` ≈ `monthly_credits_usd / effectiveCost` làm tròn (vd: glm-5.3 cost 0.01478 → 10/0.01478 = 677; 20/0.01478 ≈ 1350). Đổi hằng số profile (800/50K/200) hoặc giá deal là phải cân nhắc cập nhật lại các estimates này.
+- `inputPrice()` trong `runtime/app/composables/usePlanComparisonPricing.ts` trả **giá input niêm yết** ($/1M token) của entry `command-code` ĐẦU TIÊN cho `model_id` đó — đúng con số cột **Input** trên bảng plan của Command Code (`docs/plans/goat#models-included`, `docs/plans/go`).
+- Sort `cheapest` / `priciest` dùng thẳng giá này (`SortKey = 'inputPrice'`). Không có công thức profile, không có hệ số output/cache, không có tiền xử lý tier.
+- Vì sao lấy entry đầu tiên: model nhiều context tier thì bảng hiển thị **tier đầu (rẻ nhất)**. Model có deal thì cột Input hiển thị **giá list** (giá đầu, phần gạch ngang) rồi mới tới giá deal ⇒ entry `command-code` đầu tiên cũng là giá list. Verified 2026-09-10: 47/47 model có giá khớp cả thứ tự lẫn giá trị với cột Input live.
+- Model không có giá (không có entry `command-code`, vd `meituan/longcat-2.0`) → `inputPrice` = `null`, luôn xếp **cuối** ở cả 2 chiều.
+- **Pitfall `peak`/`off_peak`:** nhiều model có 2 entry (`off_peak` rồi `peak`). Trang hiển thị giá off-peak ("Off-peak shown (17h/day)"), nên **chỉ cần giữ thứ tự sẵn có trong `pricing.ts`** (off_peak trước) — đừng sort lại file theo giá, sẽ làm sort lấy nhầm giá peak.
+- `estimates.per_month` trong `plan_models.ts` là ngân sách credit chia cho cost/request **theo công thức riêng của Command Code**, KHÔNG suy ra được từ cột Input. Đừng dùng nó để suy ngược giá.
 
 ## Nguồn cập nhật dữ liệu
 
@@ -29,7 +30,7 @@ Chỉ dẫn riêng cho thư mục này; các quy ước chung của repo xem `AG
 ## Model free (KHÔNG đưa vào dataset)
 
 - Trang Command Code có thể có model free 100% (vd: `Laguna S 2.1` — deal "FREE while capacity lasts", $0.00 input/output/cache read, không tiêu credit, có row riêng "FREE" trên bảng plans).
-- **Quy ước: KHÔNG thêm model free vào `models.ts` / `pricing.ts` / `deals.ts` / `plan_models.ts`.** Lý do:
+- **Quy ước: KHÔNG thêm model free vào `models.ts` / `pricing.ts` / `plan_models.ts`.** Lý do:
   - `estimates.per_month = budget / 0` → chia cho 0 (Infinity), phá vỡ sort `cheapest`/`priciest` và domain log-scale của dot chart.
   - So sánh credit/request trở nên vô nghĩa vì model free không tiêu credit của plan nào.
   - Deal free là tạm thời ("while capacity lasts"), thêm vào rồi phải kéo ra khi hết hạn.
