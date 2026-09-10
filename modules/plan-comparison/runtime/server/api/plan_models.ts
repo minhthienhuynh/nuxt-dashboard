@@ -3,6 +3,17 @@ import type { PlanModelEstimate } from '../../app/types'
 export const planModels: PlanModelEstimate[] = [
   {
     plan_id: 'cmd-go',
+    model_id: 'deepseek/deepseek-v4.1-flash',
+    monthly_credits_usd: 10,
+    estimates: {
+      per_5h: 7692,
+      per_week: 15385,
+      per_month: 25641
+    },
+    note: 'Synced 2026-09-10 from https://commandcode.ai/docs/plans/go — DeepSeek V4.1 Flash new on Go; estimates derived from usage calculator formula (800 in / 200 out / 50K cache read) at off-peak $0.15/$0.60/$0.003'
+  },
+  {
+    plan_id: 'cmd-go',
     model_id: 'meta/muse-spark-1.3-contributor',
     monthly_credits_usd: 10,
     estimates: {
@@ -441,6 +452,17 @@ export const planModels: PlanModelEstimate[] = [
       per_month: 5291
     },
     note: 'Derived from usage calculator formula (800 in / 125 out / 50K cache read); Go page publishes no per-model estimates'
+  },
+  {
+    plan_id: 'cmd-goat',
+    model_id: 'deepseek/deepseek-v4.1-flash',
+    monthly_credits_usd: 60,
+    estimates: {
+      per_5h: 30800,
+      per_week: 76900,
+      per_month: 154000
+    },
+    note: 'Synced 2026-09-10 from https://commandcode.ai/docs/plans/goat#usage-limits — DeepSeek V4.1 Flash new-model allowance $60, estimates published (30800/76900/154000); off-peak $0.15/$0.60/$0.003, peak $0.30/$1.20/$0.006 (01-04 & 06-10 UTC Mon-Fri)'
   },
   {
     plan_id: 'cmd-goat',
@@ -917,6 +939,17 @@ export const planModels: PlanModelEstimate[] = [
       per_month: 10582
     },
     note: 'Derived from usage calculator formula (800 in / provider out / 50K cache read); GOAT page publishes no per-model estimates'
+  },
+  {
+    plan_id: 'oc-go',
+    model_id: 'deepseek/deepseek-v4.1-flash',
+    monthly_credits_usd: 15,
+    estimates: {
+      per_5h: 6500,
+      per_week: 16250,
+      per_month: 32500
+    },
+    note: 'Synced 2026-09-10 from https://opencode.ai/docs/go — DeepSeek V4.1 Flash $15 monthly limit, usage table 6500/16250/32500'
   },
   {
     plan_id: 'oc-go',
