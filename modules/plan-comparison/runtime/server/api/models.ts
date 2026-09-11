@@ -13,8 +13,8 @@ export const models: Model[] = [
     has_text: true,
     has_vision: true,
     has_reasoning: true,
-    best_for: 'V4.1 hybrid-attention reasoning with vision',
-    aa: null
+    best_for: 'V4.1 hybrid-attention reasoning with vision (AA 40)',
+    aa: 39.55
   },
   {
     id: 'google/gemini-3.8-flash',
