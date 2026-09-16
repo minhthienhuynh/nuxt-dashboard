@@ -83,11 +83,11 @@ export const planModels: PlanModelEstimate[] = [
     model_id: 'deepseek/deepseek-v4-flash-vision-exp',
     monthly_credits_usd: 10,
     estimates: {
-      per_5h: 4559,
-      per_week: 9119,
-      per_month: 15198
+      per_5h: 7692,
+      per_week: 15385,
+      per_month: 25641
     },
-    note: 'Recalc 2026-08-27: 800 in / 200 out / 50K cache at off-peak $0.22/$0.66/$0.007 per 1M; Go $10 limits 3/6/10'
+    note: 'Recalc 2026-09-16: 800 in / 200 out / 50K cache at off-peak $0.15/$0.60/$0.003 per 1M (CC list-price drop); Go $10 limits 3/6/10'
   },
   {
     plan_id: 'cmd-go',
@@ -555,10 +555,11 @@ export const planModels: PlanModelEstimate[] = [
     model_id: 'deepseek/deepseek-v4-flash-vision-exp',
     monthly_credits_usd: 20,
     estimates: {
-      per_5h: 6080,
-      per_week: 15200,
-      per_month: 30400
-    }
+      per_5h: 10300,
+      per_week: 25600,
+      per_month: 51300
+    },
+    note: 'Synced 2026-09-16 from https://commandcode.ai/docs/plans/goat#usage-limits — Vision Exp 10300/25600/51300 on GOAT $20 (CC list-price drop to $0.15/$0.60/$0.003)'
   },
   {
     plan_id: 'cmd-goat',
