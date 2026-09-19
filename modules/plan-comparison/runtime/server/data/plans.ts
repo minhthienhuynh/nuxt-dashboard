@@ -17,7 +17,7 @@ export const plans: Plan[] = [
   {
     id: 'cmd-goat',
     provider_id: 'command-code',
-    name: 'GOAT Plan',
+    name: 'Cmd GOAT Plan',
     monthly_price_usd: 10,
     monthly_credit_usd: 70,
     has_api_access: true,

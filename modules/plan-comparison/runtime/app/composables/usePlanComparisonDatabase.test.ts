@@ -19,16 +19,25 @@ function makeModel(overrides: Partial<Model>): Model {
     id: 'model-a',
     slug: 'model-a',
     name: 'Model A',
-    context_tokens: 100000,
-    intelligence: null,
-    tok_per_sec: null,
-    open_weight: true,
-    release_date: '2026-08-01',
-    has_text: true,
-    has_vision: false,
-    has_reasoning: true,
-    best_for: 'testing',
-    aa: 50,
+    vendor: 'Acme',
+    category: 'opensource',
+    contextWindow: 100000,
+    reasoning: true,
+    vision: false,
+    inputCost: 1,
+    outputCost: 4,
+    cacheReadCost: 0.1,
+    cacheWriteCost: null,
+    tiers: [],
+    minPlanName: 'Go',
+    deal: null,
+    caps: {},
+    intelligenceIndex: 50,
+    codingIndex: 55,
+    outputTokensPerSec: 100,
+    releaseDate: null,
+    launchedAt: '2026-08-01',
+    timeOfDay: null,
     ...overrides
   }
 }
@@ -43,29 +52,55 @@ function makeDatabase(models: Model[], planModels: PlanModelEstimate[]): PlanCom
   }
 }
 
-const baseFilters = { hideOldModels: false, oldBefore: '2026-06-01', hideLowAA: false, aaThreshold: 50 }
+const baseFilters = { hideOldModels: false, oldBefore: '2026-06-01', hideLowIntel: false, intelThreshold: 30 }
 
 describe('normalizePlanComparisonDatabase - model filtering', () => {
-  it('excludes a model with no release date when hideOldModels is on', () => {
-    const model = makeModel({ id: 'no-date', release_date: null })
+  it('excludes a model with no launch date when hideOldModels is on', () => {
+    const model = makeModel({ id: 'no-date', launchedAt: null })
     const db = makeDatabase([model], [])
     const result = normalizePlanComparisonDatabase(db, { ...baseFilters, hideOldModels: true })
     expect(result.creditRows.find(r => r.model.id === 'no-date')).toBeUndefined()
     expect(result.skippedModelNames).not.toContain(model.name)
   })
 
-  it('excludes a model older than the cutoff when hideOldModels is on', () => {
-    const model = makeModel({ id: 'old', release_date: '2026-01-01' })
+  it('excludes a model launched before the cutoff when hideOldModels is on', () => {
+    const model = makeModel({ id: 'old', launchedAt: '2026-01-01' })
     const db = makeDatabase([model], [])
     const result = normalizePlanComparisonDatabase(db, { ...baseFilters, hideOldModels: true, oldBefore: '2026-06-01' })
     expect(result.creditRows.find(r => r.model.id === 'old')).toBeUndefined()
   })
 
-  it('excludes a model with no AA score when hideLowAA is on', () => {
-    const model = makeModel({ id: 'no-aa', aa: null })
-    const db = makeDatabase([model], [{ plan_id: 'cmd-go', model_id: 'no-aa', monthly_credits_usd: 10, estimates: null }])
-    const result = normalizePlanComparisonDatabase(db, { ...baseFilters, hideLowAA: true, aaThreshold: 50 })
-    expect(result.creditRows.find(r => r.model.id === 'no-aa')).toBeUndefined()
+  it('excludes a model below the intel threshold when hideLowIntel is on', () => {
+    const model = makeModel({ id: 'low-intel', intelligenceIndex: 20 })
+    const db = makeDatabase([model], [
+      { plan_id: 'cmd-go', model_id: 'low-intel', monthly_credits_usd: 10, estimates: null }
+    ])
+    const result = normalizePlanComparisonDatabase(db, { ...baseFilters, hideLowIntel: true, intelThreshold: 30 })
+    expect(result.creditRows.find(r => r.model.id === 'low-intel')).toBeUndefined()
+  })
+
+  it('excludes a model with no intel score when hideLowIntel is on', () => {
+    const model = makeModel({ id: 'no-intel', intelligenceIndex: null })
+    const db = makeDatabase([model], [
+      { plan_id: 'cmd-go', model_id: 'no-intel', monthly_credits_usd: 10, estimates: null }
+    ])
+    const result = normalizePlanComparisonDatabase(db, { ...baseFilters, hideLowIntel: true, intelThreshold: 30 })
+    expect(result.creditRows.find(r => r.model.id === 'no-intel')).toBeUndefined()
+  })
+})
+
+describe('normalizePlanComparisonDatabase - intel label', () => {
+  it('labels rows with the intel score and a dash when missing', () => {
+    const db = makeDatabase(
+      [makeModel({ id: 'a', intelligenceIndex: 42 }), makeModel({ id: 'b', name: 'Model B', intelligenceIndex: null })],
+      [
+        { plan_id: 'cmd-go', model_id: 'a', monthly_credits_usd: 10, estimates: null },
+        { plan_id: 'cmd-go', model_id: 'b', monthly_credits_usd: 10, estimates: null }
+      ]
+    )
+    const result = normalizePlanComparisonDatabase(db, baseFilters)
+    const labels = Object.fromEntries(result.creditRows.map(r => [r.model.id, r.label]))
+    expect(labels).toEqual({ a: 'Model A (42)', b: 'Model B (—)' })
   })
 })
 
@@ -78,7 +113,7 @@ describe('normalizePlanComparisonDatabase - credit rows', () => {
     expect(result.skippedModelNames).toContain(model.name)
   })
 
-  it('includes a model funded by at least one plan', () => {
+  it('includes a model funded by at least one plan with intel/speed fields', () => {
     const model = makeModel({ id: 'funded' })
     const db = makeDatabase([model], [
       { plan_id: 'cmd-go', model_id: 'funded', monthly_credits_usd: 10, estimates: { per_5h: 1, per_week: 2, per_month: 3 } }
@@ -88,6 +123,10 @@ describe('normalizePlanComparisonDatabase - credit rows', () => {
     expect(row).toBeDefined()
     expect(row?.cmd.credit).toBe(10)
     expect(row?.goat.credit).toBeNull()
+    expect(row?.label).toBe('Model A (50)')
+    expect(row?.intelligence).toBe(50)
+    expect(row?.speed).toBe(100)
+    expect(row?.context).toBe(100000)
   })
 })
 
