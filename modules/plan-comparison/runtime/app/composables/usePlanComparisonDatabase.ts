@@ -12,7 +12,7 @@ const PLAN_IDS = {
   go: 'oc-go'
 } as const
 
-export const DEFAULT_OLD_BEFORE = '2026-07-09'
+export const DEFAULT_OLD_BEFORE = '2026-07-31'
 export const DEFAULT_INTEL_THRESHOLD = 30
 
 export interface PlanFunding {
