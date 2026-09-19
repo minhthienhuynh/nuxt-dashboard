@@ -1,4 +1,4 @@
-export type SortKey = 'release' | 'name' | 'context' | 'aa' | 'tps' | 'inputPrice'
+export type SortKey = 'release' | 'name' | 'context' | 'intelligence' | 'speed' | 'inputPrice'
 export type SortDirection = 'asc' | 'desc'
 
 export type SortOptionId
@@ -7,8 +7,8 @@ export type SortOptionId
     | 'name-asc'
     | 'name-desc'
     | 'context-desc'
-    | 'aa-desc'
-    | 'tps-desc'
+    | 'intelligence-desc'
+    | 'speed-desc'
     | 'cheapest'
     | 'priciest'
 
@@ -23,14 +23,11 @@ export const SORT_OPTIONS: Record<SortOptionId, SortOption> = {
   'name-asc': { key: 'name', dir: 'asc' },
   'name-desc': { key: 'name', dir: 'desc' },
   'context-desc': { key: 'context', dir: 'desc' },
-  'aa-desc': { key: 'aa', dir: 'desc' },
-  'tps-desc': { key: 'tps', dir: 'desc' },
+  'intelligence-desc': { key: 'intelligence', dir: 'desc' },
+  'speed-desc': { key: 'speed', dir: 'desc' },
   'cheapest': { key: 'inputPrice', dir: 'asc' },
   'priciest': { key: 'inputPrice', dir: 'desc' }
 }
-
-// Ties on these keys fall back to comparing model name.
-const TIE_BREAK_KEYS: SortKey[] = ['aa', 'context', 'inputPrice']
 
 // Numeric-aware collator so "GLM-5.2" sorts before "GLM-5.10" instead of alphabetically.
 const collator = new Intl.Collator('vi', { numeric: true, sensitivity: 'base' })
@@ -43,8 +40,8 @@ export interface SortableModelRow {
   release: number | null
   name: string
   context: number | null
-  aa: number | null
-  tps: number | null
+  intelligence: number | null
+  speed: number | null
   inputPrice: number | null
 }
 
@@ -54,7 +51,7 @@ function accessorFor<T extends SortableModelRow>(key: SortKey) {
 
 /**
  * Sorts row indices by `keyOf`. Rows whose key is null/undefined always sort last,
- * regardless of `dir`. On a tie, falls back to `tieKeyOf`, then original order.
+ * regardless of `dir`. On a tie, falls back to the model name (upstream semantics).
  */
 export function sortIndices<T>(
   rows: T[],
@@ -91,11 +88,7 @@ export function sortIndices<T>(
 export function sortRows<T extends SortableModelRow>(rows: T[], optionId: SortOptionId): T[] {
   const { key, dir } = SORT_OPTIONS[optionId]
   const primary = accessorFor<T>(key)
-  const tie = TIE_BREAK_KEYS.includes(key) ? accessorFor<T>('name') : null
+  const tie = key === 'name' ? null : accessorFor<T>('name')
   const indices = sortIndices(rows, primary, dir, tie)
   return indices.map(i => rows[i]!)
-}
-
-export function usePlanComparisonSort() {
-  return { SORT_OPTIONS, compareKey, sortIndices, sortRows }
 }

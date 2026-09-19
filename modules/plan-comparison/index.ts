@@ -1,4 +1,4 @@
-import { addComponentsDir, createResolver, defineNuxtModule } from 'nuxt/kit'
+import { addComponentsDir, addServerScanDir, createResolver, defineNuxtModule } from 'nuxt/kit'
 
 export default defineNuxtModule({
   meta: {
@@ -11,6 +11,8 @@ export default defineNuxtModule({
     addComponentsDir({
       path: resolver.resolve('./runtime/app/components')
     })
+
+    addServerScanDir(resolver.resolve('./runtime/server'))
 
     nuxt.hook('pages:extend', (pages) => {
       pages.push({

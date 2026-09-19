@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { compareKey, sortIndices, sortRows } from './usePlanComparisonSort'
 import type { SortableModelRow } from './usePlanComparisonSort'
 
+function makeRow(name: string, overrides: Partial<SortableModelRow> = {}): SortableModelRow {
+  return { release: null, name, context: null, intelligence: null, speed: null, inputPrice: null, ...overrides }
+}
+
 describe('compareKey', () => {
   it('compares numbers numerically', () => {
     expect(compareKey(5, 10)).toBeLessThan(0)
@@ -14,9 +18,9 @@ describe('compareKey', () => {
 
 describe('sortIndices', () => {
   const rows: SortableModelRow[] = [
-    { release: null, name: 'C', context: null, aa: null, tps: null, inputPrice: null },
-    { release: 3, name: 'A', context: null, aa: null, tps: null, inputPrice: null },
-    { release: 1, name: 'B', context: null, aa: null, tps: null, inputPrice: null }
+    makeRow('C'),
+    makeRow('A', { release: 3 }),
+    makeRow('B', { release: 1 })
   ]
 
   it('places rows missing the sort key last in ascending order', () => {
@@ -31,8 +35,8 @@ describe('sortIndices', () => {
 
   it('breaks ties using the tie-break accessor', () => {
     const tiedRows: SortableModelRow[] = [
-      { release: null, name: 'Zeta', context: 50, aa: null, tps: null, inputPrice: null },
-      { release: null, name: 'Alpha', context: 50, aa: null, tps: null, inputPrice: null }
+      makeRow('Zeta', { context: 50 }),
+      makeRow('Alpha', { context: 50 })
     ]
     const order = sortIndices(tiedRows, row => row.context, 'desc', row => row.name)
     expect(order).toEqual([1, 0])
@@ -47,9 +51,9 @@ describe('sortIndices', () => {
 describe('sortRows', () => {
   it('sorts by release date, newest first, missing dates last', () => {
     const rows: SortableModelRow[] = [
-      { release: 1, name: 'Old', context: null, aa: null, tps: null, inputPrice: null },
-      { release: null, name: 'Unknown', context: null, aa: null, tps: null, inputPrice: null },
-      { release: 3, name: 'New', context: null, aa: null, tps: null, inputPrice: null }
+      makeRow('Old', { release: 1 }),
+      makeRow('Unknown'),
+      makeRow('New', { release: 3 })
     ]
     const sorted = sortRows(rows, 'newest')
     expect(sorted.map(r => r.name)).toEqual(['New', 'Old', 'Unknown'])
@@ -57,10 +61,30 @@ describe('sortRows', () => {
 
   it('sorts by name A-Z with numeric awareness', () => {
     const rows: SortableModelRow[] = [
-      { release: null, name: 'GLM-5.10', context: null, aa: null, tps: null, inputPrice: null },
-      { release: null, name: 'GLM-5.2', context: null, aa: null, tps: null, inputPrice: null }
+      makeRow('GLM-5.10'),
+      makeRow('GLM-5.2')
     ]
     const sorted = sortRows(rows, 'name-asc')
     expect(sorted.map(r => r.name)).toEqual(['GLM-5.2', 'GLM-5.10'])
+  })
+
+  it('sorts by intelligence index, missing scores last with name tie-break', () => {
+    const rows: SortableModelRow[] = [
+      makeRow('Low', { intelligence: 10 }),
+      makeRow('Unknown'),
+      makeRow('High', { intelligence: 90 }),
+      makeRow('High2', { intelligence: 90 })
+    ]
+    const sorted = sortRows(rows, 'intelligence-desc')
+    expect(sorted.map(r => r.name)).toEqual(['High', 'High2', 'Low', 'Unknown'])
+  })
+
+  it('sorts by measured speed, missing values last', () => {
+    const rows: SortableModelRow[] = [
+      makeRow('Slow', { speed: 50 }),
+      makeRow('Fast', { speed: 200 })
+    ]
+    const sorted = sortRows(rows, 'speed-desc')
+    expect(sorted.map(r => r.name)).toEqual(['Fast', 'Slow'])
   })
 })

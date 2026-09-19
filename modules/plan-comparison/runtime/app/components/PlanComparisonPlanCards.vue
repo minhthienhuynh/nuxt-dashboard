@@ -9,6 +9,14 @@ defineProps<{
 function usd(value: number): string {
   return `$${value.toLocaleString('vi-VN')}`
 }
+
+const ROWS: Array<{ label: string, value: (plan: PlanCard) => string }> = [
+  { label: 'Giá', value: plan => `${usd(plan.price)}/tháng` },
+  { label: 'Giới hạn 5 giờ', value: plan => usd(plan.limits['5h']) },
+  { label: 'Giới hạn tuần', value: plan => usd(plan.limits.weekly) },
+  { label: 'Giới hạn tháng', value: plan => usd(plan.limits.monthly) },
+  { label: 'Số model có credit', value: plan => String(plan.modelCount) }
+]
 </script>
 
 <template>
@@ -31,48 +39,16 @@ function usd(value: number): string {
       </p>
 
       <dl class="mt-2 space-y-0.5 text-[13px] text-muted">
-        <div class="flex items-center justify-between gap-3">
+        <div
+          v-for="row in ROWS"
+          :key="row.label"
+          class="flex items-center justify-between gap-3"
+        >
           <dt class="whitespace-nowrap">
-            Giá
+            {{ row.label }}
           </dt>
           <dd class="whitespace-nowrap text-default">
-            {{ usd(plan.price) }}/tháng
-          </dd>
-        </div>
-
-        <div class="flex items-center justify-between gap-3">
-          <dt class="whitespace-nowrap">
-            Giới hạn 5 giờ
-          </dt>
-          <dd class="whitespace-nowrap text-default">
-            {{ usd(plan.limits['5h']) }}
-          </dd>
-        </div>
-
-        <div class="flex items-center justify-between gap-3">
-          <dt class="whitespace-nowrap">
-            Giới hạn tuần
-          </dt>
-          <dd class="whitespace-nowrap text-default">
-            {{ usd(plan.limits.weekly) }}
-          </dd>
-        </div>
-
-        <div class="flex items-center justify-between gap-3">
-          <dt class="whitespace-nowrap">
-            Giới hạn tháng
-          </dt>
-          <dd class="whitespace-nowrap text-default">
-            {{ usd(plan.limits.monthly) }}
-          </dd>
-        </div>
-
-        <div class="flex items-center justify-between gap-3">
-          <dt class="whitespace-nowrap">
-            Số model có credit
-          </dt>
-          <dd class="whitespace-nowrap text-default">
-            {{ plan.modelCount }}
+            {{ row.value(plan) }}
           </dd>
         </div>
       </dl>
