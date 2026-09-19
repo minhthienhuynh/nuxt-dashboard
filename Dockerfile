@@ -22,7 +22,8 @@ RUN npm i -g pnpm@11.24.0
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN NITRO_PRESET=node-server pnpm run build
+RUN --mount=type=cache,target=/app/node_modules/.cache \
+    NITRO_PRESET=node-server pnpm run build
 
 # ---------- runtime: chi mang .output (~nhe, khong node_modules thua) ----------
 FROM node:${NODE_VERSION}-slim AS runtime
