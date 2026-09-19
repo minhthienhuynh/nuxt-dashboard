@@ -27,6 +27,31 @@ Chỉ dẫn riêng cho thư mục này; các quy ước chung của repo xem `AG
 - OpenCode Go (plan `oc-go`): pricing và usage per request từ `https://opencode.ai/docs/go`.
 - Khi sync số liệu mới từ các trang trên, ghi note vào row tương ứng trong `runtime/server/api/plan_models.ts` theo pattern sẵn có: `Synced <ngày> from <URL> — <điểm chính>`; số liệu tính tay cũng ghi note kèm ngày (`Derived from usage calculator formula ...` / `Recalc <ngày>: ...`).
 
+## Công thức quota & cách extract từ trang GOAT (verified 2026-09-18)
+
+- Trang `docs/plans/goat` là Next.js Flight: data nằm trong `self.__next_f.push(... "models":[...])`
+  (escape 1 lớp). Fetch bằng `curl -A "Mozilla/5.0"`, 2 lần + `md5sum`/`cmp` byte-identical mới tin.
+- Snapshot 2026-09-18: **72 slugs = 52 opensource + 20 premium**; bảng HTML `/models/<slug>`
+  render đủ 52 opensource, 20 premium (`minPlanName` Pro/Max) chỉ nằm trong JS — đừng dùng bảng
+  HTML làm ground truth số model.
+- Mỗi object model có: `slug/id/name/vendor/category`, `contextWindow`, `reasoning/vision`,
+  `inputCost/outputCost/cacheReadCost/cacheWriteCost` (`"$undefined"` = không có),
+  `tiers[].rates` (bảng hiển thị tier đầu), `minPlanName` (availability), `deal`,
+  `caps`, `intelligenceIndex/codingIndex`, `releaseDate` (lab release, `$undefined` = chưa có),
+  `launchedAt` (ngày lên CC — dùng sort Newest-first).
+- Quota KHÔNG nằm trong object model — nằm ở component `GoatEstimatesTable` (`$L45`):
+  `{"rows":[{"name","budgetUsd","rates","shape","timeOfDay?"}],"fiveHourFraction":0.2,"weeklyFraction":0.5}`.
+  `budgetUsd` = allowance $ của model đó (model mới mặc định $20 — đọc field, đừng đoán).
+- Công thức render (chunk `6856-*`, module `901`): shape mặc định 800 in / 180 out mặc định /
+  50K cache-read; output theo vendor (Anthropic 180, OpenAI 160, Moonshot 200, Z.ai 150,
+  MiniMax 125, DeepSeek/Alibaba/StepFun 200, fallback 200);
+  `cost/req = in/1e6×inputCost + out/1e6×outputCost + cache/1e6×cacheReadCost`;
+  `month = budgetUsd/cost` (cost ≤ 0 → "Free"); 5h = `ku(month×0.2)`, tuần = `ku(month×0.5)`,
+  tháng = `ku(month)`; `ku` = `Number(n.toPrecision(3)).toLocaleString('en-US')`.
+  Có `timeOfDay` + qua `effective`: bảng dùng offPeak, tooltip peak (17h/ngày + cuối tuần off-peak).
+- Đối chiếu `budgetUsd` + tính tay trước khi sync vào `plan_models.ts`; số hiển thị trên trang
+  đã qua `toPrecision(3)` nên lệch nhẹ số tính tay là bình thường (project giữ số chính xác đã sync).
+
 ## Model free (KHÔNG đưa vào dataset)
 
 - Trang Command Code có thể có model free 100% (vd: `Laguna S 2.1` — deal "FREE while capacity lasts", $0.00 input/output/cache read, không tiêu credit, có row riêng "FREE" trên bảng plans).
