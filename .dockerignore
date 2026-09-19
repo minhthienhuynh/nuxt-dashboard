@@ -1,0 +1,26 @@
+node_modules
+.output
+.nuxt
+.data
+.git
+.gitignore
+Dockerfile*
+.dockerignore
+*.log
+coverage
+.vscode
+.idea
+*.md
+.env
+.env.*
+!.env.example
+# Prototype root + tooling/docs khong anh huong build (trach bust cache COPY . .)
+quota-chart.html
+command-code-goat-models-db.js
+goat-models-flight.json
+.github/
+openspec/
+.opencode/
+.claude/
+.playwright-mcp/
+modules/test-module/

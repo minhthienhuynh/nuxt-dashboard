@@ -13,6 +13,22 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  // S3 credentials are read at RUNTIME (modules/plan-comparison/runtime/server/
+  // plugins/plan-comparison-storage.ts), never
+  // inlined at build time. Override per-environment with NUXT_PLAN_COMPARISON_S3_* vars,
+  // or fall back to the plain S3_* vars already used by Dokploy.
+  runtimeConfig: {
+    planComparison: {
+      s3: {
+        bucket: '',
+        endpoint: '',
+        region: '',
+        accessKeyId: '',
+        secretAccessKey: ''
+      }
+    }
+  },
+
   routeRules: {
     '/api/**': {
       cors: true
@@ -20,19 +36,6 @@ export default defineNuxtConfig({
   },
 
   compatibilityDate: '2026-06-30',
-
-  nitro: {
-    storage: {
-      'plan-comparison': {
-        driver: 's3',
-        bucket: process.env.S3_BUCKET,
-        endpoint: process.env.S3_ENDPOINT,
-        region: process.env.S3_REGION,
-        accessKeyId: process.env.S3_ACCESS_KEY_ID,
-        secretAccessKey: process.env.S3_SECRET_ACCESS_KEY
-      }
-    }
-  },
 
   eslint: {
     config: {

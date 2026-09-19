@@ -1,0 +1,103 @@
+name: docker-plan-comparison
+
+on:
+  push:
+    branches: [feat/plan-comparison]
+    paths:
+      - 'modules/plan-comparison/**'
+      - Dockerfile
+      - .dockerignore
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - nuxt.config.ts
+      - server/**
+      - .github/workflows/docker-plan-comparison.yml
+  # Chu y: app/** co tinh khong trigger (demo template) — khi nghi ngo cu
+  # bam Run workflow (workflow_dispatch) de force build.
+  workflow_dispatch:
+
+concurrency:
+  group: docker-plan-comparison-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+      # actions:write de GHA cache (cache-to type=gha) ghi duoc — dung tia.
+      actions: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  trigger-dokploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: build
+    permissions: {}
+    steps:
+      - name: Trigger Dokploy deployment
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          DOKPLOY_APP_ID: ${{ secrets.DOKPLOY_APP_ID }}
+        run: |
+          : "${DOKPLOY_URL:?missing DOKPLOY_URL secret}"
+          : "${DOKPLOY_API_KEY:?missing DOKPLOY_API_KEY secret}"
+          : "${DOKPLOY_APP_ID:?missing DOKPLOY_APP_ID secret}"
+          base="${DOKPLOY_URL%/}"
+          payload="{\"applicationId\":\"$DOKPLOY_APP_ID\"}"
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+            -H "x-api-key: $DOKPLOY_API_KEY" \
+            -H 'Content-Type: application/json' \
+            "$base/api/application.deploy" \
+            -d "$payload") || true
+          echo "application.deploy -> HTTP $code"
+          if [ "$code" = '404' ]; then
+            echo 'Endpoint not found, falling back to application.redeploy (older Dokploy)'
+            curl -sfS -w '\nHTTP %{http_code}\n' -X POST \
+              -H "x-api-key: $DOKPLOY_API_KEY" \
+              -H 'Content-Type: application/json' \
+              "$base/api/application.redeploy" \
+              -d "$payload"
+          else
+            case "$code" in
+              2*) echo 'Triggered via application.deploy' ;;
+              *) echo 'Trigger failed'; exit 1 ;;
+            esac
+          fi
