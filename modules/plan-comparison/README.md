@@ -38,7 +38,7 @@ Go/GOAT only (`minPlanName` Pro/Max loại). Free + stealth loại. OC trùng CM
 
 ## Cấu hình
 
-S3-compatible qua `nitro.storage` + peer dep `aws4fetch`. Env `S3_*` xem `.env.example` (không commit `.env`).
+S3-compatible qua plugin runtime `plan-comparison-storage.ts` + peer dep `aws4fetch` (khong qua `nitro.storage` trong `nuxt.config.ts` de tranh inline secret luc build). Env `NUXT_PLAN_COMPARISON_S3_*` (uu tien) hoac `S3_*` (fallback) xem `.env.example` (không commit `.env`).
 
 ## Endpoints
 
