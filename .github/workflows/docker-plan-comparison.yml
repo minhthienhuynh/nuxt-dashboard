@@ -82,22 +82,22 @@ jobs:
           : "${DOKPLOY_APP_ID:?missing DOKPLOY_APP_ID secret}"
           base="${DOKPLOY_URL%/}"
           payload="{\"applicationId\":\"$DOKPLOY_APP_ID\"}"
-          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+          # application.redeploy exists on all Dokploy versions (application.deploy
+          # is an alias on newer ones) — call it directly and always print the
+          # response body so a 4xx names the real cause instead of guessing.
+          body_file=$(mktemp)
+          code=$(curl -sS --max-time 30 -o "$body_file" -w '%{http_code}' -X POST \
             -H "x-api-key: $DOKPLOY_API_KEY" \
             -H 'Content-Type: application/json' \
-            "$base/api/application.deploy" \
+            "$base/api/application.redeploy" \
             -d "$payload") || true
-          echo "application.deploy -> HTTP $code"
-          if [ "$code" = '404' ]; then
-            echo 'Endpoint not found, falling back to application.redeploy (older Dokploy)'
-            curl -sfS -w '\nHTTP %{http_code}\n' -X POST \
-              -H "x-api-key: $DOKPLOY_API_KEY" \
-              -H 'Content-Type: application/json' \
-              "$base/api/application.redeploy" \
-              -d "$payload"
-          else
-            case "$code" in
-              2*) echo 'Triggered via application.deploy' ;;
-              *) echo 'Trigger failed'; exit 1 ;;
-            esac
-          fi
+          echo "application.redeploy -> HTTP $code"
+          cat "$body_file"; echo
+          rm -f "$body_file"
+          case "$code" in
+            2*) echo 'Dokploy redeploy triggered' ;;
+            401|403) echo 'ERROR: Unauthorized/Forbidden — check DOKPLOY_API_KEY secret and its access to the app'; exit 1 ;;
+            404) echo 'ERROR: Not found — check DOKPLOY_URL (panel base URL, no /api suffix) and DOKPLOY_APP_ID secret'; exit 1 ;;
+            000) echo 'ERROR: Could not reach Dokploy — check DOKPLOY_URL is a public URL (not localhost/LAN)'; exit 1 ;;
+            *) echo 'ERROR: Trigger failed'; exit 1 ;;
+          esac
