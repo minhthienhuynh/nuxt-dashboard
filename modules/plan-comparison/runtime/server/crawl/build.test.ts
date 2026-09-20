@@ -73,6 +73,19 @@ describe('resolveOcModelId', () => {
   it('returns null for genuinely new models', () => {
     expect(resolveOcModelId(cmd, 'grok-4.6', 'Grok 4.6')).toBeNull()
   })
+
+  it('joins a bare endpoint id to the CMD variant row', () => {
+    const hy = [makeModel({ id: 'tencent/hy3-paid', slug: 'tencent-hy3', name: 'Tencent Hy3' })]
+    expect(resolveOcModelId(hy, 'hy3', 'Hy3')).toBe('tencent/hy3-paid')
+  })
+
+  it('leaves an ambiguous bare id unresolved instead of picking a variant', () => {
+    const variants = [
+      makeModel({ id: 'acme/widget-paid', slug: 'widget-paid', name: 'Widget Paid' }),
+      makeModel({ id: 'acme/widget-free', slug: 'widget-free', name: 'Widget Free' })
+    ]
+    expect(resolveOcModelId(variants, 'widget', 'Widget')).toBeNull()
+  })
 })
 describe('dedupeBy', () => {
   it('keeps the first occurrence per key', () => {
@@ -137,6 +150,21 @@ describe('buildDatabase', () => {
     const oc = db.plan_models.filter(p => p.plan_id === 'oc-go')
     expect(oc).toHaveLength(1)
     expect(oc[0]?.model_id).toBe('acme/widget')
+  })
+
+  it('joins an OpenCode bare id to the CMD variant row instead of duplicating it', () => {
+    const db = buildDatabase({
+      ...baseInput,
+      goatModels: [makeModel({ id: 'tencent/hy3-paid', slug: 'tencent-hy3', name: 'Tencent Hy3' })],
+      openCodePricing: [{ name: 'Hy3', tier: 'standard', input: 0.14, output: 0.58, cacheRead: 0.035, cacheWrite: null, monthlyLimit: 60 }],
+      openCodeEstimates: [{ name: 'Hy3', per5h: 4300, perWeek: 10750, perMonth: 21500 }],
+      openCodeEndpoints: [{ name: 'Hy3', modelId: 'hy3' }]
+    })
+    expect(db.models.map(m => m.id)).toEqual(['tencent/hy3-paid'])
+    const oc = db.plan_models.filter(p => p.plan_id === 'oc-go')
+    expect(oc).toHaveLength(1)
+    expect(oc[0]?.model_id).toBe('tencent/hy3-paid')
+    expect(db.pricing.filter(p => p.provider_id === 'opencode').map(p => p.model_id)).toEqual(['tencent/hy3-paid'])
   })
 
   it('maps OC tables with generated ids for rows lacking endpoints', () => {

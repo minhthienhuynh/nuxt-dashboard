@@ -135,6 +135,18 @@ export function sameSlug(a: string, b: string): boolean {
   return norm(a) === norm(b)
 }
 
+/**
+ * CMD encodes the plan variant in the id suffix (`tencent/hy3-paid`) while
+ * OpenCode publishes the bare model id (`hy3`), so the id suffixes and the
+ * display names ("Tencent Hy3" vs "Hy3") both miss and the row would split
+ * into a metadata-less duplicate.
+ */
+const VARIANT_SUFFIX = /-(paid|free|exp|experimental|preview|latest|beta)$/
+
+function withoutVariant(id: string): string {
+  return id.replace(VARIANT_SUFFIX, '')
+}
+
 /** Resolves an OpenCode row to the CMD model id when it is the same model. */
 export function resolveOcModelId(
   cmdModels: Model[],
@@ -145,6 +157,14 @@ export function resolveOcModelId(
   if (endpointId) {
     const bySlug = cmdModels.find(m => sameSlug(m.slug, endpointId) || sameSlug(m.id.split('/').pop() ?? '', endpointId))
     if (bySlug) return bySlug.id
+    // Same id once the plan-variant qualifier is ignored on either side
+    // (`hy3` ↔ `tencent/hy3-paid`). Only a unique match joins: when the
+    // catalog holds several variants (`x-paid` and `x-free`) the endpoint id
+    // is genuinely ambiguous, so the row keeps its own id instead of joining
+    // the wrong variant.
+    const bare = withoutVariant(endpointId)
+    const variants = cmdModels.filter(m => sameSlug(withoutVariant(m.id.split('/').pop() ?? ''), bare))
+    if (variants.length === 1) return variants[0]!.id
   }
   const byName = cmdModels.find(m => matchName(m.name) === matchName(displayName))
   if (byName) return byName.id
