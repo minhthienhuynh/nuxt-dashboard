@@ -2,6 +2,7 @@
 import { VisAxis, VisBulletLegend, VisGroupedBarSelectors, VisGroupedBar, VisPlotband, VisTooltip, VisXYContainer } from '@unovis/vue'
 import type { EnrichedModelRow } from '../composables/usePlanComparisonDatabase'
 import { escapeHtml, PLAN_COMPARISON_PLANS } from '../plan-colors'
+import { chartAxisLayout } from '../plan-chart-axis'
 
 const props = defineProps<{
   rows: EnrichedModelRow[]
@@ -10,6 +11,7 @@ const props = defineProps<{
 
 const cardRef = useTemplateRef<HTMLElement | null>('cardRef')
 const { width } = useElementSize(cardRef)
+const axis = computed(() => chartAxisLayout(width.value ?? 0))
 
 const BAR_H = 16
 const chartHeight = computed(() => props.rows.length * 3 * BAR_H + 60)
@@ -92,8 +94,21 @@ const barTriggers = {
           :bar-padding="0.2"
         />
 
-        <VisAxis type="x" :tick-format="xTickFormat" />
-        <VisAxis type="y" :tick-format="yTickFormat" :tick-values="tickValues" />
+        <VisAxis
+          type="x"
+          :tick-format="xTickFormat"
+          :num-ticks="axis.xTickBudget"
+          :tick-text-font-size="`${axis.fontSize}px`"
+          tick-text-hide-overlapping
+        />
+        <VisAxis
+          type="y"
+          :tick-format="yTickFormat"
+          :tick-values="tickValues"
+          :tick-text-width="axis.labelWidth"
+          tick-text-fit-mode="wrap"
+          :tick-text-font-size="`${axis.fontSize}px`"
+        />
 
         <VisTooltip :triggers="barTriggers" />
       </VisXYContainer>

@@ -3,6 +3,7 @@ import { VisAxis, VisBulletLegend, VisPlotband, VisScatterSelectors, VisScatter,
 import { Scale } from '@unovis/ts'
 import type { EnrichedModelRow } from '../composables/usePlanComparisonDatabase'
 import { escapeHtml, PLAN_COMPARISON_PLANS } from '../plan-colors'
+import { chartAxisLayout, thinTicks } from '../plan-chart-axis'
 
 const props = defineProps<{
   rows: EnrichedModelRow[]
@@ -11,9 +12,11 @@ const props = defineProps<{
 
 const cardRef = useTemplateRef<HTMLElement | null>('cardRef')
 const { width } = useElementSize(cardRef)
+const axis = computed(() => chartAxisLayout(width.value ?? 0))
 
-const ROW_H = 30
-const chartHeight = computed(() => props.rows.length * ROW_H + 72)
+// On narrow screens the model-name label can wrap to two lines, so the row band
+// has to grow with it (see plan-chart-axis.ts) — otherwise the labels collide.
+const chartHeight = computed(() => props.rows.length * axis.value.rowHeight + 72)
 const yDomain = computed<[number, number]>(() => [-0.5, Math.max(props.rows.length - 0.5, 0.5)])
 const zebraRows = computed(() => props.rows.map((_, i) => i).filter(i => i % 2 === 0))
 const tickValues = computed(() => props.rows.map((_, i) => i))
@@ -57,6 +60,10 @@ const xTicks = computed<number[]>(() => {
   }
   return ticks
 })
+
+// Log decades collide on phones ("1.000" is 40px wide), so thin them to the
+// container's tick budget instead of letting Unovis draw overlapping labels.
+const visibleXTicks = computed(() => thinTicks(xTicks.value, axis.value.xTickBudget))
 
 const legendItems = computed(() => PLAN_COMPARISON_PLANS.map(plan => ({ name: plan.label, color: plan.color })))
 
@@ -160,8 +167,21 @@ const scatterTriggers = {
           cursor="pointer"
         />
 
-        <VisAxis type="x" :tick-format="xTickFormat" :tick-values="xTicks" />
-        <VisAxis type="y" :tick-format="yTickFormat" :tick-values="tickValues" />
+        <VisAxis
+          type="x"
+          :tick-format="xTickFormat"
+          :tick-values="visibleXTicks"
+          :tick-text-font-size="`${axis.fontSize}px`"
+          tick-text-hide-overlapping
+        />
+        <VisAxis
+          type="y"
+          :tick-format="yTickFormat"
+          :tick-values="tickValues"
+          :tick-text-width="axis.labelWidth"
+          tick-text-fit-mode="wrap"
+          :tick-text-font-size="`${axis.fontSize}px`"
+        />
 
         <VisTooltip :triggers="scatterTriggers" />
       </VisXYContainer>
