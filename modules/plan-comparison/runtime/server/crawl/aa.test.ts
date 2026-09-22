@@ -31,6 +31,16 @@ describe('findAaScore', () => {
     expect(findAaScore(entries, 'Qwen3.8 Max (0902)')).toBe(45.4)
     expect(findAaScore(entries, 'Qwen3.8 Max')).toBeNull()
   })
+
+  it('variant identity survives formatting noise, not qualifier changes', () => {
+    const entries = extractAaScores(pageHtml)
+    // dash vs space vs case are the same label ('qwen 3.8' with a space is a
+    // DIFFERENT name — normalizeName keeps word boundaries)
+    expect(findAaScore(entries, 'Qwen3.8-Max-0902')).toBe(45.4)
+    expect(findAaScore(entries, 'qwen3.8 max (0902)')).toBe(45.4)
+    // qualifier word must not grab the dated snapshot's score either
+    expect(findAaScore(entries, 'Qwen3.8 Max (max)')).toBeNull()
+  })
 })
 
 describe('round1', () => {
