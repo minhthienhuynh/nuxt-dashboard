@@ -8,26 +8,43 @@ import { parseGoatEstimates, parseGoatModels } from '../../crawl/goat'
 import { parseGoPlanLimits, parsePricingLimits } from '../../crawl/ccpricing'
 import { parseOpenCodeEndpoints, parseOpenCodeEstimates, parseOpenCodePricing } from '../../crawl/opencode'
 import { crawledDatabaseSchema } from '../../crawl/schemas'
-import { AA_MODEL_SLUGS, fetchAaScore } from '../../crawl/aa'
+import { AA_MODEL_SLUGS, fetchAaScore, resolveAaScore } from '../../crawl/aa'
 import { plans as staticPlans } from '../../data/plans'
 import { providers as staticProviders } from '../../data/providers'
 
 let inflight: Promise<PlanComparisonPayload> | null = null
 
+/** Runs `fn` over `items` with at most `limit` concurrent workers. */
+async function mapWithConcurrency<T>(items: T[], limit: number, fn: (item: T) => Promise<void>): Promise<void> {
+  let index = 0
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (index < items.length) {
+      const item = items[index++]!
+      await fn(item)
+    }
+  })
+  await Promise.all(workers)
+}
+
 async function crawlFresh(): Promise<PlanComparisonPayload> {
   const fetchedAt = new Date().toISOString()
   const sources = await fetchSources()
   const goatModels = parseGoatModels(extractFlightModels(sources.goatHtml))
-  // Fill missing intel scores from AA exact scores (rounded to 1 decimal).
-  // Only curated slug pairs are fetched; failures leave the score null.
-  await Promise.all(goatModels
-    .filter(model => model.intelligenceIndex == null && AA_MODEL_SLUGS[model.id])
-    .map(async (model) => {
-      const mapping = AA_MODEL_SLUGS[model.id]
-      if (!mapping) return
-      const score = await fetchAaScore(mapping.slug, mapping.label)
+  // Fill missing intel scores from AA (CC leaves serving tiers / brand-new
+  // models unscored). Generic resolution — no per-model curation; the curated
+  // AA_MODEL_SLUGS overrides apply first for user-mandated proxies. Failures
+  // leave the score null (AA has not scored the model).
+  await mapWithConcurrency(
+    goatModels.filter(model => model.intelligenceIndex == null),
+    3,
+    async (model) => {
+      const override = AA_MODEL_SLUGS[model.id]
+      const score = override
+        ? await fetchAaScore(override.slug, override.label)
+        : await resolveAaScore(model)
       if (score != null) model.intelligenceIndex = score
-    }))
+    }
+  )
   const goatEstimates = parseGoatEstimates(extractFlightEstimates(sources.goatHtml))
   const pricingSections = parsePricingLimits(sources.pricingLimitsHtml)
   const goLimits = parseGoPlanLimits(sources.goHtml)
