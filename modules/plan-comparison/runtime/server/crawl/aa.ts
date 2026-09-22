@@ -1,6 +1,6 @@
 import type { FetchImpl } from './sources'
 import { CRAWLER_USER_AGENT } from './sources'
-import { matchName } from './opencode'
+import { normalizeName } from './opencode'
 
 export interface AaScoreEntry {
   label: string
@@ -46,10 +46,15 @@ export function extractAaScores(html: string): AaScoreEntry[] {
   }
 }
 
-/** Finds the entry matching a CMD model (variant-aware: 0902 ≠ base). */
+/**
+ * Finds the entry matching a CMD model label, variant-aware: the parenthetical
+ * qualifier is part of the identity (`Qwen3.8 Max (0902)` ≠ `Qwen3.8 Max` — a
+ * dated snapshot is a distinct variant, per `TIER_WORDS`). Only formatting
+ * noise (case, punctuation, `-` vs space) is normalized away.
+ */
 export function findAaScore(entries: AaScoreEntry[], label: string): number | null {
-  const want = matchName(label)
-  const hit = entries.find(e => matchName(e.label) === want)
+  const want = normalizeName(label)
+  const hit = entries.find(e => normalizeName(e.label) === want)
   return hit ? round1(hit.score) : null
 }
 
