@@ -2,7 +2,7 @@
 import { VisAxis, VisBulletLegend, VisGroupedBarSelectors, VisGroupedBar, VisPlotband, VisTooltip, VisXYContainer } from '@unovis/vue'
 import type { EnrichedModelRow } from '../composables/usePlanComparisonDatabase'
 import { escapeHtml, PLAN_COMPARISON_PLANS } from '../plan-colors'
-import { chartAxisLayout } from '../plan-chart-axis'
+import { AXIS_TICK_SEPARATOR, chartAxisLayout, rowHeightForLabels, tickLabel } from '../plan-chart-axis'
 
 const props = defineProps<{
   rows: EnrichedModelRow[]
@@ -14,7 +14,11 @@ const { width } = useElementSize(cardRef)
 const axis = computed(() => chartAxisLayout(width.value ?? 0))
 
 const BAR_H = 16
-const chartHeight = computed(() => props.rows.length * 3 * BAR_H + 60)
+// Three bars define the visual band; a taller label (name + score on two lines)
+// grows the row band instead of overlapping the next row.
+const tickLabels = computed(() => props.rows.map(row => tickLabel(row.label, axis.value)))
+const bandHeight = computed(() => Math.max(3 * BAR_H, rowHeightForLabels(tickLabels.value, axis.value)))
+const chartHeight = computed(() => props.rows.length * bandHeight.value + 60)
 const yDomain = computed<[number, number]>(() => [-0.5, Math.max(props.rows.length - 0.5, 0.5)])
 const zebraRows = computed(() => props.rows.map((_, i) => i).filter(i => i % 2 === 0))
 const tickValues = computed(() => props.rows.map((_, i) => i))
@@ -29,7 +33,7 @@ const barColor = (_d: EnrichedModelRow, accessorIndex: number) =>
   PLAN_COMPARISON_PLANS[accessorIndex]?.color ?? 'var(--ui-border-accented)'
 
 const xTickFormat = (value: number) => `$${value}`
-const yTickFormat = (value: number) => props.rows[Math.round(value)]?.label ?? ''
+const yTickFormat = (value: number) => tickLabels.value[Math.round(value)] ?? ''
 
 const barTriggers = {
   [VisGroupedBarSelectors.bar]: (d: EnrichedModelRow, i: number) => {
@@ -64,7 +68,10 @@ const barTriggers = {
       </div>
     </template>
 
-    <div class="relative w-full" :style="{ height: `${chartHeight}px` }">
+    <div
+      class="relative w-full"
+      :style="{ 'height': `${chartHeight}px`, '--pc-tick-font-size': `${axis.fontSize}px` }"
+    >
       <VisXYContainer
         :key="rows.length"
         :data="rows"
@@ -107,6 +114,7 @@ const barTriggers = {
           :tick-values="tickValues"
           :tick-text-width="axis.labelWidth"
           tick-text-fit-mode="wrap"
+          :tick-text-separator="AXIS_TICK_SEPARATOR"
           :tick-text-font-size="`${axis.fontSize}px`"
         />
 
@@ -125,5 +133,20 @@ const barTriggers = {
   --vis-tooltip-background-color: var(--ui-bg);
   --vis-tooltip-border-color: var(--ui-border);
   --vis-tooltip-text-color: var(--ui-text-highlighted);
+}
+
+/*
+ * Unovis writes its own default font size onto every tick tspan as an XML
+ * attribute (`font-size="14"`). A presentation attribute beats the size
+ * inherited from the axis, so `tick-text-font-size` alone does not shrink the
+ * labels on phones: 14px text was painted in a column sized for 11px, which
+ * overflows on a 320px phone and leaves ~0px of clearance on a 390px one. Pin
+ * the rendered size to the one plan-chart-axis.ts measured.
+ */
+/* `:deep()` has to open the selector: the container element is rendered by
+   Unovis, so it never carries this component's scope attribute. */
+:deep(.unovis-xy-container) text[class*='tick-label'],
+:deep(.unovis-xy-container) text[class*='tick-label'] tspan {
+  font-size: var(--pc-tick-font-size);
 }
 </style>

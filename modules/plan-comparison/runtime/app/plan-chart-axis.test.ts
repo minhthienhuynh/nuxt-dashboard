@@ -6,7 +6,10 @@ import {
   AXIS_TICK_LABEL_LINE_HEIGHT,
   AXIS_WRAPPED_ROW_HEIGHT,
   chartAxisLayout,
-  thinTicks
+  estimateTextWidth,
+  rowHeightForLabels,
+  thinTicks,
+  tickLabel
 } from './plan-chart-axis'
 
 // Chart container widths measured in Chromium device emulation: the card is the
@@ -61,6 +64,72 @@ describe('chartAxisLayout', () => {
 
   it('sizes wrapped rows to fit two lines of tick text', () => {
     expect(AXIS_WRAPPED_ROW_HEIGHT).toBeGreaterThanOrEqual(2 * AXIS_TICK_LABEL_LINE_HEIGHT)
+  })
+
+  it('stacks the intel score only where the column is tight', () => {
+    expect(chartAxisLayout(PHONE_PORTRAIT).stackScore).toBe(true)
+    expect(chartAxisLayout(SMALL_PHONE_PORTRAIT).stackScore).toBe(true)
+    expect(chartAxisLayout(DESKTOP).stackScore).toBe(false)
+    // The wrap width has to leave room for the axis tick line inside the column
+    expect(chartAxisLayout(PHONE_PORTRAIT).labelWrapWidth).toBeLessThan(chartAxisLayout(PHONE_PORTRAIT).labelWidth)
+  })
+})
+
+describe('tickLabel', () => {
+  const LONGEST = 'DeepSeek V4 Flash Vision (exp) (35)'
+  const SHORT = 'GLM-5.3 Flash (41.9)'
+  const SCORELESS = 'Tencent Hy4 Preview (—)'
+
+  it('puts the intel score on the second line on phones', () => {
+    const phone = chartAxisLayout(PHONE_PORTRAIT)
+    expect(tickLabel(SHORT, phone)).toBe('GLM-5.3 Flash\n(41.9)')
+    expect(tickLabel(SCORELESS, phone)).toBe('Tencent Hy4 Preview\n(—)')
+    // Live longest name measures ~159px at 11px, the metric says 154px, and the
+    // column gives us 177px: one line either way
+    expect(tickLabel(LONGEST, phone)).toBe('DeepSeek V4 Flash Vision (exp)\n(35)')
+  })
+
+  it('keeps the compact single-line label on wide screens', () => {
+    expect(tickLabel(LONGEST, chartAxisLayout(DESKTOP))).toBe(LONGEST)
+    expect(tickLabel(SHORT, chartAxisLayout(DESKTOP))).toBe(SHORT)
+  })
+
+  it('wraps a name that cannot fit the small-phone column', () => {
+    const small = chartAxisLayout(SMALL_PHONE_PORTRAIT)
+    expect(small.labelWrapWidth).toBe(138)
+    expect(tickLabel(LONGEST, small)).toBe('DeepSeek V4 Flash Vision\n(exp)\n(35)')
+  })
+
+  it('hard-breaks a single word wider than the whole column', () => {
+    const tiny = { ...chartAxisLayout(SMALL_PHONE_PORTRAIT), labelWrapWidth: 40 }
+    const result = tickLabel('Supercalifragilistic (40)', tiny)
+    for (const line of result.split('\n')) {
+      expect(estimateTextWidth(line, tiny.fontSize)).toBeLessThanOrEqual(40)
+    }
+  })
+
+  it('leaves a label without a trailing score untouched', () => {
+    const phone = chartAxisLayout(PHONE_PORTRAIT)
+    expect(tickLabel('Plain Model', phone)).toBe('Plain Model')
+  })
+})
+
+describe('rowHeightForLabels', () => {
+  it('keeps the base band when every label fits two lines', () => {
+    const phone = chartAxisLayout(PHONE_PORTRAIT)
+    const labels = ['Muse Spark 1.3 Contributor\n(48.2)', 'GLM-5.3 Flash\n(41.9)']
+    expect(rowHeightForLabels(labels, phone)).toBe(AXIS_WRAPPED_ROW_HEIGHT)
+  })
+
+  it('grows the band for a three-line label instead of letting it collide', () => {
+    const small = chartAxisLayout(SMALL_PHONE_PORTRAIT)
+    const labels = ['DeepSeek V4 Flash Vision\n(exp)\n(35)']
+    expect(rowHeightForLabels(labels, small)).toBe(3 * AXIS_TICK_LABEL_LINE_HEIGHT + 10)
+  })
+
+  it('leaves the desktop band alone for single-line labels', () => {
+    const desktop = chartAxisLayout(DESKTOP)
+    expect(rowHeightForLabels(['Muse Spark 1.3 Contributor (48.2)'], desktop)).toBe(AXIS_ROW_HEIGHT)
   })
 })
 

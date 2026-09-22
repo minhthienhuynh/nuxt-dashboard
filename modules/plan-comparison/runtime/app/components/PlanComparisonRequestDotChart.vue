@@ -3,7 +3,7 @@ import { VisAxis, VisBulletLegend, VisPlotband, VisScatterSelectors, VisScatter,
 import { Scale } from '@unovis/ts'
 import type { EnrichedModelRow } from '../composables/usePlanComparisonDatabase'
 import { escapeHtml, PLAN_COMPARISON_PLANS } from '../plan-colors'
-import { chartAxisLayout, thinTicks } from '../plan-chart-axis'
+import { AXIS_TICK_SEPARATOR, chartAxisLayout, rowHeightForLabels, thinTicks, tickLabel } from '../plan-chart-axis'
 
 const props = defineProps<{
   rows: EnrichedModelRow[]
@@ -14,9 +14,12 @@ const cardRef = useTemplateRef<HTMLElement | null>('cardRef')
 const { width } = useElementSize(cardRef)
 const axis = computed(() => chartAxisLayout(width.value ?? 0))
 
-// On narrow screens the model-name label can wrap to two lines, so the row band
-// has to grow with it (see plan-chart-axis.ts) — otherwise the labels collide.
-const chartHeight = computed(() => props.rows.length * axis.value.rowHeight + 72)
+// Model names and their intel score are laid out here (name on line 1, score on
+// line 2 on phones) and the row band follows the tallest label, so nothing runs
+// over the neighbouring row (see plan-chart-axis.ts).
+const tickLabels = computed(() => props.rows.map(row => tickLabel(row.label, axis.value)))
+const rowHeight = computed(() => rowHeightForLabels(tickLabels.value, axis.value))
+const chartHeight = computed(() => props.rows.length * rowHeight.value + 72)
 const yDomain = computed<[number, number]>(() => [-0.5, Math.max(props.rows.length - 0.5, 0.5)])
 const zebraRows = computed(() => props.rows.map((_, i) => i).filter(i => i % 2 === 0))
 const tickValues = computed(() => props.rows.map((_, i) => i))
@@ -102,7 +105,7 @@ const sizeFromCredit = (d: DotPoint) => Math.sqrt(d.credit) * 2.7
 const colorByPlan = (d: DotPoint) => d.planColor
 
 const xTickFormat = (value: number) => value.toLocaleString('vi-VN')
-const yTickFormat = (value: number) => props.rows[Math.round(value)]?.label ?? ''
+const yTickFormat = (value: number) => tickLabels.value[Math.round(value)] ?? ''
 
 // Shorter animation for snappier filter/sort transitions
 const DURATION = 200
@@ -136,7 +139,10 @@ const scatterTriggers = {
       </div>
     </template>
 
-    <div class="relative w-full" :style="{ height: `${chartHeight}px` }">
+    <div
+      class="relative w-full"
+      :style="{ 'height': `${chartHeight}px`, '--pc-tick-font-size': `${axis.fontSize}px` }"
+    >
       <VisXYContainer
         :key="rows.length"
         :data="points"
@@ -180,6 +186,7 @@ const scatterTriggers = {
           :tick-values="tickValues"
           :tick-text-width="axis.labelWidth"
           tick-text-fit-mode="wrap"
+          :tick-text-separator="AXIS_TICK_SEPARATOR"
           :tick-text-font-size="`${axis.fontSize}px`"
         />
 
@@ -198,5 +205,20 @@ const scatterTriggers = {
   --vis-tooltip-background-color: var(--ui-bg);
   --vis-tooltip-border-color: var(--ui-border);
   --vis-tooltip-text-color: var(--ui-text-highlighted);
+}
+
+/*
+ * Unovis writes its own default font size onto every tick tspan as an XML
+ * attribute (`font-size="14"`). A presentation attribute beats the size
+ * inherited from the axis, so `tick-text-font-size` alone does not shrink the
+ * labels on phones: 14px text was painted in a column sized for 11px, which
+ * overflows on a 320px phone and leaves ~0px of clearance on a 390px one. Pin
+ * the rendered size to the one plan-chart-axis.ts measured.
+ */
+/* `:deep()` has to open the selector: the container element is rendered by
+   Unovis, so it never carries this component's scope attribute. */
+:deep(.unovis-xy-container) text[class*='tick-label'],
+:deep(.unovis-xy-container) text[class*='tick-label'] tspan {
+  font-size: var(--pc-tick-font-size);
 }
 </style>
