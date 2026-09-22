@@ -101,7 +101,7 @@ const points = computed<DotPoint[]>(() => {
 const xRequest = (d: DotPoint) => d.request
 const yRow = (d: DotPoint) => d.rowIndex
 // Marker diameter encodes credit by area (r ~ sqrt(credit)), same as the prototype.
-const sizeFromCredit = (d: DotPoint) => Math.sqrt(d.credit) * 2.7
+const sizeFromCredit = (d: DotPoint) => Math.sqrt(d.credit) * 3.3
 const colorByPlan = (d: DotPoint) => d.planColor
 
 const xTickFormat = (value: number) => value.toLocaleString('vi-VN')
