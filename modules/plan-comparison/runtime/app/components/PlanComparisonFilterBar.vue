@@ -10,27 +10,27 @@ const hideLowIntel = defineModel<boolean>('hideLowIntel', { required: true })
 const intelThreshold = defineModel<number>('intelThreshold', { required: true })
 
 const SORT_LABELS: Record<SortOptionId, string> = {
-  'newest': 'Mới nhất',
-  'oldest': 'Cũ nhất',
-  'name-asc': 'Tên A→Z',
-  'name-desc': 'Tên Z→A',
-  'context-desc': 'Context lớn nhất',
-  'intelligence-desc': 'Thông minh nhất',
-  'speed-desc': 'Nhanh nhất',
-  'cheapest': 'Rẻ nhất',
-  'priciest': 'Đắt nhất'
+  'newest': 'Newest',
+  'oldest': 'Oldest',
+  'name-asc': 'Name A→Z',
+  'name-desc': 'Name Z→A',
+  'context-desc': 'Largest context',
+  'intelligence-desc': 'Most intelligent',
+  'speed-desc': 'Fastest',
+  'cheapest': 'Cheapest',
+  'priciest': 'Priciest'
 }
 
 const SORT_HINTS: Record<SortOptionId, string> = {
-  'newest': 'Mới nhất trước (theo ngày launchedAt).',
-  'oldest': 'Cũ nhất trước (theo ngày launchedAt).',
-  'name-asc': 'Tên A→Z, số so theo giá trị: GLM-5.2 trước GLM-5.10.',
-  'name-desc': 'Tên Z→A.',
-  'context-desc': 'Context lớn nhất trước, trùng thì tên A→Z.',
-  'intelligence-desc': 'Intelligence Index cao nhất trước, trùng điểm thì tên A→Z.',
-  'speed-desc': 'Nhanh nhất trước (Tok/s đo thực tế).',
-  'cheapest': 'Rẻ nhất trước (theo giá Input $/1M tok).',
-  'priciest': 'Đắt nhất trước (theo giá Input $/1M tok).'
+  'newest': 'Newest launch date first.',
+  'oldest': 'Oldest launch date first.',
+  'name-asc': 'Name A→Z.',
+  'name-desc': 'Name Z→A.',
+  'context-desc': 'Largest context window first.',
+  'intelligence-desc': 'Highest Intelligence Index first.',
+  'speed-desc': 'Fastest measured output first.',
+  'cheapest': 'Cheapest input $/1M tok first.',
+  'priciest': 'Priciest input $/1M tok first.'
 }
 
 const sortItems = (Object.keys(SORT_OPTIONS) as SortOptionId[])
@@ -50,17 +50,17 @@ function onIntelThresholdInput(value: string | number) {
   <UCard :ui="{ body: 'flex flex-col gap-3' }">
     <div class="flex flex-wrap items-center gap-2">
       <label class="flex items-center gap-2 text-sm text-muted">
-        Sắp xếp
+        Sort
         <USelect v-model="sortOption" :items="sortItems" class="w-44" />
       </label>
       <span class="text-[13px] text-dimmed">
-        {{ SORT_HINTS[sortOption] }} Model thiếu dữ liệu xếp cuối bảng.
+        {{ SORT_HINTS[sortOption] }} Models missing data sort last.
       </span>
     </div>
 
     <label class="flex w-fit items-center gap-2 text-sm whitespace-nowrap text-muted">
       <USwitch v-model="hideOldModels" size="sm" />
-      Ẩn model cũ (launched trước
+      Hide old models (launched before
       <UInput
         type="date"
         :model-value="oldBefore"
@@ -73,7 +73,7 @@ function onIntelThresholdInput(value: string | number) {
 
     <label class="flex w-fit items-center gap-2 text-sm whitespace-nowrap text-muted">
       <USwitch v-model="hideLowIntel" size="sm" />
-      Ẩn model có Intel &lt;
+      Hide models with Intelligence &lt;
       <UInput
         type="number"
         :model-value="intelThreshold"

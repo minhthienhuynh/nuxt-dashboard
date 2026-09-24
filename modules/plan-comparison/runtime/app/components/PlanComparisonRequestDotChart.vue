@@ -1,28 +1,41 @@
 <script setup lang="ts">
-import { VisAxis, VisBulletLegend, VisPlotband, VisScatterSelectors, VisScatter, VisTooltip, VisXYContainer } from '@unovis/vue'
+import { VisAxis, VisBulletLegend, VisPlotband, VisScatter, VisXYContainer } from '@unovis/vue'
 import { Scale } from '@unovis/ts'
 import type { EnrichedModelRow } from '../composables/usePlanComparisonDatabase'
-import { escapeHtml, PLAN_COMPARISON_PLANS } from '../plan-colors'
-import { AXIS_TICK_SEPARATOR, chartAxisLayout, rowHeightForLabels, thinTicks, tickLabel } from '../plan-chart-axis'
+import { PLAN_COMPARISON_PLANS } from '../plan-colors'
+import { AXIS_TICK_SEPARATOR, thinTicks } from '../plan-chart-axis'
+import { usePlanComparisonChartFrame } from '../usePlanComparisonChartFrame'
+import { usePlanChartHover } from '../usePlanChartHover'
+import '../plan-chart.css'
 
 const props = defineProps<{
   rows: EnrichedModelRow[]
   noRequest: string[]
 }>()
 
-const cardRef = useTemplateRef<HTMLElement | null>('cardRef')
-const { width } = useElementSize(cardRef)
-const axis = computed(() => chartAxisLayout(width.value ?? 0))
+const {
+  cardRef,
+  chartRef,
+  width,
+  axis,
+  tickLabels,
+  rowBandHeight,
+  yDomain,
+  zebraRows,
+  tickValues,
+  yTickFormat,
+  legendItems
+} = usePlanComparisonChartFrame(() => props.rows)
 
-// Model names and their intel score are laid out here (name on line 1, score on
-// line 2 on phones) and the row band follows the tallest label, so nothing runs
-// over the neighbouring row (see plan-chart-axis.ts).
-const tickLabels = computed(() => props.rows.map(row => tickLabel(row.label, axis.value)))
-const rowHeight = computed(() => rowHeightForLabels(tickLabels.value, axis.value))
-const chartHeight = computed(() => props.rows.length * rowHeight.value + 72)
-const yDomain = computed<[number, number]>(() => [-0.5, Math.max(props.rows.length - 0.5, 0.5)])
-const zebraRows = computed(() => props.rows.map((_, i) => i).filter(i => i % 2 === 0))
-const tickValues = computed(() => props.rows.map((_, i) => i))
+const chartHeight = computed(() => props.rows.length * rowBandHeight.value + 72)
+
+// Hover (or tap on touch) a model — its y-axis label or any of its dots — for
+// the spec tooltip.
+const { hovered, onPointerMove, onPointerLeave, onPointerUp, onTooltipPointerEnter, onTooltipPointerLeave, close } = usePlanChartHover(
+  () => props.rows,
+  () => tickLabels.value,
+  () => chartRef.value ?? null
+)
 
 // Matches the prototype: log scale for requests, domain derived from the data so
 // newly synced models outside the old fixed range stay visible.
@@ -64,15 +77,11 @@ const xTicks = computed<number[]>(() => {
   return ticks
 })
 
-// Log decades collide on phones ("1.000" is 40px wide), so thin them to the
+// Log decades collide on phones ("1,000" is 40px wide), so thin them to the
 // container's tick budget instead of letting Unovis draw overlapping labels.
 const visibleXTicks = computed(() => thinTicks(xTicks.value, axis.value.xTickBudget))
 
-const legendItems = computed(() => PLAN_COMPARISON_PLANS.map(plan => ({ name: plan.label, color: plan.color })))
-
 interface DotPoint {
-  label: string
-  planLabel: string
   planColor: string
   request: number
   credit: number
@@ -86,8 +95,6 @@ const points = computed<DotPoint[]>(() => {
       const funding = row[plan.key]
       if (funding.request == null || funding.credit == null) continue
       result.push({
-        label: row.label,
-        planLabel: plan.label,
         planColor: plan.color,
         request: funding.request,
         credit: funding.credit,
@@ -104,21 +111,10 @@ const yRow = (d: DotPoint) => d.rowIndex
 const sizeFromCredit = (d: DotPoint) => Math.sqrt(d.credit) * 3.3
 const colorByPlan = (d: DotPoint) => d.planColor
 
-const xTickFormat = (value: number) => value.toLocaleString('vi-VN')
-const yTickFormat = (value: number) => tickLabels.value[Math.round(value)] ?? ''
+const xTickFormat = (value: number) => value.toLocaleString('en-US')
 
 // Shorter animation for snappier filter/sort transitions
 const DURATION = 200
-
-// The scatter datum bound to each point is a `ScatterPoint` wrapper that spreads
-// the original `DotPoint`, so the tooltip can read its fields directly.
-const scatterTriggers = {
-  [VisScatterSelectors.point]: (d: DotPoint) => {
-    if (d.credit == null) return null
-    return `<b>${escapeHtml(d.label)}</b><br>`
-      + `${d.planLabel}: $${d.credit} credit · ${d.request.toLocaleString('vi-VN')} request/tháng`
-  }
-}
 </script>
 
 <template>
@@ -126,13 +122,13 @@ const scatterTriggers = {
     <template #header>
       <div class="space-y-1 px-4">
         <p class="text-lg font-semibold text-highlighted">
-          2. Hai loại quota trên cùng một hàng
+          2. Both quota types on one row
         </p>
         <p class="text-[13px] text-muted">
-          Vị trí ngang = request/tháng (log), đường kính điểm = credit/tháng (diện tích tỉ lệ thuận).
-          Hover vào điểm để xem chi tiết từng gói.
+          Horizontal position = requests/mo (log scale), dot diameter = credit/mo (area-proportional).
+          Hover a dot or model name to see its specs and per-plan funding.
           <template v-if="noRequest.length">
-            Bỏ {{ noRequest.length }} model không bên nào công bố request: {{ noRequest.join(', ') }}.
+            {{ noRequest.length }} models without a published request count are omitted: {{ noRequest.join(', ') }}.
           </template>
         </p>
         <VisBulletLegend :items="legendItems" class="justify-center" orientation="horizontal" />
@@ -140,8 +136,12 @@ const scatterTriggers = {
     </template>
 
     <div
+      ref="chartRef"
       class="relative w-full"
       :style="{ 'height': `${chartHeight}px`, '--pc-tick-font-size': `${axis.fontSize}px` }"
+      @pointermove="onPointerMove"
+      @pointerleave="onPointerLeave"
+      @pointerup="onPointerUp"
     >
       <VisXYContainer
         :key="rows.length"
@@ -170,7 +170,6 @@ const scatterTriggers = {
           :size="sizeFromCredit"
           :color="colorByPlan"
           :duration="DURATION"
-          cursor="pointer"
         />
 
         <VisAxis
@@ -189,36 +188,17 @@ const scatterTriggers = {
           :tick-text-separator="AXIS_TICK_SEPARATOR"
           :tick-text-font-size="`${axis.fontSize}px`"
         />
-
-        <VisTooltip :triggers="scatterTriggers" />
       </VisXYContainer>
+
+      <PlanComparisonModelInfo
+        v-if="hovered"
+        :row="hovered.row"
+        :x="hovered.x"
+        :y="hovered.y"
+        @close="close"
+        @content-enter="onTooltipPointerEnter"
+        @content-leave="onTooltipPointerLeave"
+      />
     </div>
   </UCard>
 </template>
-
-<style scoped>
-.unovis-xy-container {
-  --vis-axis-grid-color: var(--ui-border);
-  --vis-axis-tick-color: var(--ui-border);
-  --vis-axis-tick-label-color: var(--ui-text-dimmed);
-
-  --vis-tooltip-background-color: var(--ui-bg);
-  --vis-tooltip-border-color: var(--ui-border);
-  --vis-tooltip-text-color: var(--ui-text-highlighted);
-}
-
-/*
- * Unovis writes its own default font size onto every tick tspan as an XML
- * attribute (`font-size="14"`). A presentation attribute beats the size
- * inherited from the axis, so `tick-text-font-size` alone does not shrink the
- * labels on phones: 14px text was painted in a column sized for 11px, which
- * overflows on a 320px phone and leaves ~0px of clearance on a 390px one. Pin
- * the rendered size to the one plan-chart-axis.ts measured.
- */
-/* `:deep()` has to open the selector: the container element is rendered by
-   Unovis, so it never carries this component's scope attribute. */
-:deep(.unovis-xy-container) text[class*='tick-label'],
-:deep(.unovis-xy-container) text[class*='tick-label'] tspan {
-  font-size: var(--pc-tick-font-size);
-}
-</style>

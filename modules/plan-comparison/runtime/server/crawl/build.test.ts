@@ -180,4 +180,32 @@ describe('buildDatabase', () => {
     expect(oc[0]?.estimates?.per_month).toBe(400)
     expect(db.models.some(m => m.id === 'opencode/solo')).toBe(true)
   })
+
+  it('drops free OC promo rows entirely, like goat free models', () => {
+    // Live OC page: "Space Bunny Free | Free | Free | Free | - | Unlimited"
+    // parses to null rates + null estimates, then borrows the $60 plan
+    // credit and enters chart 1 as a phantom paid model.
+    const db = buildDatabase({
+      ...baseInput,
+      openCodePricing: [{ name: 'Space Bunny Free', tier: 'standard', input: null, output: null, cacheRead: null, cacheWrite: null, monthlyLimit: null }],
+      openCodeEstimates: [{ name: 'Space Bunny Free', per5h: null, perWeek: null, perMonth: null }],
+      openCodeEndpoints: [{ name: 'Space Bunny Free', modelId: 'space-bunny-free' }]
+    })
+    expect(db.models.some(m => m.id === 'space-bunny-free')).toBe(false)
+    expect(db.plan_models.some(p => p.model_id === 'space-bunny-free')).toBe(false)
+    expect(db.pricing.some(p => p.model_id === 'space-bunny-free')).toBe(false)
+  })
+
+  it('keeps OC rows with null rates but a published monthly limit', () => {
+    // A paid row whose rate cells failed to parse must not be dropped
+    // silently: the published limit proves it is a real offering.
+    const db = buildDatabase({
+      ...baseInput,
+      openCodePricing: [{ name: 'Glitch', tier: 'standard', input: null, output: null, cacheRead: null, cacheWrite: null, monthlyLimit: 60 }],
+      openCodeEstimates: [],
+      openCodeEndpoints: []
+    })
+    expect(db.models.some(m => m.id === 'opencode/glitch')).toBe(true)
+    expect(db.plan_models.some(p => p.model_id === 'opencode/glitch')).toBe(true)
+  })
 })

@@ -5,7 +5,7 @@ definePageMeta({ layout: 'default' })
 <template>
   <UDashboardPanel id="plan-comparison">
     <template #header>
-      <UDashboardNavbar title="So sánh plan theo model">
+      <UDashboardNavbar title="Plan comparison by model">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>

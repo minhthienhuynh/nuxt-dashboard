@@ -125,6 +125,17 @@ export function isGoGoatModel(model: Model): boolean {
 }
 
 /**
+ * OC promo rows quote "Free" in every rate cell, which parses to null. Left in,
+ * they borrow the plan's monthly credit as a phantom paid model on the charts —
+ * the same class of row `isFreeModel` drops on the goat path. A published
+ * monthly limit proves a real offering, so rows that have one are kept even
+ * when their rate cells failed to parse (never drop a paid row silently).
+ */
+export function isFreeOcPricing(row: OpenCodePricingRow): boolean {
+  return row.input == null && row.output == null && row.cacheRead == null && row.monthlyLimit == null
+}
+
+/**
  * CMD slugs dash-separate version dots (`deepseek-v4-1-flash`) while OpenCode
  * Model IDs keep them (`deepseek-v4.1-flash`) and drop the vendor prefix.
  * Compare with dots/dashes/underscores unified so the same model joins
@@ -256,6 +267,8 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
     const modelId = resolveOcModelId(models, ocIdByName.get(key) ?? null, displayName) ?? ocIdFor(key)
     const priceRows = input.openCodePricing.filter(p => matchName(p.name) === key)
     const price = priceRows[0]
+    // Free promo rows never enter the dataset (mirrors goat isFreeModel).
+    if (price && isFreeOcPricing(price)) continue
     const estimate = ocEstimateByName.get(key)
     for (const row of priceRows) {
       pricing.push({

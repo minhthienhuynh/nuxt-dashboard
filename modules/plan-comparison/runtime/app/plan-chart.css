@@ -1,0 +1,28 @@
+/*
+ * Shared Unovis theming for the plan-comparison charts.
+ *
+ * Unovis writes its own default font size onto every tick tspan as an XML
+ * attribute (`font-size="14"`). A presentation attribute beats the size
+ * inherited from the axis, so `tick-text-font-size` alone does not shrink the
+ * labels on phones: 14px text was painted in a column sized for 11px, which
+ * overflows on a 320px phone and leaves ~0px of clearance on a 390px one. Pin
+ * the rendered size to the one plan-chart-axis.ts measured.
+ *
+ * The selectors target the Unovis-rendered container element, which never
+ * carries a component's scope attribute — so this stylesheet is global by
+ * design, not scoped.
+ */
+.unovis-xy-container {
+  --vis-axis-grid-color: var(--ui-border);
+  --vis-axis-tick-color: var(--ui-border);
+  --vis-axis-tick-label-color: var(--ui-text-dimmed);
+
+  --vis-tooltip-background-color: var(--ui-bg);
+  --vis-tooltip-border-color: var(--ui-border);
+  --vis-tooltip-text-color: var(--ui-text-highlighted);
+}
+
+.unovis-xy-container text[class*='tick-label'],
+.unovis-xy-container text[class*='tick-label'] tspan {
+  font-size: var(--pc-tick-font-size);
+}
