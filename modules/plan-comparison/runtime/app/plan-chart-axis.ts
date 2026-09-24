@@ -18,6 +18,8 @@
 export const AXIS_LABEL_MIN_WIDTH = 132
 export const AXIS_LABEL_MAX_WIDTH = 280
 export const AXIS_LABEL_WIDTH_RATIO = 0.55
+/** Narrow screens give the label column less room: long names wrap to 2 lines. */
+export const AXIS_NARROW_LABEL_WIDTH_RATIO = 0.38
 export const AXIS_NARROW_WIDTH = 420
 export const AXIS_MEDIUM_WIDTH = 760
 export const AXIS_TICK_LABEL_FONT_SIZE = 14
@@ -39,7 +41,7 @@ export const AXIS_FONT_WIDTH_TO_HEIGHT_RATIO = 0.5
 export const AXIS_LABEL_COLUMN_PADDING = 20
 /**
  * Unovis only breaks tick text at these separators, plus hard `\n` breaks. We
- * supply our own line breaks (score on its own line), so the separator is set to
+ * supply our own line breaks (our wrap points), so the separator is set to
  * a character that cannot appear in a label: it makes `\n` the only break and
  * stops Unovis from re-wrapping (and shrinking) the lines we chose.
  */
@@ -60,8 +62,8 @@ export interface ChartAxisLayout {
   fontSize: number
   /** Tick label line box, in px. */
   lineHeight: number
-  /** Whether the intel score goes on its own (second) line. */
-  stackScore: boolean
+  /** Whether long labels wrap onto a second line (narrow screens). */
+  wrapLabels: boolean
   /** How many x-axis ticks the plot can show without colliding. */
   xTickBudget: number
   /** Base per-model row height, in px. */
@@ -73,7 +75,9 @@ export function chartAxisLayout(containerWidth: number): ChartAxisLayout {
   const width = Number.isFinite(containerWidth) && containerWidth > 0 ? containerWidth : 0
   const narrow = width > 0 && width < AXIS_NARROW_WIDTH
   const labelWidth = Math.round(
-    Math.min(AXIS_LABEL_MAX_WIDTH, Math.max(AXIS_LABEL_MIN_WIDTH, width * AXIS_LABEL_WIDTH_RATIO))
+    narrow
+      ? Math.min(AXIS_LABEL_MAX_WIDTH, Math.max(AXIS_LABEL_MIN_WIDTH, width * AXIS_NARROW_LABEL_WIDTH_RATIO))
+      : Math.min(AXIS_LABEL_MAX_WIDTH, Math.max(AXIS_LABEL_MIN_WIDTH, width * AXIS_LABEL_WIDTH_RATIO))
   )
   const fontSize = narrow ? AXIS_NARROW_TICK_LABEL_FONT_SIZE : AXIS_TICK_LABEL_FONT_SIZE
   const plotWidth = Math.max(0, width - labelWidth)
@@ -84,7 +88,7 @@ export function chartAxisLayout(containerWidth: number): ChartAxisLayout {
     labelWrapWidth: Math.max(0, labelWidth - AXIS_LABEL_COLUMN_PADDING),
     fontSize,
     lineHeight: AXIS_TICK_LABEL_LINE_HEIGHT,
-    stackScore: narrow,
+    wrapLabels: narrow,
     xTickBudget,
     rowHeight: narrow ? AXIS_WRAPPED_ROW_HEIGHT : AXIS_ROW_HEIGHT
   }
@@ -95,26 +99,28 @@ export function estimateTextWidth(text: string, fontSize: number): number {
   return text.length * fontSize * AXIS_FONT_WIDTH_TO_HEIGHT_RATIO
 }
 
-/**
- * Splits a chart label (`"DeepSeek V4 Flash (34.5)"`) into its model name and
- * the trailing intel score. Labels without a score keep `score === null`, so
- * the score line never shows up empty.
- */
-export function splitLabel(label: string): { name: string, score: string | null } {
-  const trimmed = label.trim()
-  const match = /^(.*\S)\s+(\([^)]*\))$/.exec(trimmed)
-  if (!match) return { name: trimmed, score: null }
-  return { name: match[1] ?? trimmed, score: match[2] ?? null }
+/** Trims an over-wide line with a trailing ellipsis so it stays in the column. */
+function ellipsize(line: string, maxWidthPx: number, fontSize: number): string {
+  if (estimateTextWidth(line, fontSize) <= maxWidthPx) return line
+  let trimmed = line
+  while (trimmed.length > 1 && estimateTextWidth(`${trimmed}…`, fontSize) > maxWidthPx) {
+    trimmed = trimmed.slice(0, -1)
+  }
+  return `${trimmed}…`
 }
 
-/** Greedy word wrap, with a character break for a word that cannot fit alone. */
-export function wrapText(text: string, maxWidthPx: number, fontSize: number): string[] {
+/** Greedy word wrap capped at `maxLines`; overflow truncates the last line. */
+export function wrapText(text: string, maxWidthPx: number, fontSize: number, maxLines = Infinity): string[] {
   const words = text.split(/\s+/).filter(Boolean)
   if (!words.length) return []
   if (!(maxWidthPx > 0)) return [words.join(' ')]
   const lines: string[] = []
   let line = ''
   const fits = (candidate: string) => estimateTextWidth(candidate, fontSize) <= maxWidthPx
+  const pushLine = () => {
+    lines.push(line)
+    line = ''
+  }
   for (const word of words) {
     const candidate = line ? `${line} ${word}` : word
     if (fits(candidate) || !line) {
@@ -123,36 +129,39 @@ export function wrapText(text: string, maxWidthPx: number, fontSize: number): st
         continue
       }
       // Single word wider than the column: hard-break it so it cannot overflow.
-      let head = line
       for (const char of word) {
-        if (head && !fits(head + char)) {
-          lines.push(head)
-          head = char
-        } else {
-          head += char
+        if (line && !fits(line + char) && lines.length + 1 < maxLines) {
+          pushLine()
         }
+        line += char
       }
-      line = head
       continue
     }
-    lines.push(line)
+    if (lines.length + 1 >= maxLines) {
+      // No room for another line: append to the final line (capped output).
+      line = candidate
+      continue
+    }
+    pushLine()
     line = word
   }
-  if (line) lines.push(line)
+  // Only the final line can run wide (earlier lines are pushed fitting), and
+  // only when the line budget is capped: truncate it so the label cannot run
+  // over the neighbouring row. Uncapped callers keep the raw text.
+  if (line) lines.push(lines.length + 1 >= maxLines ? ellipsize(line, maxWidthPx, fontSize) : line)
   return lines
 }
 
 /**
- * Two-line tick label: model name on the first line, intel score on the second.
- * Wide screens keep the compact single-line form, which is what the tables and
- * tooltips show as well.
+ * Mobile tick label: wrap the model name onto at most two lines at the base
+ * font size (the rendered size is fixed per chart, so estimation must use the
+ * same size). Overflow past two lines is truncated with an ellipsis — the
+ * popover carries the full name. Wide screens keep the compact single-line
+ * form.
  */
 export function tickLabel(label: string, layout: ChartAxisLayout): string {
-  if (!layout.stackScore) return label
-  const { name, score } = splitLabel(label)
-  const lines = wrapText(name, layout.labelWrapWidth, layout.fontSize)
-  if (score) lines.push(score)
-  return lines.length ? lines.join('\n') : label
+  if (!layout.wrapLabels) return label
+  return wrapText(label, layout.labelWrapWidth, layout.fontSize, 2).join('\n')
 }
 
 /**

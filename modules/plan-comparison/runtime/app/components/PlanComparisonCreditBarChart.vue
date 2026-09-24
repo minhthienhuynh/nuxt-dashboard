@@ -1,29 +1,44 @@
 <script setup lang="ts">
-import { VisAxis, VisBulletLegend, VisGroupedBarSelectors, VisGroupedBar, VisPlotband, VisTooltip, VisXYContainer } from '@unovis/vue'
+import { VisAxis, VisBulletLegend, VisGroupedBar, VisPlotband, VisXYContainer } from '@unovis/vue'
 import type { EnrichedModelRow } from '../composables/usePlanComparisonDatabase'
-import { escapeHtml, PLAN_COMPARISON_PLANS } from '../plan-colors'
-import { AXIS_TICK_SEPARATOR, chartAxisLayout, rowHeightForLabels, tickLabel } from '../plan-chart-axis'
+import { PLAN_COMPARISON_PLANS } from '../plan-colors'
+import { AXIS_TICK_SEPARATOR } from '../plan-chart-axis'
+import { usePlanComparisonChartFrame } from '../usePlanComparisonChartFrame'
+import { usePlanChartHover } from '../usePlanChartHover'
+import '../plan-chart.css'
 
 const props = defineProps<{
   rows: EnrichedModelRow[]
   skipped: string[]
 }>()
 
-const cardRef = useTemplateRef<HTMLElement | null>('cardRef')
-const { width } = useElementSize(cardRef)
-const axis = computed(() => chartAxisLayout(width.value ?? 0))
+const {
+  cardRef,
+  chartRef,
+  width,
+  axis,
+  tickLabels,
+  rowBandHeight,
+  yDomain,
+  zebraRows,
+  tickValues,
+  yTickFormat,
+  legendItems
+} = usePlanComparisonChartFrame(() => props.rows)
 
 const BAR_H = 16
-// Three bars define the visual band; a taller label (name + score on two lines)
-// grows the row band instead of overlapping the next row.
-const tickLabels = computed(() => props.rows.map(row => tickLabel(row.label, axis.value)))
-const bandHeight = computed(() => Math.max(3 * BAR_H, rowHeightForLabels(tickLabels.value, axis.value)))
+// Three bars define the visual band; a taller label (name wrapped onto two
+// lines) grows the row band instead of overlapping the next row.
+const bandHeight = computed(() => Math.max(3 * BAR_H, rowBandHeight.value))
 const chartHeight = computed(() => props.rows.length * bandHeight.value + 60)
-const yDomain = computed<[number, number]>(() => [-0.5, Math.max(props.rows.length - 0.5, 0.5)])
-const zebraRows = computed(() => props.rows.map((_, i) => i).filter(i => i % 2 === 0))
-const tickValues = computed(() => props.rows.map((_, i) => i))
 
-const legendItems = PLAN_COMPARISON_PLANS.map(plan => ({ name: plan.label, color: plan.color }))
+// Hover (or tap on touch) a model — its y-axis label or any of its bars — for
+// the spec tooltip.
+const { hovered, onPointerMove, onPointerLeave, onPointerUp, onTooltipPointerEnter, onTooltipPointerLeave, close } = usePlanChartHover(
+  () => props.rows,
+  () => tickLabels.value,
+  () => chartRef.value ?? null
+)
 
 const xIndex = (_d: EnrichedModelRow, i: number) => i
 
@@ -33,21 +48,6 @@ const barColor = (_d: EnrichedModelRow, accessorIndex: number) =>
   PLAN_COMPARISON_PLANS[accessorIndex]?.color ?? 'var(--ui-border-accented)'
 
 const xTickFormat = (value: number) => `$${value}`
-const yTickFormat = (value: number) => tickLabels.value[Math.round(value)] ?? ''
-
-const barTriggers = {
-  [VisGroupedBarSelectors.bar]: (d: EnrichedModelRow, i: number) => {
-    const planIndex = i % PLAN_COMPARISON_PLANS.length
-    const plan = PLAN_COMPARISON_PLANS[planIndex]
-    if (!plan) return null
-    const funding = d[plan.key]
-    if (funding.credit == null) return null
-    const request = funding.request == null
-      ? 'không công bố'
-      : `${funding.request.toLocaleString('vi-VN')} request/tháng`
-    return `<b>${escapeHtml(d.label)}</b><br>${plan.label}: $${funding.credit} credit/tháng<br>→ ${request}`
-  }
-}
 </script>
 
 <template>
@@ -55,13 +55,13 @@ const barTriggers = {
     <template #header>
       <div class="space-y-1 px-4">
         <p class="text-lg font-semibold text-highlighted">
-          1. Credit/tháng + số request/tháng theo model
+          1. Monthly credit + requests per model
         </p>
         <p class="text-[13px] text-muted">
-          Độ dài cột = credit tối đa/tháng. Hover vào cột để xem số request/tháng tương ứng
-          ("—" = provider không công bố). Số trong ngoặc sau tên model = điểm AA ("—" = chưa có điểm).
+          Bar length = max monthly credit. Hover a model's bar or name to see its specs
+          (intelligence, pricing, caps) and per-plan funding.
           <template v-if="skipped.length">
-            Bỏ qua {{ skipped.join(', ') }} vì không được cấp credit ở gói nào.
+            Skipped: {{ skipped.join(', ') }} (no plan grants them credit).
           </template>
         </p>
         <VisBulletLegend :items="legendItems" class="justify-center" />
@@ -69,8 +69,12 @@ const barTriggers = {
     </template>
 
     <div
+      ref="chartRef"
       class="relative w-full"
       :style="{ 'height': `${chartHeight}px`, '--pc-tick-font-size': `${axis.fontSize}px` }"
+      @pointermove="onPointerMove"
+      @pointerleave="onPointerLeave"
+      @pointerup="onPointerUp"
     >
       <VisXYContainer
         :key="rows.length"
@@ -104,7 +108,6 @@ const barTriggers = {
         <VisAxis
           type="x"
           :tick-format="xTickFormat"
-          :num-ticks="axis.xTickBudget"
           :tick-text-font-size="`${axis.fontSize}px`"
           tick-text-hide-overlapping
         />
@@ -117,36 +120,17 @@ const barTriggers = {
           :tick-text-separator="AXIS_TICK_SEPARATOR"
           :tick-text-font-size="`${axis.fontSize}px`"
         />
-
-        <VisTooltip :triggers="barTriggers" />
       </VisXYContainer>
+
+      <PlanComparisonModelInfo
+        v-if="hovered"
+        :row="hovered.row"
+        :x="hovered.x"
+        :y="hovered.y"
+        @close="close"
+        @content-enter="onTooltipPointerEnter"
+        @content-leave="onTooltipPointerLeave"
+      />
     </div>
   </UCard>
 </template>
-
-<style scoped>
-.unovis-xy-container {
-  --vis-axis-grid-color: var(--ui-border);
-  --vis-axis-tick-color: var(--ui-border);
-  --vis-axis-tick-label-color: var(--ui-text-dimmed);
-
-  --vis-tooltip-background-color: var(--ui-bg);
-  --vis-tooltip-border-color: var(--ui-border);
-  --vis-tooltip-text-color: var(--ui-text-highlighted);
-}
-
-/*
- * Unovis writes its own default font size onto every tick tspan as an XML
- * attribute (`font-size="14"`). A presentation attribute beats the size
- * inherited from the axis, so `tick-text-font-size` alone does not shrink the
- * labels on phones: 14px text was painted in a column sized for 11px, which
- * overflows on a 320px phone and leaves ~0px of clearance on a 390px one. Pin
- * the rendered size to the one plan-chart-axis.ts measured.
- */
-/* `:deep()` has to open the selector: the container element is rendered by
-   Unovis, so it never carries this component's scope attribute. */
-:deep(.unovis-xy-container) text[class*='tick-label'],
-:deep(.unovis-xy-container) text[class*='tick-label'] tspan {
-  font-size: var(--pc-tick-font-size);
-}
-</style>

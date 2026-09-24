@@ -89,8 +89,8 @@ describe('normalizePlanComparisonDatabase - model filtering', () => {
   })
 })
 
-describe('normalizePlanComparisonDatabase - intel label', () => {
-  it('labels rows with the intel score and a dash when missing', () => {
+describe('normalizePlanComparisonDatabase - row label', () => {
+  it('labels rows with plain model names', () => {
     const db = makeDatabase(
       [makeModel({ id: 'a', intelligenceIndex: 42 }), makeModel({ id: 'b', name: 'Model B', intelligenceIndex: null })],
       [
@@ -100,7 +100,7 @@ describe('normalizePlanComparisonDatabase - intel label', () => {
     )
     const result = normalizePlanComparisonDatabase(db, baseFilters)
     const labels = Object.fromEntries(result.creditRows.map(r => [r.model.id, r.label]))
-    expect(labels).toEqual({ a: 'Model A (42)', b: 'Model B (—)' })
+    expect(labels).toEqual({ a: 'Model A', b: 'Model B' })
   })
 })
 
@@ -123,7 +123,7 @@ describe('normalizePlanComparisonDatabase - credit rows', () => {
     expect(row).toBeDefined()
     expect(row?.cmd.credit).toBe(10)
     expect(row?.goat.credit).toBeNull()
-    expect(row?.label).toBe('Model A (50)')
+    expect(row?.label).toBe('Model A')
     expect(row?.intelligence).toBe(50)
     expect(row?.speed).toBe(100)
     expect(row?.context).toBe(100000)

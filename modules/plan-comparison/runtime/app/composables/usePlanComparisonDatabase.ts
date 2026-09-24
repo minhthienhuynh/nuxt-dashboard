@@ -1,16 +1,11 @@
 import { computed, ref } from 'vue'
 // useFetch/$fetch resolve via Nuxt auto-imports (also keeps vitest green,
 // which cannot resolve the '#imports' alias outside a Nuxt build).
-import type { Model, Plan, PlanModelEstimate, PlanComparisonDatabase, PlanComparisonPayload } from '../types'
+import type { Model, Plan, PlanModelEstimate, PlanComparisonDatabase, PlanComparisonPayload, PricingEntry } from '../types'
 import { buildPricingIndex, inputPrice } from './usePlanComparisonPricing'
 import { sortRows } from './usePlanComparisonSort'
 import type { SortableModelRow, SortOptionId } from './usePlanComparisonSort'
-
-const PLAN_IDS = {
-  cmd: 'cmd-go',
-  goat: 'cmd-goat',
-  go: 'oc-go'
-} as const
+import { PLAN_COMPARISON_PLANS, type PlanComparisonPlanKey } from '../plan-colors'
 
 export const DEFAULT_OLD_BEFORE = '2026-08-26'
 export const DEFAULT_INTEL_THRESHOLD = 37
@@ -23,6 +18,8 @@ export interface PlanFunding {
 export interface EnrichedModelRow extends SortableModelRow {
   model: Model
   label: string
+  /** First `command-code` pricing entry (the one `inputPrice` sorts on). */
+  pricing: PricingEntry | null
   cmd: PlanFunding
   goat: PlanFunding
   go: PlanFunding
@@ -52,13 +49,17 @@ export interface PlanComparisonFilters {
   intelThreshold: number
 }
 
-function intelLabel(intel: number | null): string {
-  if (intel == null) return '—'
-  return Number.isInteger(intel) ? String(intel) : intel.toFixed(1)
+/** Plan id for a chart series key, from the single plan registry (plan-colors.ts). */
+function planIdOf(key: PlanComparisonPlanKey): string {
+  const plan = PLAN_COMPARISON_PLANS.find(p => p.key === key)
+  if (!plan) throw new Error(`Unknown plan key: ${key}`)
+  return plan.planId
 }
 
+// The intelligence score used to ride along in the axis label (`Model (42)`);
+// the hover/tap popover now carries it, so labels stay plain names.
 function labelFor(model: Model): string {
-  return `${model.name} (${intelLabel(model.intelligenceIndex)})`
+  return model.name
 }
 
 // A model with no intel score is treated as low-intel whenever the "hide low intel" filter is active.
@@ -102,9 +103,10 @@ export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filt
     intelligence: model.intelligenceIndex,
     speed: model.outputTokensPerSec,
     inputPrice: inputPrice(model.id, pricingIndex),
-    cmd: getFunding(PLAN_IDS.cmd, model.id),
-    goat: getFunding(PLAN_IDS.goat, model.id),
-    go: getFunding(PLAN_IDS.go, model.id)
+    pricing: pricingIndex.get(model.id) ?? null,
+    cmd: getFunding(planIdOf('cmd'), model.id),
+    goat: getFunding(planIdOf('goat'), model.id),
+    go: getFunding(planIdOf('go'), model.id)
   }))
 
   const creditRows = enrichedRows.filter(row => row.cmd.credit != null || row.goat.credit != null || row.go.credit != null)
@@ -132,7 +134,7 @@ export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filt
   }
 
   return {
-    planCards: [planCard(PLAN_IDS.cmd), planCard(PLAN_IDS.goat), planCard(PLAN_IDS.go)],
+    planCards: [planCard(planIdOf('cmd')), planCard(planIdOf('goat')), planCard(planIdOf('go'))],
     creditRows,
     dotRows,
     skippedModelNames,
@@ -156,7 +158,7 @@ export function usePlanComparisonDatabase() {
   })
   const error = computed<Error | null>(() => {
     if (!fetchError.value) return null
-    return fetchError.value instanceof Error ? fetchError.value : new Error('Không tải được dữ liệu so sánh')
+    return fetchError.value instanceof Error ? fetchError.value : new Error('Failed to load comparison data')
   })
 
   const resetting = ref(false)

@@ -25,22 +25,22 @@ const STALE_AFTER_MS = 24 * 60 * 60 * 1000
 
 function ageText(fromIso: string, now: number): string {
   const ms = now - Date.parse(fromIso)
-  if (Number.isNaN(ms) || ms < 0) return 'vừa xong'
+  if (Number.isNaN(ms) || ms < 0) return 'just now'
   const minutes = Math.floor(ms / 60000)
-  if (minutes < 1) return 'vừa xong'
-  if (minutes < 60) return `${minutes} phút trước`
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes} minutes ago`
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours} giờ trước`
-  return `${Math.floor(hours / 24)} ngày trước`
+  if (hours < 24) return `${hours} hours ago`
+  return `${Math.floor(hours / 24)} days ago`
 }
 
 const syncText = computed(() => {
-  if (!fetchedAt.value) return 'Đang tải dữ liệu...'
+  if (!fetchedAt.value) return 'Loading data...'
   const date = new Date(fetchedAt.value)
   const when = Number.isNaN(date.getTime())
-    ? `Dữ liệu lúc ${fetchedAt.value}`
-    : `Dữ liệu lúc ${date.toLocaleString('vi-VN')} (${ageText(fetchedAt.value, Date.now())})`
-  return rolledBack.value ? `${when} — đã khôi phục từ backup` : when
+    ? `Data from ${fetchedAt.value}`
+    : `Data from ${date.toLocaleString('en-US')} (${ageText(fetchedAt.value, Date.now())})`
+  return rolledBack.value ? `${when} — restored from backup` : when
 })
 
 const isOldData = computed(() => {
@@ -56,7 +56,7 @@ const isOldData = computed(() => {
       v-if="error"
       color="error"
       variant="subtle"
-      title="Không tải được dữ liệu so sánh"
+      title="Failed to load comparison data"
       :description="error.message"
     />
 
@@ -71,13 +71,13 @@ const isOldData = computed(() => {
           v-if="isOldData"
           color="warning"
           variant="subtle"
-          label="Dữ liệu đã cũ"
+          label="Data is stale"
         />
         <UButton
           size="xs"
           variant="ghost"
           :loading="resetting"
-          label="Cập nhật dữ liệu"
+          label="Refresh data"
           @click="resetCache()"
         />
       </div>

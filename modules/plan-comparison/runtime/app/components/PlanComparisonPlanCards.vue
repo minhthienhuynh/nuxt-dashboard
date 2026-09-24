@@ -7,15 +7,15 @@ defineProps<{
 }>()
 
 function usd(value: number): string {
-  return `$${value.toLocaleString('vi-VN')}`
+  return `$${value.toLocaleString('en-US')}`
 }
 
 const ROWS: Array<{ label: string, value: (plan: PlanCard) => string }> = [
-  { label: 'Giá', value: plan => `${usd(plan.price)}/tháng` },
-  { label: 'Giới hạn 5 giờ', value: plan => usd(plan.limits['5h']) },
-  { label: 'Giới hạn tuần', value: plan => usd(plan.limits.weekly) },
-  { label: 'Giới hạn tháng', value: plan => usd(plan.limits.monthly) },
-  { label: 'Số model có credit', value: plan => String(plan.modelCount) }
+  { label: 'Price', value: plan => `${usd(plan.price)}/mo` },
+  { label: '5-hour limit', value: plan => usd(plan.limits['5h']) },
+  { label: 'Weekly limit', value: plan => usd(plan.limits.weekly) },
+  { label: 'Monthly limit', value: plan => usd(plan.limits.monthly) },
+  { label: 'Models with credit', value: plan => String(plan.modelCount) }
 ]
 </script>
 
@@ -35,7 +35,7 @@ const ROWS: Array<{ label: string, value: (plan: PlanCard) => string }> = [
       </div>
 
       <p class="text-3xl font-bold text-highlighted">
-        {{ usd(plan.monthlyCredit) }}<span class="text-sm font-normal text-muted">/tháng credit</span>
+        {{ usd(plan.monthlyCredit) }}<span class="text-sm font-normal text-muted">/mo credit</span>
       </p>
 
       <dl class="mt-2 space-y-0.5 text-[13px] text-muted">

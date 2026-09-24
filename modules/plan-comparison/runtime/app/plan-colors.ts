@@ -17,13 +17,3 @@ export const PLAN_COMPARISON_PLANS: PlanComparisonPlanMeta[] = [
 export function planColor(planId: string): string {
   return PLAN_COMPARISON_PLANS.find(plan => plan.planId === planId)?.color ?? 'var(--ui-border-accented)'
 }
-
-export function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, ch => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    '\'': '&#39;'
-  })[ch] ?? ch)
-}
