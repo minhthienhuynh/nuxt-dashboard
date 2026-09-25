@@ -48,6 +48,11 @@ describe('isFreeModel', () => {
     expect(isFreeModel({ ...fullItem, deal: { free: true } })).toBe(true)
   })
 
+  it('keeps expired free deals as paid (jev 2026-09-24)', () => {
+    expect(isFreeModel({ ...fullItem, deal: { free: true, expires: '2026-09-24T23:59:59Z' } })).toBe(false)
+    expect(isFreeModel({ ...fullItem, deal: { free: true, expires: '2099-01-01T00:00:00Z' } })).toBe(true)
+  })
+
   it('excludes all-zero tier-0 rates', () => {
     const zero = { ...fullItem, tiers: [{ rates: { input: 0, output: 0, cacheRead: 0 } }] }
     expect(isFreeModel(zero)).toBe(true)
