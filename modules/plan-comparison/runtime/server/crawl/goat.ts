@@ -70,10 +70,23 @@ function parseTimeOfDay(value: unknown): ModelTimeOfDay | null {
   }
 }
 
-/** A 100% free row (deal "FREE while capacity lasts" or $0 tier-0 rates). Never enters the dataset. */
+/** A 100% free row (deal "FREE while capacity lasts" or $0 tier-0 rates). Never enters the dataset.
+ * A deal with `free:true` but a past `expires` is treated as paid — e.g. typesafe/jev
+ * switched from $0 (FREE through 2026-09-24) to $0.042 on 2026-09-25 and must enter
+ * the dataset once the promo window closes. */
 export function isFreeModel(item: Record<string, unknown>): boolean {
   const deal = item.deal
-  if (deal != null && typeof deal === 'object' && (deal as Record<string, unknown>).free === true) return true
+  if (deal != null && typeof deal === 'object') {
+    const record = deal as Record<string, unknown>
+    if (record.free === true) {
+      const expires = parseText(record.expires)
+      if (expires) {
+        const t = Date.parse(expires)
+        if (!Number.isNaN(t) && t < Date.now()) return false
+      }
+      return true
+    }
+  }
   const tiers = Array.isArray(item.tiers) ? parseTierRates(item.tiers) : []
   const first = tiers[0]?.rates
   return !!first && first.input === 0 && first.output === 0 && first.cacheRead === 0
