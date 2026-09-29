@@ -1,8 +1,8 @@
 import type { Model, Plan, PlanLimits, PlanModelEstimate, PricingEntry } from '../../app/types'
 import { computeEstimates, computeRowEstimates } from './estimates'
-import type { EstimateFractions } from './estimates'
+import type { ComputedEstimates, EstimateFractions } from './estimates'
 import { mapOpenCodeModelRows, matchName } from './opencode'
-import type { GoatEstimateRow } from './goat'
+import type { FlightEstimateRow, GoatEstimateRow } from './goat'
 import type { PricingLimitsSection } from './ccpricing'
 import type { OpenCodeEndpointRow, OpenCodeEstimateRow, OpenCodePricingRow } from './opencode'
 import { plans } from '../data/plans'
@@ -13,6 +13,8 @@ export interface BuildInput {
   pricingSections: PricingLimitsSection[]
   goCreditsUsd: number | null
   goatFractions: EstimateFractions
+  goEstimates: FlightEstimateRow[]
+  goFractions: EstimateFractions
   openCodePricing: OpenCodePricingRow[]
   openCodeEstimates: OpenCodeEstimateRow[]
   openCodeEndpoints: OpenCodeEndpointRow[]
@@ -90,6 +92,24 @@ function pricingEntriesForModel(
   return entries
 }
 
+function planModelRow(
+  planId: string,
+  modelId: string,
+  budgetUsd: number | null,
+  computed: ComputedEstimates | null,
+  sourceUrl: string,
+  fetchedAt: string
+): PlanModelEstimate {
+  return {
+    plan_id: planId,
+    model_id: modelId,
+    monthly_credits_usd: budgetUsd ?? 0,
+    estimates: computed ? { per_5h: computed.per5h, per_week: computed.perWeek, per_month: computed.perMonth } : null,
+    sourceUrl,
+    fetchedAt
+  }
+}
+
 function estimateRow(
   planId: string,
   modelId: string,
@@ -100,17 +120,10 @@ function estimateRow(
   fetchedAt: string
 ): PlanModelEstimate {
   if (budgetUsd == null || budgetUsd <= 0) {
-    return { plan_id: planId, model_id: modelId, monthly_credits_usd: budgetUsd ?? 0, estimates: null, sourceUrl, fetchedAt }
+    return planModelRow(planId, modelId, budgetUsd, null, sourceUrl, fetchedAt)
   }
   const computed = computeEstimates(budgetUsd, rates, rates.vendor, limits)
-  return {
-    plan_id: planId,
-    model_id: modelId,
-    monthly_credits_usd: budgetUsd,
-    estimates: computed ? { per_5h: computed.per5h, per_week: computed.perWeek, per_month: computed.perMonth } : null,
-    sourceUrl,
-    fetchedAt
-  }
+  return planModelRow(planId, modelId, budgetUsd, computed, sourceUrl, fetchedAt)
 }
 
 function onCmdGo(model: Model): boolean {
@@ -209,6 +222,7 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
   const ocPlan = planById('oc-go')
 
   const estimateByName = new Map(input.goatEstimates.map(e => [matchName(e.name), e]))
+  const goEstimateByName = new Map(input.goEstimates.map(e => [matchName(e.name), e]))
   const listBySlug = new Map(input.pricingSections.map(s => [s.slug, s.rates]))
   const ocEstimateByName = new Map(input.openCodeEstimates.map(e => [matchName(e.name), e]))
 
@@ -231,17 +245,25 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
         }, model.vendor, input.goatFractions)
       : computeEstimates(goatPlan.monthly_credit_usd, rates, model.vendor, goatPlan.limits)
     const goatBudget = estimate?.budgetUsd ?? goatPlan.monthly_credit_usd
-    planModels.push({
-      plan_id: 'cmd-goat',
-      model_id: model.id,
-      monthly_credits_usd: goatBudget,
-      estimates: goatComputed ? { per_5h: goatComputed.per5h, per_week: goatComputed.perWeek, per_month: goatComputed.perMonth } : null,
-      sourceUrl: input.sourceUrls.goat,
-      fetchedAt: input.fetchedAt
-    })
+    planModels.push(planModelRow('cmd-goat', model.id, goatBudget, goatComputed, input.sourceUrls.goat, input.fetchedAt))
     if (onCmdGo(model)) {
-      const goBudget = input.goCreditsUsd ?? goPlan.monthly_credit_usd
-      planModels.push(estimateRow('cmd-go', model.id, goBudget, rates, goPlan.limits, input.sourceUrls.go, input.fetchedAt))
+      // Script path: the Go estimates table publishes per-model budgets with
+      // its own rates/shape/fractions (Go is per-model credits since 2026-09-28).
+      // Models missing from that table fall back to the legacy flat-budget math.
+      // A row whose rates fail to parse keeps its budget with null estimates
+      // (mirrors estimateRow: null estimates are filtered from the log chart).
+      const goEstimate = goEstimateByName.get(matchName(model.name))
+      const goBudget = goEstimate?.budgetUsd ?? input.goCreditsUsd ?? goPlan.monthly_credit_usd
+      if (goEstimate?.budgetUsd != null) {
+        const goComputed = computeRowEstimates(goEstimate.budgetUsd, {
+          rates: goEstimate.rates,
+          shape: goEstimate.shape,
+          timeOfDay: goEstimate.timeOfDay
+        }, model.vendor, input.goFractions)
+        planModels.push(planModelRow('cmd-go', model.id, goBudget, goComputed, input.sourceUrls.go, input.fetchedAt))
+      } else {
+        planModels.push(estimateRow('cmd-go', model.id, goBudget, rates, goPlan.limits, input.sourceUrls.go, input.fetchedAt))
+      }
     }
   }
 

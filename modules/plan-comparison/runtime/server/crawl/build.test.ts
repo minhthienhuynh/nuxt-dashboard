@@ -37,6 +37,8 @@ const baseInput = {
   pricingSections: [{ slug: 'widget', rates: { input: 1, output: 4, cacheRead: 0.1, cacheWrite: null } }],
   goCreditsUsd: 10,
   goatFractions: { fiveHour: 0.2, weekly: 0.5 },
+  goEstimates: [],
+  goFractions: { fiveHour: 0.3, weekly: 0.6 },
   openCodePricing: [],
   openCodeEstimates: [],
   openCodeEndpoints: [],
@@ -137,6 +139,26 @@ describe('buildDatabase', () => {
   it('skips the cmd-go row when minPlanName requires GOAT', () => {
     const db = buildDatabase({ ...baseInput, goatModels: [makeModel({ minPlanName: 'GOAT' })] })
     expect(db.plan_models.map(p => p.plan_id)).toEqual(['cmd-goat'])
+  })
+
+  it('uses the Go estimates table for cmd-go budgets (per-model credits)', () => {
+    const db = buildDatabase({
+      ...baseInput,
+      goEstimates: [{ name: 'Widget', budgetUsd: 6, rates: { inputCost: 1, outputCost: 4, cacheReadCost: 0.1 }, shape: { inputTokens: 800, outputTokens: 200, cacheReadTokens: 50000 }, timeOfDay: null }]
+    })
+    const go = db.plan_models.find(p => p.plan_id === 'cmd-go')
+    expect(go?.monthly_credits_usd).toBe(6)
+    // Go fractions 0.3/0.6: 6 credits at cost 0.0066/req = 909/mo → 273/545/909
+    expect(go?.estimates).toEqual({ per_5h: 273, per_week: 545, per_month: 909 })
+  })
+
+  it('falls back to flat-budget math when the model is missing from the Go table', () => {
+    const db = buildDatabase(baseInput)
+    const go = db.plan_models.find(p => p.plan_id === 'cmd-go')
+    expect(go?.monthly_credits_usd).toBe(10)
+    // Flat $10 at cost 0.0066/req: exact 1515.15/mo → round3 (3 sig digits) 1520;
+    // windows on exact month with Go limits 3/6/10 → 455/909/1520
+    expect(go?.estimates).toEqual({ per_5h: 455, per_week: 909, per_month: 1520 })
   })
 
   it('merges OC rows into the CMD model instead of duplicating it', () => {

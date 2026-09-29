@@ -46,6 +46,13 @@ async function crawlFresh(): Promise<PlanComparisonPayload> {
     }
   )
   const goatEstimates = parseGoatEstimates(extractFlightEstimates(sources.goatHtml))
+  // Go fallback fractions come from the static Go plan limits (3/6/10),
+  // not the GOAT defaults (0.2/0.5) inside parseGoatEstimates.
+  const goPlanLimits = staticPlans.find(p => p.id === 'cmd-go')?.limits
+  const goEstimates = parseGoatEstimates(extractFlightEstimates(sources.goHtml), {
+    fiveHour: goPlanLimits ? goPlanLimits['5h'] / goPlanLimits.monthly : 0.3,
+    weekly: goPlanLimits ? goPlanLimits.weekly / goPlanLimits.monthly : 0.6
+  })
   const pricingSections = parsePricingLimits(sources.pricingLimitsHtml)
   const goLimits = parseGoPlanLimits(sources.goHtml)
   const ocPricing = parseOpenCodePricing(sources.openCodeGoHtml)
@@ -55,6 +62,8 @@ async function crawlFresh(): Promise<PlanComparisonPayload> {
     goatModels,
     goatEstimates: goatEstimates.rows,
     goatFractions: { fiveHour: goatEstimates.fiveHourFraction, weekly: goatEstimates.weeklyFraction },
+    goEstimates: goEstimates.rows,
+    goFractions: { fiveHour: goEstimates.fiveHourFraction, weekly: goEstimates.weeklyFraction },
     pricingSections,
     goCreditsUsd: goLimits?.creditsUsd ?? null,
     openCodePricing: ocPricing,

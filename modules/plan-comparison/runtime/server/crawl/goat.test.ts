@@ -109,4 +109,10 @@ describe('parseGoatEstimates', () => {
     expect(parsed.rows[0]?.timeOfDay?.offPeak?.inputCost).toBe(0.15)
     expect(parsed.fiveHourFraction).toBe(0.2)
   })
+
+  it('uses custom fallback fractions when the payload omits them', () => {
+    const parsed = parseGoatEstimates({ rows: [] }, { fiveHour: 0.3, weekly: 0.6 })
+    expect(parsed.fiveHourFraction).toBe(0.3)
+    expect(parsed.weeklyFraction).toBe(0.6)
+  })
 })

@@ -185,8 +185,14 @@ export interface GoatEstimateRow {
   timeOfDay: RowTimeOfDay | null
 }
 
-export function parseGoatEstimates(payload: unknown): { rows: GoatEstimateRow[], fiveHourFraction: number, weeklyFraction: number } {
-  const fallback = { rows: [] as GoatEstimateRow[], fiveHourFraction: 0.2, weeklyFraction: 0.5 }
+/** Shared Flight payload shape — GOAT and Go estimates tables publish the same component. */
+export type FlightEstimateRow = GoatEstimateRow
+
+export function parseGoatEstimates(
+  payload: unknown,
+  fallbackFractions: { fiveHour: number, weekly: number } = { fiveHour: 0.2, weekly: 0.5 }
+): { rows: GoatEstimateRow[], fiveHourFraction: number, weeklyFraction: number } {
+  const fallback = { rows: [] as GoatEstimateRow[], fiveHourFraction: fallbackFractions.fiveHour, weeklyFraction: fallbackFractions.weekly }
   if (payload == null || typeof payload !== 'object') return fallback
   const record = payload as Record<string, unknown>
   const rows = Array.isArray(record.rows) ? record.rows : []
@@ -203,7 +209,7 @@ export function parseGoatEstimates(payload: unknown): { rows: GoatEstimateRow[],
           timeOfDay: parseRowTimeOfDay(r.timeOfDay ?? r.time_of_day)
         }
       }),
-    fiveHourFraction: toNumber(record.fiveHourFraction) ?? 0.2,
-    weeklyFraction: toNumber(record.weeklyFraction) ?? 0.5
+    fiveHourFraction: toNumber(record.fiveHourFraction) ?? fallbackFractions.fiveHour,
+    weeklyFraction: toNumber(record.weeklyFraction) ?? fallbackFractions.weekly
   }
 }
