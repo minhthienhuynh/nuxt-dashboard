@@ -270,3 +270,46 @@ export async function resolveAaScoreForTest(
     gate = saved
   }
 }
+
+/**
+ * Parses intelligence scores from the AA leaderboard page
+ * (`/leaderboards/models`). The page embeds model records in Next.js flight
+ * chunks (`self.__next_f`) — each record carries its own slug, score and
+ * estimated flag:
+ * `{"slug":"mimo-v2-6-flash",...,"intelligenceIndex":37.88,"intelligenceIndexIsEstimated":false}`.
+ * Only exact scores are kept: null or estimated entries are dropped, and the
+ * survivors are rounded with `round1` like every other AA score in this
+ * module. Keys are lowercased slugs for exact whole-string joins.
+ * Assumes the served records keep `slug` ahead of the score fields (true of
+ * the observed flight payload; a reorder degrades gracefully to an empty
+ * map and the per-model probes take over).
+ */
+export function parseLeaderboardIntel(html: string): Map<string, number> {
+  const scores = new Map<string, number>()
+  const unescaped = html.replace(/\\"/g, '"')
+  // Split on the record opener so the first array element (`[{"slug":…`)
+  // parses the same as the rest (`},{"slug":…`).
+  for (const record of unescaped.split('{"slug":').slice(1)) {
+    const slug = record.match(/^"([^"]+)"/)?.[1]?.toLowerCase()
+    if (!slug || scores.has(slug)) continue
+    if (!/"intelligenceIndexIsEstimated":\s*false/.test(record)) continue
+    const raw = record.match(/"intelligenceIndex":(-?\d+(?:\.\d+)?)/)?.[1]
+    const score = raw == null ? null : Number(raw)
+    if (score == null || !Number.isFinite(score)) continue
+    scores.set(slug, round1(score))
+  }
+  return scores
+}
+
+/** Fetches the leaderboard once; failures yield an empty map (callers fall back to per-model probes). */
+export async function fetchLeaderboardIntel(fetchImpl: FetchImpl = fetch): Promise<Map<string, number>> {
+  try {
+    const response = await fetchImpl('https://artificialanalysis.ai/leaderboards/models', {
+      headers: { 'User-Agent': CRAWLER_USER_AGENT }
+    })
+    if (!response.ok) return new Map()
+    return parseLeaderboardIntel(await response.text())
+  } catch {
+    return new Map()
+  }
+}

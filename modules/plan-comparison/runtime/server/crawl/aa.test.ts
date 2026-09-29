@@ -4,8 +4,10 @@ import {
   extractAaIntelligence,
   extractAaScores,
   fetchAaScore,
+  fetchLeaderboardIntel,
   findAaScore,
   labelMatchesModel,
+  parseLeaderboardIntel,
   resolveAaScoreForTest,
   round1
 } from './aa'
@@ -170,5 +172,69 @@ describe('resolveAaScore', () => {
       throw new Error('down')
     })
     expect(await resolve({ slug: 'step-5-preview', name: 'Step 5 Preview' }, fetchImpl)).toBeNull()
+  })
+})
+
+describe('parseLeaderboardIntel', () => {
+  // Trimmed flight-chunk excerpt from the live leaderboard page (2026-09-29),
+  // quotes kept escaped as served so the test covers the unescape step.
+  const flightHtml = `<html><body><script>self.__next_f.push([1,"[{\\"slug\\":\\"mimo-v2-6-flash\\",\\"name\\":\\"MiMo-V2.6-Flash\\",\\"intelligenceIndex\\":37.8843590141754,\\"intelligenceIndexIsEstimated\\":false},{\\"slug\\":\\"mimo-v2-6-pro\\",\\"name\\":\\"MiMo-V2.6-Pro\\",\\"intelligenceIndex\\":46.3242065310383,\\"intelligenceIndexIsEstimated\\":false},{\\"slug\\":\\"guess-model\\",\\"name\\":\\"Guess Model\\",\\"intelligenceIndex\\":12.5,\\"intelligenceIndexIsEstimated\\":true},{\\"slug\\":\\"unscored-model\\",\\"name\\":\\"Unscored Model\\",\\"intelligenceIndex\\":null,\\"intelligenceIndexIsEstimated\\":false}]"])</script></body></html>`
+
+  it('keeps exact scores rounded to 1 decimal', () => {
+    const scores = parseLeaderboardIntel(flightHtml)
+    expect(scores.get('mimo-v2-6-flash')).toBe(37.9)
+    expect(scores.get('mimo-v2-6-pro')).toBe(46.3)
+  })
+
+  it('drops estimated and null entries', () => {
+    const scores = parseLeaderboardIntel(flightHtml)
+    expect(scores.has('guess-model')).toBe(false)
+    expect(scores.has('unscored-model')).toBe(false)
+  })
+
+  it('keeps the first record on duplicate slugs', () => {
+    const dupHtml = `<script>[{\\"slug\\":\\"dup-model\\",\\"intelligenceIndex\\":40.0,\\"intelligenceIndexIsEstimated\\":false},{\\"slug\\":\\"dup-model\\",\\"intelligenceIndex\\":10.0,\\"intelligenceIndexIsEstimated\\":false}]</script>`
+    expect(parseLeaderboardIntel(dupHtml).get('dup-model')).toBe(40)
+  })
+
+  it('lowercases slugs for case-insensitive joins', () => {
+    const upperHtml = `<script>[{\\"slug\\":\\"MiMo-V2-6-Flash\\",\\"intelligenceIndex\\":37.884,\\"intelligenceIndexIsEstimated\\":false}]</script>`
+    expect(parseLeaderboardIntel(upperHtml).get('mimo-v2-6-flash')).toBe(37.9)
+  })
+
+  it('never leaks a variant score to a missing slug (exact whole-string join)', () => {
+    // Same payload minus the flash record: pro keeps its score, flash misses
+    // instead of borrowing it.
+    const proOnlyHtml = `<html><body><script>self.__next_f.push([1,"[{\\"slug\\":\\"mimo-v2-6-pro\\",\\"name\\":\\"MiMo-V2.6-Pro\\",\\"intelligenceIndex\\":46.3242065310383,\\"intelligenceIndexIsEstimated\\":false}]"])</script></body></html>`
+    const scores = parseLeaderboardIntel(proOnlyHtml)
+    expect(scores.get('mimo-v2-6-pro')).toBe(46.3)
+    expect(scores.has('mimo-v2-6-flash')).toBe(false)
+  })
+
+  it('returns empty without flight records', () => {
+    expect(parseLeaderboardIntel('<html></html>').size).toBe(0)
+  })
+})
+
+describe('fetchLeaderboardIntel', () => {
+  it('fetches the leaderboard page once', async () => {
+    const body = `x{\\"slug\\":\\"mimo-v2-6-flash\\",\\"intelligenceIndex\\":37.8843590141754,\\"intelligenceIndexIsEstimated\\":false}`
+    const fetchImpl = vi.fn(async (_url: string | URL | Request) => new Response(body))
+    const scores = await fetchLeaderboardIntel(fetchImpl)
+    expect(scores.get('mimo-v2-6-flash')).toBe(37.9)
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+    expect(String(fetchImpl.mock.calls[0]?.[0] ?? '')).toContain('/leaderboards/models')
+  })
+
+  it('returns an empty map on fetch failure', async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error('down')
+    })
+    expect((await fetchLeaderboardIntel(fetchImpl)).size).toBe(0)
+  })
+
+  it('returns an empty map on non-ok responses', async () => {
+    const fetchImpl = vi.fn(async (_url: string | URL | Request) => new Response('oops', { status: 500 }))
+    expect((await fetchLeaderboardIntel(fetchImpl)).size).toBe(0)
   })
 })
