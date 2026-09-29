@@ -8,7 +8,7 @@ import { parseGoatEstimates, parseGoatModels } from '../../crawl/goat'
 import { parseGoPlanLimits, parsePricingLimits } from '../../crawl/ccpricing'
 import { parseOpenCodeEndpoints, parseOpenCodeEstimates, parseOpenCodePricing } from '../../crawl/opencode'
 import { crawledDatabaseSchema } from '../../crawl/schemas'
-import { AA_MODEL_SLUGS, fetchAaScore, resolveAaScore } from '../../crawl/aa'
+import { AA_MODEL_SLUGS, fetchAaScore, fetchLeaderboardIntel, resolveAaScore } from '../../crawl/aa'
 import { plans as staticPlans } from '../../data/plans'
 import { providers as staticProviders } from '../../data/providers'
 
@@ -31,17 +31,31 @@ async function crawlFresh(): Promise<PlanComparisonPayload> {
   const sources = await fetchSources()
   const goatModels = parseGoatModels(extractFlightModels(sources.goatHtml))
   // Fill missing intel scores from AA (CC leaves serving tiers / brand-new
-  // models unscored). Generic resolution — no per-model curation; the curated
-  // AA_MODEL_SLUGS overrides apply first for user-mandated proxies. Failures
-  // leave the score null (AA has not scored the model).
+  // models unscored). The leaderboard covers every model in one fetch and is
+  // consulted first; the curated AA_MODEL_SLUGS overrides apply before both,
+  // per-model page probes stay as fallback. Failures leave the score null
+  // (AA has not scored the model).
+  const unscored = goatModels.filter(model => model.intelligenceIndex == null)
+  // Curated overrides never consult the board, so skip its fetch when every
+  // unscored model is overridden.
+  const needsBoard = unscored.some(model => AA_MODEL_SLUGS[model.id] == null)
+  const leaderboard = needsBoard ? await fetchLeaderboardIntel() : new Map<string, number>()
   await mapWithConcurrency(
-    goatModels.filter(model => model.intelligenceIndex == null),
+    unscored,
     3,
     async (model) => {
       const override = AA_MODEL_SLUGS[model.id]
-      const score = override
-        ? await fetchAaScore(override.slug, override.label)
-        : await resolveAaScore(model)
+      if (override) {
+        const score = await fetchAaScore(override.slug, override.label)
+        if (score != null) model.intelligenceIndex = score
+        return
+      }
+      const board = leaderboard.get(model.slug.toLowerCase())
+      if (board != null) {
+        model.intelligenceIndex = board
+        return
+      }
+      const score = await resolveAaScore(model)
       if (score != null) model.intelligenceIndex = score
     }
   )
