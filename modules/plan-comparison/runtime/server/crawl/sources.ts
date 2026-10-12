@@ -2,7 +2,7 @@ export const SOURCE_URLS = {
   goat: 'https://commandcode.ai/docs/plans/goat',
   go: 'https://commandcode.ai/docs/plans/go',
   pricingLimits: 'https://commandcode.ai/docs/resources/pricing-limits',
-  openCodeGo: 'https://opencode.ai/docs/go'
+  openCodeGo: 'https://opencode.ai/v2/docs/console/go/'
 } as const
 
 export const CRAWLER_USER_AGENT = 'Mozilla/5.0 (plan-comparison-crawler)'

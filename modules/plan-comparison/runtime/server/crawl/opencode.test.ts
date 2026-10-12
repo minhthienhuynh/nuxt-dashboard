@@ -30,6 +30,21 @@ describe('parseOpenCodePricing', () => {
       { name: 'DeepSeek V4.1 Flash (Peak)', tier: 'peak', input: 0.3, output: 1.2, cacheRead: 0.006, cacheWrite: null, monthlyLimit: 60 }
     ])
   })
+
+  it('prioritizes tables within data-plan-panel="go" over other plan panels', () => {
+    const html = `
+      <div data-plan-panel="go-plus">
+        <table><tr><th>Model</th><th>Input</th><th>Monthly limit</th></tr>
+        <tr><td>Model X</td><td>$0.50</td><td>$180</td></tr></table>
+      </div>
+      <div data-plan-panel="go">
+        <table><tr><th>Model</th><th>Input</th><th>Monthly limit</th></tr>
+        <tr><td>Model X</td><td>$0.50</td><td>$60</td></tr></table>
+      </div>
+    `
+    const rows = parseOpenCodePricing(html)
+    expect(rows[0]?.monthlyLimit).toBe(60)
+  })
 })
 
 describe('parseOpenCodeEstimates', () => {

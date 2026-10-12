@@ -38,7 +38,11 @@ export function matchName(name: string): string {
 
 function allTableRows(html: string): string[][][] {
   const root = parseHtml(html)
-  return root.querySelectorAll('table').map(table =>
+  const scoped = root.querySelectorAll('[data-plan-panel="go"] table')
+  const tables = scoped.length > 0
+    ? [...scoped, ...root.querySelectorAll('table').filter(t => !scoped.includes(t))]
+    : root.querySelectorAll('table')
+  return tables.map(table =>
     table.querySelectorAll('tr').map(tr =>
       tr.querySelectorAll('th, td').map(cell => cellText(cell))
     )
