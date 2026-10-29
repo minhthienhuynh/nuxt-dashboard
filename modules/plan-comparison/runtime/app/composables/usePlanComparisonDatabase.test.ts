@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { normalizePlanComparisonDatabase } from './usePlanComparisonDatabase'
 import type { Model, Plan, PlanModelEstimate, PlanComparisonDatabase } from '../types'
 
-function makePlan(id: string): Plan {
+function makePlan(id: string, overrides: Partial<Plan> = {}): Plan {
   return {
     id,
     provider_id: 'command-code',
@@ -10,7 +10,8 @@ function makePlan(id: string): Plan {
     monthly_price_usd: 10,
     monthly_credit_usd: 10,
     has_api_access: true,
-    limits: { '5h': 1, 'weekly': 2, 'monthly': 3 }
+    limits: { '5h': 1, 'weekly': 2, 'monthly': 3 },
+    ...overrides
   }
 }
 
@@ -127,6 +128,30 @@ describe('normalizePlanComparisonDatabase - credit rows', () => {
     expect(row?.intelligence).toBe(50)
     expect(row?.speed).toBe(100)
     expect(row?.context).toBe(100000)
+  })
+})
+
+describe('normalizePlanComparisonDatabase - plan cards', () => {
+  it('exposes the published window fractions for a percent-based plan', () => {
+    const db = makeDatabase([], [])
+    db.plans = [
+      makePlan('cmd-go'),
+      makePlan('cmd-goat'),
+      makePlan('oc-go', {
+        limits: { '5h': 12, 'weekly': 30, 'monthly': 60 },
+        limits_percent: { '5h': 20, 'weekly': 50, 'monthly': 100 }
+      })
+    ]
+    const oc = normalizePlanComparisonDatabase(db, baseFilters).planCards.find(c => c.id === 'oc-go')
+    expect(oc?.limitPercent).toEqual({ '5h': 20, 'weekly': 50, 'monthly': 100 })
+    // Dollar limits stay available for the estimate math.
+    expect(oc?.limits).toEqual({ '5h': 12, 'weekly': 30, 'monthly': 60 })
+  })
+
+  it('leaves flat-dollar plans without window fractions', () => {
+    const db = makeDatabase([], [])
+    const cards = normalizePlanComparisonDatabase(db, baseFilters).planCards
+    expect(cards.find(c => c.id === 'cmd-goat')?.limitPercent).toBeUndefined()
   })
 })
 

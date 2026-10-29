@@ -9,6 +9,18 @@ export interface PlanLimits {
   'monthly': number
 }
 
+/**
+ * Plans that publish rolling windows as a share of each model's own monthly
+ * limit (OpenCode Go: "5-hour — 20% of the monthly limit; weekly — 50%;
+ * monthly — 100%") carry the fractions here. `limits` then holds the
+ * pool-equivalent dollars the estimate math derives from those fractions.
+ */
+export interface PlanLimitsPercent {
+  '5h': number
+  'weekly': number
+  'monthly': number
+}
+
 export interface Plan {
   id: string
   provider_id: string
@@ -17,8 +29,8 @@ export interface Plan {
   monthly_credit_usd: number
   has_api_access: boolean
   limits: PlanLimits
+  limits_percent?: PlanLimitsPercent
   weekly_window_days?: number
-  first_month_usd?: number
 }
 
 export interface ModelTierRates {

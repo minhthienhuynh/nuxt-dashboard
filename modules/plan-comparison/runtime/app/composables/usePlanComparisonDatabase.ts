@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 // useFetch/$fetch resolve via Nuxt auto-imports (also keeps vitest green,
 // which cannot resolve the '#imports' alias outside a Nuxt build).
-import type { Model, Plan, PlanModelEstimate, PlanComparisonDatabase, PlanComparisonPayload, PricingEntry } from '../types'
+import type { Model, Plan, PlanLimitsPercent, PlanModelEstimate, PlanComparisonDatabase, PlanComparisonPayload, PricingEntry } from '../types'
 import { buildPricingIndex, inputPrice } from './usePlanComparisonPricing'
 import { sortRows } from './usePlanComparisonSort'
 import type { SortableModelRow, SortOptionId } from './usePlanComparisonSort'
@@ -31,6 +31,12 @@ export interface PlanCard {
   monthlyCredit: number
   price: number
   limits: Plan['limits']
+  /**
+   * Set when the plan publishes its rolling windows as a share of each model's
+   * own monthly limit rather than a flat dollar cap (OpenCode Go: 20% / 50% /
+   * 100%). The card shows the percentages; `limits` stays the pool-equivalent.
+   */
+  limitPercent?: PlanLimitsPercent
   modelCount: number
 }
 
@@ -129,6 +135,7 @@ export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filt
       monthlyCredit: plan.monthly_credit_usd,
       price: plan.monthly_price_usd,
       limits: plan.limits,
+      limitPercent: plan.limits_percent,
       modelCount: db.plan_models.filter(pm => pm.plan_id === planId).length
     }
   }

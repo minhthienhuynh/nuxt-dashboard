@@ -6,15 +6,27 @@ defineProps<{
   planCards: PlanCard[]
 }>()
 
+/** Whole-dollar formatting; the percentage windows need one decimal ($7.50). */
 function usd(value: number): string {
-  return `$${value.toLocaleString('en-US')}`
+  return `$${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
+}
+
+/**
+ * OpenCode Go sizes its windows as a share of each model's own monthly limit
+ * ("5-hour — 20% of the monthly limit; weekly — 50%; monthly — 100%"), so a
+ * flat dollar figure only holds for the models whose limit matches the plan
+ * pool. The plan carries the fractions; per-model dollars live in the charts.
+ */
+function windowValue(plan: PlanCard, window: '5h' | 'weekly' | 'monthly'): string {
+  if (!plan.limitPercent) return usd(plan.limits[window])
+  return `${plan.limitPercent[window]}%`
 }
 
 const ROWS: Array<{ label: string, value: (plan: PlanCard) => string }> = [
   { label: 'Price', value: plan => `${usd(plan.price)}/mo` },
-  { label: '5-hour limit', value: plan => usd(plan.limits['5h']) },
-  { label: 'Weekly limit', value: plan => usd(plan.limits.weekly) },
-  { label: 'Monthly limit', value: plan => usd(plan.limits.monthly) },
+  { label: '5-hour limit', value: plan => windowValue(plan, '5h') },
+  { label: 'Weekly limit', value: plan => windowValue(plan, 'weekly') },
+  { label: 'Monthly limit', value: plan => windowValue(plan, 'monthly') },
   { label: 'Models with credit', value: plan => String(plan.modelCount) }
 ]
 </script>
