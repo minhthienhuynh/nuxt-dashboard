@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseOpenDesignAllowances, parseOpenDesignModels, parsePlanAccess } from './opendesign'
+import { parseOpenDesignAllowances, parseOpenDesignModels, parseOpenDesignMultipliers, parsePlanAccess } from './opendesign'
 
 // Trimmed copy of go.open-design.ai: the pricing page embeds the plan table as
 // a JSON settings block, the models index carries one catalog card (vendor +
@@ -57,6 +57,34 @@ describe('parseOpenDesignAllowances', () => {
 
   it('returns nothing when the table is absent', () => {
     expect(parseOpenDesignAllowances('<html><body>no table</body></html>')).toEqual([])
+  })
+})
+
+const multipliersHtml = `<table>
+  <tr><th>Model</th><th>Credit multiplier</th></tr>
+  <tr><th scope="row">DeepSeek V4.1 Flash Off-peak promo</th><td><span class="multiplier-value">0.25×</span></td></tr>
+  <tr><th scope="row">DeepSeek V4.1 Flash</th><td><span class="multiplier-value">0.5×</span></td></tr>
+  <tr data-eco-multiplier-row><th scope="row">DeepSeek V4.1 Flash Eco</th><td><span class="multiplier-value" data-go-rate="0.27×" data-plus-rate="0.27×">0.27×</span></td></tr>
+  <tr><th scope="row">GPT-6 Luna</th><td><span class="multiplier-value">4×</span></td></tr>
+  <tr><th scope="row">MiMo V2.6 Flash</th><td><span class="multiplier-value">1×</span></td></tr>
+</table>`
+
+describe('parseOpenDesignMultipliers', () => {
+  it('reads each model multiplier, preferring the Go rate', () => {
+    expect(parseOpenDesignMultipliers(multipliersHtml)).toEqual([
+      { name: 'DeepSeek V4.1 Flash', multiplier: 0.5 },
+      { name: 'DeepSeek V4.1 Flash Eco', multiplier: 0.27 },
+      { name: 'GPT-6 Luna', multiplier: 4 },
+      { name: 'MiMo V2.6 Flash', multiplier: 1 }
+    ])
+  })
+
+  it('drops promo rows: the dataset never bakes a promo', () => {
+    expect(parseOpenDesignMultipliers(multipliersHtml).some(row => /promo/i.test(row.name))).toBe(false)
+  })
+
+  it('returns nothing without the multiplier table', () => {
+    expect(parseOpenDesignMultipliers('<html><body>nope</body></html>')).toEqual([])
   })
 })
 

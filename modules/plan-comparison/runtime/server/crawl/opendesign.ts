@@ -38,6 +38,16 @@ export interface OpenDesignAllowanceRow {
   fiveHourWindow: number | null
 }
 
+/**
+ * Design Plan model → credit multiplier (open-design.ai/model-credits). Credits
+ * spent = model usage in dollars × multiplier, so a pool of N credits buys
+ * `N / multiplier` dollars of that model's usage.
+ */
+export interface OpenDesignMultiplierRow {
+  name: string
+  multiplier: number
+}
+
 export interface OpenDesignCatalogModel {
   /** API model id as published by the console (`deepseek-v4.1-flash`). */
   id: string
@@ -102,6 +112,36 @@ export function parseOpenDesignAllowances(html: string): OpenDesignAllowanceRow[
     })
   })
   return allowances
+}
+
+/**
+ * Parses the "Design Plan models and credit multipliers" table. The Go tab's
+ * rate wins (`data-go-rate`, which the model-level rows such as Eco carry);
+ * plain rows are the same across tabs and expose the value as text.
+ *
+ * Promo rows (`DeepSeek V4.1 Flash Off-peak promo`, a separate row with its own
+ * dated window) are skipped: the dataset never bakes a promo, and the model's
+ * own row carries the regular multiplier.
+ */
+export function parseOpenDesignMultipliers(html: string): OpenDesignMultiplierRow[] {
+  const root = parseHtml(html)
+  const table = root.querySelectorAll('table').find(candidate =>
+    candidate.querySelectorAll('th, td').some(cell => cellTextOf(cell).toLowerCase() === 'credit multiplier')
+  )
+  if (!table) return []
+
+  const rows: OpenDesignMultiplierRow[] = []
+  for (const row of table.querySelectorAll('tr')) {
+    const name = cellTextOf(row.querySelector('th'))
+    if (name === '' || name.toLowerCase() === 'model') continue
+    if (/promo/i.test(name)) continue
+    const value = row.querySelector('.multiplier-value')
+    const raw = value?.getAttribute('data-go-rate') ?? cellTextOf(value)
+    const multiplier = toNumber(raw.replace(/×/g, ''))
+    if (multiplier == null || multiplier <= 0) continue
+    rows.push({ name, multiplier })
+  }
+  return rows
 }
 
 /** `Go / Plus / Pro / Max` → `['go', 'plus', 'pro', 'max']`. */

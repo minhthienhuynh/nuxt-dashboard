@@ -45,8 +45,9 @@ const baseInput = {
   openCodeEndpoints: [],
   openDesignAllowances: [],
   openDesignModels: [],
+  openDesignMultipliers: [],
   fetchedAt: '2026-09-19T00:00:00.000Z',
-  sourceUrls: { goat: 'g', go: 'o', pricingLimits: 'p', openCodeGo: 'oc', openDesignPricing: 'odp', openDesignModels: 'odm' }
+  sourceUrls: { goat: 'g', go: 'o', pricingLimits: 'p', openCodeGo: 'oc', openDesignPricing: 'odp', openDesignModels: 'odm', openDesignCredits: 'odc' }
 }
 
 describe('matchName', () => {
@@ -267,9 +268,10 @@ describe('buildDatabase - OpenDesign Go pool plan', () => {
     // → 282,051 req/mo → round3 282000; windows from the allowance table
     // ($18 per 5h, $55 per 7d over a $220 pool) → 23100 / 70500.
     expect(row?.estimates).toEqual({ per_5h: 23100, per_week: 70500, per_month: 282000 })
-    // Credit comes from the plan table, rates from the catalog: both recorded.
+    // Credit from the plan table, multiplier from the credits page, rates from
+    // the catalog: all three recorded.
     expect(row?.sourceUrl).toBe('odp')
-    expect(row?.note).toBe('Pool from the plan table; rates from odm')
+    expect(row?.note).toBe('Pool 220/mo at 1× from odc; rates from odm')
   })
 
   it('falls back to the static pool when the page stops listing the Go row', () => {
@@ -299,6 +301,30 @@ describe('buildDatabase - OpenDesign Go pool plan', () => {
       })]
     })
     expect(db.pricing.filter(p => p.provider_id === 'open-design').map(p => p.tier)).toEqual(['standard', 'extended'])
+  })
+
+  it('converts the pool by the model credit multiplier', () => {
+    // Credits spent = usage × multiplier, so a 0.5× model gets $440 of usage
+    // from the $220 pool, a 2× model $110 and a 4× model $55
+    // (open-design.ai/model-credits). Only one catalog model is available here,
+    // so each multiplier gets its own build.
+    const build = (multiplier?: number) => {
+      const db = buildDatabase({
+        ...baseInput,
+        openDesignAllowances: odAllowancesFixture,
+        openDesignModels: [odModel()],
+        openDesignMultipliers: multiplier == null ? [] : [{ name: 'Widget', multiplier }]
+      })
+      const row = db.plan_models.find(p => p.plan_id === 'od-go')
+      return { credits: row?.monthly_credits_usd, perMonth: row?.estimates?.per_month, note: row?.note }
+    }
+    // $440 of usage at $0.00078/req = 564,102 → round3 564000.
+    expect(build(0.5)).toMatchObject({ credits: 440, perMonth: 564000 })
+    expect(build(2)).toMatchObject({ credits: 110, perMonth: 141000 })
+    expect(build(4)).toMatchObject({ credits: 55, perMonth: 70500 })
+    // The table only lists what is not 1×: unlisted models keep the full pool.
+    expect(build()).toMatchObject({ credits: 220, perMonth: 282000 })
+    expect(build(0.5).note).toBe('Pool 220/mo at 0.5× from odc; rates from odm')
   })
 
   it('skips a legacy panel that has no catalog card at all', () => {

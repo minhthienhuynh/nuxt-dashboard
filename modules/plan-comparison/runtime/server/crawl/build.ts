@@ -5,7 +5,7 @@ import { mapOpenCodeModelRows, matchName } from './opencode'
 import type { FlightEstimateRow, GoatEstimateRow } from './goat'
 import type { PricingLimitsSection } from './ccpricing'
 import type { OpenCodeEndpointRow, OpenCodeEstimateRow, OpenCodePricingRow } from './opencode'
-import type { OpenDesignAllowanceRow, OpenDesignCatalogModel } from './opendesign'
+import type { OpenDesignAllowanceRow, OpenDesignCatalogModel, OpenDesignMultiplierRow } from './opendesign'
 import { plans } from '../data/plans'
 
 export interface BuildInput {
@@ -21,6 +21,7 @@ export interface BuildInput {
   openCodeEndpoints: OpenCodeEndpointRow[]
   openDesignAllowances: OpenDesignAllowanceRow[]
   openDesignModels: OpenDesignCatalogModel[]
+  openDesignMultipliers: OpenDesignMultiplierRow[]
   fetchedAt: string
   sourceUrls: {
     goat: string
@@ -31,6 +32,8 @@ export interface BuildInput {
     openDesignPricing: string
     /** Where the OpenDesign per-model rates live. */
     openDesignModels: string
+    /** Where the OpenDesign credit multipliers live. */
+    openDesignCredits: string
   }
 }
 
@@ -364,6 +367,10 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
   // plan as fallback (same pattern as cmd-go's `goCreditsUsd`).
   const odAllowance = allowanceFor(input.openDesignAllowances, 'Go')
   const odCredits = odAllowance?.codingCredits ?? odPlan.monthly_credit_usd
+  // Credits spent = model usage × multiplier, so the pool buys `pool / multiplier`
+  // dollars of that model's usage — the number comparable to the per-model
+  // credits the other plans grant. Models the table does not list are 1×.
+  const odMultiplierByName = new Map(input.openDesignMultipliers.map(row => [matchName(row.name), row.multiplier]))
   const odLimits: PlanLimits = {
     '5h': odAllowance?.fiveHourWindow ?? odPlan.limits['5h'],
     'weekly': odAllowance?.weeklyWindow ?? odPlan.limits.weekly,
@@ -396,15 +403,21 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
     if (!od.plans.includes('go')) continue
     const base = od.tiers[0]
     const catalogModel = models.find(m => m.id === modelId)
-    const row = estimateRow('od-go', modelId, odCredits, {
+    const multiplier = odMultiplierByName.get(matchName(od.name)) ?? 1
+    const odModelCredits = Math.round((odCredits / multiplier) * 100) / 100
+    const row = estimateRow('od-go', modelId, odModelCredits, {
       input: base?.input ?? null,
       output: base?.output ?? null,
       cacheRead: base?.cacheRead ?? null,
       vendor: catalogModel?.vendor ?? null
     }, odLimits, input.sourceUrls.openDesignPricing, input.fetchedAt)
     // The credit comes from the plan table (pricing page), the rates from the
-    // model catalog: one `sourceUrl` cannot stand for both.
-    planModels.push({ ...row, note: `Pool from the plan table; rates from ${input.sourceUrls.openDesignModels}` })
+    // model catalog and the multiplier from the credits page: one `sourceUrl`
+    // cannot stand for all three.
+    planModels.push({
+      ...row,
+      note: `Pool ${odCredits}/mo at ${multiplier}× from ${input.sourceUrls.openDesignCredits}; rates from ${input.sourceUrls.openDesignModels}`
+    })
   }
 
   return {
