@@ -62,17 +62,20 @@ export const plans: Plan[] = [
     // List price $10/mo. The page also shows a first-month price ($8) and a
     // yearly equivalent ($7/mo, $84/yr) — promo-shaped numbers, not stored.
     monthly_price_usd: 10,
-    // "Total monthly credits, up to $220", one shared Coding Plan pool
-    // (go.open-design.ai settings: design 220, pool 0). Shared, not per model.
+    // "Total monthly credits, up to $220": one shared Coding Plan pool, not a
+    // per-model grant (pricing page settings: design 220, pool 0).
     monthly_credit_usd: 220,
     has_api_access: true,
     funding: 'pool',
-    // The plan publishes one monthly pool and no 5-hour/weekly caps; per-model
-    // dollars live in the charts as "if this model used the whole pool".
+    // Published in the pricing page's "Plan allowances" table: coding credits
+    // $220/month with a $55 per 7-day and $18 per 5-hour window (the windows
+    // apply to Coding Plan credits only). The crawl reads the same table live
+    // and falls back to these numbers.
     limits: {
-      '5h': null,
-      'weekly': null,
+      '5h': 18,
+      'weekly': 55,
       'monthly': 220
-    }
+    },
+    weekly_window_days: 7
   }
 ]

@@ -5,7 +5,7 @@ import { mapOpenCodeModelRows, matchName } from './opencode'
 import type { FlightEstimateRow, GoatEstimateRow } from './goat'
 import type { PricingLimitsSection } from './ccpricing'
 import type { OpenCodeEndpointRow, OpenCodeEstimateRow, OpenCodePricingRow } from './opencode'
-import type { OpenDesignCatalogModel, OpenDesignPlanRow } from './opendesign'
+import type { OpenDesignAllowanceRow, OpenDesignCatalogModel } from './opendesign'
 import { plans } from '../data/plans'
 
 export interface BuildInput {
@@ -19,7 +19,7 @@ export interface BuildInput {
   openCodePricing: OpenCodePricingRow[]
   openCodeEstimates: OpenCodeEstimateRow[]
   openCodeEndpoints: OpenCodeEndpointRow[]
-  openDesignPlans: OpenDesignPlanRow[]
+  openDesignAllowances: OpenDesignAllowanceRow[]
   openDesignModels: OpenDesignCatalogModel[]
   fetchedAt: string
   sourceUrls: {
@@ -41,12 +41,11 @@ function planById(id: string): Plan {
 }
 
 /**
- * `design` credits of a named OpenDesign plan — the Coding Plan pool its
- * models draw on — or null when the page's settings block no longer lists it.
+ * Allowance row (coding credits + rolling windows) of a named OpenDesign plan,
+ * or null when the page no longer lists it.
  */
-export function planCreditsUsd(odPlans: OpenDesignPlanRow[], name: string): number | null {
-  const plan = odPlans.find(p => p.name.toLowerCase() === name.toLowerCase())
-  return plan?.design ?? null
+export function allowanceFor(rows: OpenDesignAllowanceRow[], name: string): OpenDesignAllowanceRow | null {
+  return rows.find(row => row.name.toLowerCase() === name.toLowerCase()) ?? null
 }
 
 interface EffectiveRates {
@@ -361,7 +360,15 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
   // used all of it") and requests are derived from OpenDesign's own rates for
   // that model. Only models already in the catalog get a row — OpenDesign-only
   // ids (GPT-6 Sol, Opus 5.5, image models…) wait until the catalog adds them.
-  const odCredits = planCreditsUsd(input.openDesignPlans, 'Go') ?? odPlan.monthly_credit_usd
+  // Credits and windows come from the live allowance table, with the static
+  // plan as fallback (same pattern as cmd-go's `goCreditsUsd`).
+  const odAllowance = allowanceFor(input.openDesignAllowances, 'Go')
+  const odCredits = odAllowance?.codingCredits ?? odPlan.monthly_credit_usd
+  const odLimits: PlanLimits = {
+    '5h': odAllowance?.fiveHourWindow ?? odPlan.limits['5h'],
+    'weekly': odAllowance?.weeklyWindow ?? odPlan.limits.weekly,
+    'monthly': odAllowance?.codingCredits ?? odPlan.limits.monthly
+  }
   for (const od of input.openDesignModels) {
     // A panel with no catalog card is a legacy rate card, not an offering the
     // page sells: skip it whole (no pricing entry, no row).
@@ -394,7 +401,7 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
       output: base?.output ?? null,
       cacheRead: base?.cacheRead ?? null,
       vendor: catalogModel?.vendor ?? null
-    }, odPlan.limits, input.sourceUrls.openDesignPricing, input.fetchedAt)
+    }, odLimits, input.sourceUrls.openDesignPricing, input.fetchedAt)
     // The credit comes from the plan table (pricing page), the rates from the
     // model catalog: one `sourceUrl` cannot stand for both.
     planModels.push({ ...row, note: `Pool from the plan table; rates from ${input.sourceUrls.openDesignModels}` })

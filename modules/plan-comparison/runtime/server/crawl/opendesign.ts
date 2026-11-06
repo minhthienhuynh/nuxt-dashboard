@@ -5,31 +5,37 @@ import { toNumber } from './parse'
 /**
  * OpenDesign Go (`go.open-design.ai`) is an Astro static site: no Flight/RSC
  * payload, but two machine-readable sources in plain HTML —
- *
- * - the pricing page embeds `<script type="application/json"
- *   data-corouter-settings>` with one entry per plan (`monthly`/`first`/
- *   `annual`/`year` plus the two credit pools: `design` = Coding Plan credits,
- *   `pool` = plan-model credits);
+ * - the pricing page's "Plan allowances" table (`Model credits by plan`) gives
+ *   each plan's coding credits and its rolling windows; its JSON settings block
+ *   was the earlier source for credits but carries no windows;
  * - the models index carries one `[data-model-panel]` per catalog model (API
  *   model id + input-length tiers with 4 rates) and one `a.catalog-card` per
  *   model (vendor + the plan list that may use it).
  */
-
-export interface OpenDesignPlanRow {
-  /** `Go` / `Plus` / `Pro` / `Max`. */
-  name: string
-  /** Regular monthly price — the validity gate for the row (never stored: the
-   * card price lives in `data/plans.ts`, promos are not baked into the dataset). */
-  monthly: number
-  /** Coding Plan credits: the pool the plan's coding models draw on. */
-  design: number
-}
 
 export interface OpenDesignTierRates {
   input: number | null
   output: number | null
   cacheRead: number | null
   cacheWrite: number | null
+}
+
+/**
+ * Row of the pricing page's "Plan allowances" table (`Model credits by plan`):
+ * the plan's monthly maximum split into plan-model credits and Coding Plan
+ * credits, plus the rolling windows — which apply to Coding Plan credits only
+ * ("No limit window" tables as null).
+ */
+export interface OpenDesignAllowanceRow {
+  name: string
+  /** Regular monthly price. Validity gate for the row; the card price is static. */
+  monthly: number
+  /** Coding Plan credits: the pool the plan's coding models draw on. */
+  codingCredits: number | null
+  /** Seven-day credit window, null when the plan has none. */
+  weeklyWindow: number | null
+  /** Five-hour credit window, null when the plan has none. */
+  fiveHourWindow: number | null
 }
 
 export interface OpenDesignCatalogModel {
@@ -44,38 +50,58 @@ export interface OpenDesignCatalogModel {
   tiers: OpenDesignTierRates[]
 }
 
-const SETTINGS_RE = /<script[^>]*type="application\/json"[^>]*data-corouter-settings[^>]*>([\s\S]*?)<\/script>/
+/** `$1,234 Bonus` / `$220` → 1234 / 220; `No limit window` → null. */
+function money(text: string): number | null {
+  const match = /\$\s*([\d,.]+)/.exec(text)
+  return match?.[1] ? toNumber(match[1]) : null
+}
 
-/** Parses the plan table embedded in the pricing page's JSON settings block. */
-export function parseOpenDesignPlans(html: string): OpenDesignPlanRow[] {
-  const match = SETTINGS_RE.exec(html)
-  if (!match?.[1]) return []
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(match[1])
-  } catch {
-    return []
-  }
-  const plans = (parsed as { plans?: unknown })?.plans
-  if (!Array.isArray(plans)) return []
-  const rows: OpenDesignPlanRow[] = []
-  for (const entry of plans) {
-    if (entry == null || typeof entry !== 'object') continue
-    const record = entry as Record<string, unknown>
-    const name = typeof record.name === 'string' ? record.name.trim() : ''
-    const monthly = toNumber(record.monthly)
-    // A row without a name or a price is not a plan the card can render. The
-    // promo fields (`first`/`annual`/`year`) and plan-model `pool` are read off
-    // the page but deliberately not carried: nothing in the dataset consumes
-    // them, and stored promos go stale the day they end.
-    if (name === '' || monthly == null) continue
-    rows.push({
+function cellTextOf(cell: { text?: string } | null | undefined): string {
+  return (cell?.text ?? '').replace(/\s+/g, ' ').trim()
+}
+
+export function parseOpenDesignAllowances(html: string): OpenDesignAllowanceRow[] {
+  const root = parseHtml(html)
+  const table = root.querySelectorAll('table').find(candidate =>
+    candidate.querySelectorAll('th, td').some(cell => cellTextOf(cell).toLowerCase().includes('coding plan'))
+  )
+  if (!table) return []
+
+  const rows = table.querySelectorAll('tr').map(tr => tr.querySelectorAll('th, td').map(cellTextOf))
+  const headerCells = rows.flat()
+  const headerIndex = (needle: string): number =>
+    rows.findIndex(row => row.some(cell => cell.toLowerCase().includes(needle)))
+  const headerHas = (needle: string): boolean =>
+    rows.some(row => row.some(cell => cell.toLowerCase().includes(needle)))
+
+  const priceCol = headerCells.findIndex(cell => cell.toLowerCase().includes('price'))
+  const codingCol = headerCells.findIndex(cell => cell.toLowerCase().includes('coding plan'))
+  // The two window headers sit on a second header row that only spans the
+  // right-hand columns, so their own cell indexes do not line up with the data
+  // rows: the windows are the two columns directly after `Coding Plan`. Their
+  // presence is still required, so a layout change fails loudly (empty result)
+  // instead of reading the price column as a window.
+  if (priceCol < 0 || codingCol < 0 || !headerHas('7-day window') || !headerHas('5-hour window')) return []
+  const weeklyCol = codingCol + 1
+  const fiveHourCol = codingCol + 2
+  const headerRows = new Set([headerIndex('coding plan'), headerIndex('7-day window')].filter(i => i >= 0))
+
+  const allowances: OpenDesignAllowanceRow[] = []
+  rows.forEach((cells, index) => {
+    if (headerRows.has(index)) return
+    const name = cells[0] ?? ''
+    const monthly = money(cells[priceCol] ?? '')
+    // A row without a plan name or a price is layout, not a plan.
+    if (name === '' || monthly == null) return
+    allowances.push({
       name,
       monthly,
-      design: toNumber(record.design) ?? 0
+      codingCredits: money(cells[codingCol] ?? ''),
+      weeklyWindow: money(cells[weeklyCol] ?? ''),
+      fiveHourWindow: money(cells[fiveHourCol] ?? '')
     })
-  }
-  return rows
+  })
+  return allowances
 }
 
 /** `Go / Plus / Pro / Max` → `['go', 'plus', 'pro', 'max']`. */

@@ -53,14 +53,14 @@ function makeDatabase(models: Model[], planModels: PlanModelEstimate[]): PlanCom
   }
 }
 
-/** OpenDesign Go: one shared monthly pool, no published 5-hour/weekly caps. */
+/** OpenDesign Go: one shared monthly pool ($220) with published $18/$55 windows. */
 function makeOdPlan(overrides: Partial<Plan> = {}): Plan {
   return makePlan('od-go', {
     provider_id: 'open-design',
     funding: 'pool',
     monthly_price_usd: 10,
     monthly_credit_usd: 220,
-    limits: { '5h': null, 'weekly': null, 'monthly': 220 },
+    limits: { '5h': 18, 'weekly': 55, 'monthly': 220 },
     ...overrides
   })
 }
@@ -185,7 +185,7 @@ describe('normalizePlanComparisonDatabase - pool plan', () => {
   it('flags its rows and card as one shared pool', () => {
     const model = makeModel({ id: 'pooled' })
     const db = makeDatabase([model], [
-      { plan_id: 'od-go', model_id: 'pooled', monthly_credits_usd: 220, estimates: { per_5h: null, per_week: null, per_month: 5000 } }
+      { plan_id: 'od-go', model_id: 'pooled', monthly_credits_usd: 220, estimates: { per_5h: 400, per_week: 1250, per_month: 5000 } }
     ])
     const result = normalizePlanComparisonDatabase(db, baseFilters)
     const row = result.creditRows.find(r => r.model.id === 'pooled')
@@ -195,8 +195,9 @@ describe('normalizePlanComparisonDatabase - pool plan', () => {
     const card = result.planCards.find(c => c.id === 'od-go')
     expect(card?.funding).toBe('pool')
     expect(card?.modelCount).toBe(1)
-    // Unpublished windows stay null: the card renders a dash, it does not invent one.
-    expect(card?.limits).toEqual({ '5h': null, 'weekly': null, 'monthly': 220 })
+    // Published windows reach the card as dollars (a plan without one would
+    // carry null and the card would render a dash instead).
+    expect(card?.limits).toEqual({ '5h': 18, 'weekly': 55, 'monthly': 220 })
     // The bar chart filters on this list, which comes from the plan data — so it
     // survives a filter that hides every row.
     expect(result.poolPlanKeys).toEqual(['od'])
