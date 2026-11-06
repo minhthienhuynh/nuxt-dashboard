@@ -26,9 +26,10 @@ function windowValue(plan: PlanCard, window: '5h' | 'weekly' | 'monthly'): strin
   return limit == null ? '—' : usd(limit)
 }
 
-/** Pool plans grant one shared allowance instead of a per-model credit. */
+/** Pool plans grant one shared allowance; OpenCode Go sells per-model limits. */
 function creditLabel(plan: PlanCard): string {
-  return plan.funding === 'pool' ? '/mo shared pool' : '/mo credit'
+  if (plan.funding === 'pool') return '/mo shared pool'
+  return plan.creditIsPerModel ? '/mo max per model' : '/mo credit'
 }
 
 const ROWS: Array<{ label: string, value: (plan: PlanCard) => string }> = [
@@ -36,6 +37,9 @@ const ROWS: Array<{ label: string, value: (plan: PlanCard) => string }> = [
   { label: '5-hour limit', value: plan => windowValue(plan, '5h') },
   { label: 'Weekly limit', value: plan => windowValue(plan, 'weekly') },
   { label: 'Monthly limit', value: plan => windowValue(plan, 'monthly') },
+  // Command Code caps most models well below the headline credit ($20 of a
+  // $100 GOAT pool), so the range is the number that matters per model.
+  { label: 'Per-model cap', value: plan => plan.creditRange ? `${usd(plan.creditRange.min)}–${usd(plan.creditRange.max)}` : '' },
   { label: 'Models with credit', value: plan => String(plan.modelCount) }
 ]
 </script>
@@ -47,12 +51,21 @@ const ROWS: Array<{ label: string, value: (plan: PlanCard) => string }> = [
       :key="plan.id"
       :ui="{ body: 'gap-y-1.5' }"
     >
-      <div class="flex items-center gap-2 font-semibold text-highlighted">
+      <div class="flex items-baseline gap-2">
+        <span class="flex items-center gap-2 font-semibold text-highlighted">
+          <span
+            class="inline-block size-2.5 shrink-0 rounded-sm"
+            :style="{ background: planColor(plan.id) }"
+          />
+          {{ plan.label }}
+        </span>
+        <!-- Vendor's own plan name, shown only when it differs ("Go Plan"). -->
         <span
-          class="inline-block size-2.5 rounded-sm"
-          :style="{ background: planColor(plan.id) }"
-        />
-        {{ plan.name }}
+          v-if="plan.name !== plan.label"
+          class="truncate text-xs text-muted"
+        >
+          {{ plan.name }}
+        </span>
       </div>
 
       <p class="text-3xl font-bold text-highlighted">
@@ -61,7 +74,7 @@ const ROWS: Array<{ label: string, value: (plan: PlanCard) => string }> = [
 
       <dl class="mt-2 space-y-0.5 text-[13px] text-muted">
         <div
-          v-for="row in ROWS"
+          v-for="row in ROWS.filter(candidate => candidate.value(plan))"
           :key="row.label"
           class="flex items-center justify-between gap-3"
         >

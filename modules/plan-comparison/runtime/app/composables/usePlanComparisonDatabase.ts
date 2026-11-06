@@ -34,6 +34,8 @@ export interface EnrichedModelRow extends SortableModelRow, PlanFundingByPlan {
 export interface PlanCard {
   id: string
   name: string
+  /** Registry label (`Cmd Go`), unique across cards and shared with the charts. */
+  label: string
   monthlyCredit: number
   price: number
   limits: Plan['limits']
@@ -46,6 +48,15 @@ export interface PlanCard {
   /** `pool` plans show one shared credit pool instead of per-model grants. */
   funding: PlanFundingKind
   modelCount: number
+  /**
+   * Span of the per-model credits this plan grants ("Per-model allowances" on
+   * Command Code, per-model monthly limits on OpenCode). `null` for pool plans
+   * (their rows differ by credit multiplier, not by allowance) and when every
+   * model gets the same credit, so the card only shows a range that is real.
+   */
+  creditRange: { min: number, max: number } | null
+  /** `monthlyCredit` is the largest per-model limit, not a plan-wide pool. */
+  creditIsPerModel: boolean
 }
 
 export interface NormalizedPlanComparisonData {
@@ -148,18 +159,38 @@ export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filt
   // skipping the card keeps Old data rendering instead of 500ing with
   // "Unknown plan id", which used to hide the very "Refresh data" button that
   // fixes it.
+  /**
+   * Per-model allowances, not the plan pool: a pool plan's rows differ only by
+   * the model's credit multiplier, so its range would read as a cap that does
+   * not exist.
+   */
+  const perModelCreditRange = (plan: Plan): { min: number, max: number } | null => {
+    if ((plan.funding ?? 'per_model') === 'pool') return null
+    const credits = db.plan_models
+      .filter(pm => pm.plan_id === plan.id)
+      .map(pm => pm.monthly_credits_usd)
+      .filter((credit): credit is number => credit != null && credit > 0)
+    if (credits.length === 0) return null
+    const min = Math.min(...credits)
+    const max = Math.max(...credits)
+    return min === max ? null : { min, max }
+  }
+
   const planCard = (plan: PlanComparisonPlanMeta): PlanCard | null => {
     const data = planDataById.get(plan.planId)
     if (!data) return null
     return {
       id: data.id,
       name: data.name,
+      label: plan.label,
       monthlyCredit: data.monthly_credit_usd,
       price: data.monthly_price_usd,
       limits: data.limits,
       limitPercent: data.limits_percent,
       funding: data.funding ?? 'per_model',
-      modelCount: db.plan_models.filter(pm => pm.plan_id === data.id).length
+      modelCount: db.plan_models.filter(pm => pm.plan_id === data.id).length,
+      creditRange: perModelCreditRange(data),
+      creditIsPerModel: data.credit_is_per_model ?? false
     }
   }
 
