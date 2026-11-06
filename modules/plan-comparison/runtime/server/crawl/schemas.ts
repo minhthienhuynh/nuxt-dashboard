@@ -68,8 +68,8 @@ export const crawledPlanModelSchema = z.object({
   model_id: z.string(),
   monthly_credits_usd: z.number(),
   estimates: z.object({
-    per_5h: z.number(),
-    per_week: z.number(),
+    per_5h: nullableNumber,
+    per_week: nullableNumber,
     per_month: z.number()
   }).nullable(),
   sourceUrl: z.string().optional(),

@@ -5,6 +5,7 @@ import { mapOpenCodeModelRows, matchName } from './opencode'
 import type { FlightEstimateRow, GoatEstimateRow } from './goat'
 import type { PricingLimitsSection } from './ccpricing'
 import type { OpenCodeEndpointRow, OpenCodeEstimateRow, OpenCodePricingRow } from './opencode'
+import type { OpenDesignCatalogModel, OpenDesignPlanRow } from './opendesign'
 import { plans } from '../data/plans'
 
 export interface BuildInput {
@@ -18,12 +19,15 @@ export interface BuildInput {
   openCodePricing: OpenCodePricingRow[]
   openCodeEstimates: OpenCodeEstimateRow[]
   openCodeEndpoints: OpenCodeEndpointRow[]
+  openDesignPlans: OpenDesignPlanRow[]
+  openDesignModels: OpenDesignCatalogModel[]
   fetchedAt: string
   sourceUrls: {
     goat: string
     go: string
     pricingLimits: string
     openCodeGo: string
+    openDesign: string
   }
 }
 
@@ -31,6 +35,15 @@ function planById(id: string): Plan {
   const plan = plans.find(p => p.id === id)
   if (!plan) throw new Error(`Unknown plan id: ${id}`)
   return plan
+}
+
+/**
+ * `design` credits of a named OpenDesign plan — the Coding Plan pool its
+ * models draw on — or null when the page's settings block no longer lists it.
+ */
+export function planCreditsUsd(odPlans: OpenDesignPlanRow[], name: string): number | null {
+  const plan = odPlans.find(p => p.name.toLowerCase() === name.toLowerCase())
+  return plan?.design ?? null
 }
 
 interface EffectiveRates {
@@ -171,8 +184,11 @@ function withoutVariant(id: string): string {
   return id.replace(VARIANT_SUFFIX, '')
 }
 
-/** Resolves an OpenCode row to the CMD model id when it is the same model. */
-export function resolveOcModelId(
+/**
+ * Resolves a provider row (OpenCode endpoint id or OpenDesign panel id) to the
+ * CMD catalog model id when it is the same model.
+ */
+export function resolveCatalogModelId(
   cmdModels: Model[],
   endpointId: string | null,
   displayName: string
@@ -220,6 +236,7 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
   const goatPlan = planById('cmd-goat')
   const goPlan = planById('cmd-go')
   const ocPlan = planById('oc-go')
+  const odPlan = planById('od-go')
 
   const estimateByName = new Map(input.goatEstimates.map(e => [matchName(e.name), e]))
   const goEstimateByName = new Map(input.goEstimates.map(e => [matchName(e.name), e]))
@@ -286,7 +303,7 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
     const displayName = ocNameByKey.get(key) ?? input.openCodePricing.find(p => matchName(p.name) === key)?.name ?? key
     // Same model as a CMD row → reuse the CMD id so pricing/estimates join
     // instead of splitting into a duplicate model row.
-    const modelId = resolveOcModelId(models, ocIdByName.get(key) ?? null, displayName) ?? ocIdFor(key)
+    const modelId = resolveCatalogModelId(models, ocIdByName.get(key) ?? null, displayName) ?? ocIdFor(key)
     const priceRows = input.openCodePricing.filter(p => matchName(p.name) === key)
     const price = priceRows[0]
     // Free promo rows never enter the dataset (mirrors goat isFreeModel).
@@ -334,6 +351,43 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
       })
       if (ocModel) models.push(ocModel)
     }
+  }
+
+  // OpenDesign Go is a gateway plan: one shared monthly pool funds every
+  // eligible model, so each row carries the pool as its credit ("if this model
+  // used all of it") and requests are derived from OpenDesign's own rates for
+  // that model. Only models already in the catalog get a row — OpenDesign-only
+  // ids (GPT-6 Sol, Opus 5.5, image models…) wait until the catalog adds them.
+  const odCredits = planCreditsUsd(input.openDesignPlans, 'Go') ?? odPlan.monthly_credit_usd
+  for (const od of input.openDesignModels) {
+    const modelId = resolveCatalogModelId(models, od.id, od.name)
+    if (!modelId) continue
+    for (const [index, tier] of od.tiers.entries()) {
+      // A panel whose rate table failed to render must not publish $0 rates.
+      if (tier.input == null && tier.output == null) continue
+      pricing.push({
+        provider_id: 'open-design',
+        model_id: modelId,
+        // OpenDesign publishes input-length tiers; `PricingEntry` has no
+        // context-tier field, so the first (cheapest) tier is `standard` and
+        // the wider ones `extended`.
+        tier: index === 0 ? 'standard' : 'extended',
+        peak_utc_hours: null,
+        input: tier.input ?? 0,
+        output: tier.output ?? 0,
+        cache_read: tier.cacheRead ?? 0,
+        cache_write: tier.cacheWrite
+      })
+    }
+    if (!od.plans.includes('go')) continue
+    const base = od.tiers[0]
+    const catalogModel = models.find(m => m.id === modelId)
+    planModels.push(estimateRow('od-go', modelId, odCredits, {
+      input: base?.input ?? null,
+      output: base?.output ?? null,
+      cacheRead: base?.cacheRead ?? null,
+      vendor: catalogModel?.vendor ?? null
+    }, odPlan.limits, input.sourceUrls.openDesign, input.fetchedAt))
   }
 
   return {

@@ -60,8 +60,8 @@ const isOldData = computed(() => {
       :description="error.message"
     />
 
-    <div v-if="status === 'pending'" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <USkeleton v-for="i in 3" :key="i" class="h-44 rounded-lg" />
+    <div v-if="status === 'pending'" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <USkeleton v-for="i in 4" :key="i" class="h-44 rounded-lg" />
     </div>
 
     <template v-else>

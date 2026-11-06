@@ -7,14 +7,15 @@ export interface EstimateRates {
 }
 
 export interface ComputedEstimates {
-  per5h: number
-  perWeek: number
+  /** Null when the plan publishes no such window (see `PlanLimits`). */
+  per5h: number | null
+  perWeek: number | null
   perMonth: number
 }
 
 export interface EstimateFractions {
-  fiveHour: number
-  weekly: number
+  fiveHour: number | null
+  weekly: number | null
 }
 
 export interface RowShape {
@@ -116,6 +117,8 @@ function costPerRequest(rates: EstimateRates, shape: { input: number, output: nu
 /**
  * Replicates the docs script estimate path (`v8` + `ku`): exact monthly
  * allowance over cost-per-request, windows as fractions of the exact month.
+ * A window fraction of `null` means the plan publishes no such window, so the
+ * row carries no estimate for it (rather than a share nobody published).
  */
 export function computeRowEstimates(
   budgetUsd: number,
@@ -130,9 +133,14 @@ export function computeRowEstimates(
   const exactMonth = budgetUsd / cost
   return {
     perMonth: round3(exactMonth),
-    per5h: round3(exactMonth * fractions.fiveHour),
-    perWeek: round3(exactMonth * fractions.weekly)
+    per5h: fractions.fiveHour == null ? null : round3(exactMonth * fractions.fiveHour),
+    perWeek: fractions.weekly == null ? null : round3(exactMonth * fractions.weekly)
   }
+}
+
+/** Window fraction from the plan's published dollars, or null when unpublished. */
+function fraction(limit: number | null, monthly: number): number | null {
+  return limit == null ? null : limit / monthly
 }
 
 /**
@@ -150,7 +158,7 @@ export function computeEstimates(
     shape: null,
     timeOfDay: null
   }, vendor, {
-    fiveHour: planLimits['5h'] / planLimits.monthly,
-    weekly: planLimits.weekly / planLimits.monthly
+    fiveHour: fraction(planLimits['5h'], planLimits.monthly),
+    weekly: fraction(planLimits.weekly, planLimits.monthly)
   })
 }

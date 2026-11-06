@@ -7,6 +7,7 @@ import { SOURCE_URLS, extractFlightEstimates, extractFlightModels, fetchSources 
 import { parseGoatEstimates, parseGoatModels } from '../../crawl/goat'
 import { parseGoPlanLimits, parsePricingLimits } from '../../crawl/ccpricing'
 import { parseOpenCodeEndpoints, parseOpenCodeEstimates, parseOpenCodePricing } from '../../crawl/opencode'
+import { parseOpenDesignModels, parseOpenDesignPlans } from '../../crawl/opendesign'
 import { crawledDatabaseSchema } from '../../crawl/schemas'
 import { AA_MODEL_SLUGS, fetchAaScore, fetchLeaderboardIntel, resolveAaScore } from '../../crawl/aa'
 import { plans as staticPlans } from '../../data/plans'
@@ -64,14 +65,18 @@ async function crawlFresh(): Promise<PlanComparisonPayload> {
   // not the GOAT defaults (0.2/0.5) inside parseGoatEstimates.
   const goPlanLimits = staticPlans.find(p => p.id === 'cmd-go')?.limits
   const goEstimates = parseGoatEstimates(extractFlightEstimates(sources.goHtml), {
-    fiveHour: goPlanLimits ? goPlanLimits['5h'] / goPlanLimits.monthly : 0.3,
-    weekly: goPlanLimits ? goPlanLimits.weekly / goPlanLimits.monthly : 0.6
+    fiveHour: goPlanLimits?.['5h'] != null ? goPlanLimits['5h'] / goPlanLimits.monthly : 0.3,
+    weekly: goPlanLimits?.weekly != null ? goPlanLimits.weekly / goPlanLimits.monthly : 0.6
   })
   const pricingSections = parsePricingLimits(sources.pricingLimitsHtml)
   const goLimits = parseGoPlanLimits(sources.goHtml)
   const ocPricing = parseOpenCodePricing(sources.openCodeGoHtml)
   const ocEstimates = parseOpenCodeEstimates(sources.openCodeGoHtml)
   const ocEndpoints = parseOpenCodeEndpoints(sources.openCodeGoHtml)
+  // OpenDesign Go: plan table (pool sizes) and model catalog (ids, plan
+  // access, tier rates) come from two Astro pages, no Flight payload.
+  const odPlans = parseOpenDesignPlans(sources.openDesignGoHtml)
+  const odModels = parseOpenDesignModels(sources.openDesignModelsHtml)
   const built = buildDatabase({
     goatModels,
     goatEstimates: goatEstimates.rows,
@@ -83,12 +88,15 @@ async function crawlFresh(): Promise<PlanComparisonPayload> {
     openCodePricing: ocPricing,
     openCodeEstimates: ocEstimates,
     openCodeEndpoints: ocEndpoints,
+    openDesignPlans: odPlans,
+    openDesignModels: odModels,
     fetchedAt,
     sourceUrls: {
       goat: SOURCE_URLS.goat,
       go: SOURCE_URLS.go,
       pricingLimits: SOURCE_URLS.pricingLimits,
-      openCodeGo: SOURCE_URLS.openCodeGo
+      openCodeGo: SOURCE_URLS.openCodeGo,
+      openDesign: SOURCE_URLS.openDesignModels
     }
   })
   const validated = crawledDatabaseSchema.safeParse(built)

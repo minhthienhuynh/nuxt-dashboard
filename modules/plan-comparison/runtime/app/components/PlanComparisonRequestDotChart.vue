@@ -13,6 +13,10 @@ const props = defineProps<{
   noRequest: string[]
 }>()
 
+// Pool plans report one shared credit on every row; their dots therefore share
+// one diameter. Saying so beats letting the reader infer a per-model grant.
+const poolPlans = computed(() => PLAN_COMPARISON_PLANS.filter(plan => props.rows.some(row => row[plan.key].pool)))
+
 const {
   cardRef,
   chartRef,
@@ -127,6 +131,9 @@ const DURATION = 200
         <p class="text-[13px] text-muted">
           Horizontal position = requests/mo (log scale), dot diameter = credit/mo (area-proportional).
           Hover a dot or model name to see its specs and per-plan funding.
+          <template v-if="poolPlans.length">
+            {{ poolPlans.map(plan => plan.label).join(', ') }} shares one pool, so its dot diameter is that whole pool on every row.
+          </template>
           <template v-if="noRequest.length">
             {{ noRequest.length }} models without a published request count are omitted: {{ noRequest.join(', ') }}.
           </template>
