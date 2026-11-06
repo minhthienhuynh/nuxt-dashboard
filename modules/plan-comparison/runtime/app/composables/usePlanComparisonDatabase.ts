@@ -143,9 +143,14 @@ export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filt
     .filter(row => !requestedByAny(row))
     .map(row => row.model.name)
 
-  const planCard = (plan: PlanComparisonPlanMeta): PlanCard => {
+  // A registry plan the stored data does not carry yet (payload cached before
+  // the plan was added, no TTL on the cache) must not take the page down:
+  // skipping the card keeps Old data rendering instead of 500ing with
+  // "Unknown plan id", which used to hide the very "Refresh data" button that
+  // fixes it.
+  const planCard = (plan: PlanComparisonPlanMeta): PlanCard | null => {
     const data = planDataById.get(plan.planId)
-    if (!data) throw new Error(`Unknown plan id: ${plan.planId}`)
+    if (!data) return null
     return {
       id: data.id,
       name: data.name,
@@ -158,7 +163,7 @@ export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filt
     }
   }
 
-  const cards = PLAN_COMPARISON_PLANS.map(planCard)
+  const cards = PLAN_COMPARISON_PLANS.map(planCard).filter((card): card is PlanCard => card != null)
   return {
     planCards: cards,
     // Derived from the plan data (not from the visible rows), so a fully

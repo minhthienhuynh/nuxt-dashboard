@@ -202,6 +202,17 @@ describe('normalizePlanComparisonDatabase - pool plan', () => {
     expect(result.poolPlanKeys).toEqual(['od'])
   })
 
+  it('keeps rendering when the stored data predates a registry plan', () => {
+    // Production case (2026-11-06): the cache held the 3-plan payload from
+    // before OpenDesign Go existed, the registry had 4 — the page 500ed with
+    // "Unknown plan id: od-go" and hid its own "Refresh data" button.
+    const db = makeDatabase([], [])
+    db.plans = [makePlan('cmd-go'), makePlan('cmd-goat'), makePlan('oc-go')]
+    const result = normalizePlanComparisonDatabase(db, baseFilters)
+    expect(result.planCards.map(card => card.id)).toEqual(['cmd-go', 'cmd-goat', 'oc-go'])
+    expect(result.poolPlanKeys).toEqual([])
+  })
+
   it('defaults a plan without a funding kind to per_model', () => {
     const db = makeDatabase([], [])
     expect(normalizePlanComparisonDatabase(db, baseFilters).planCards.find(c => c.id === 'cmd-go')?.funding).toBe('per_model')
