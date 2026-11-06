@@ -46,11 +46,23 @@ function makeModel(overrides: Partial<Model>): Model {
 function makeDatabase(models: Model[], planModels: PlanModelEstimate[]): PlanComparisonDatabase {
   return {
     providers: [{ id: 'command-code', name: 'Command Code' }],
-    plans: [makePlan('cmd-go'), makePlan('cmd-goat'), makePlan('oc-go')],
+    plans: [makePlan('cmd-go'), makePlan('cmd-goat'), makePlan('oc-go'), makeOdPlan()],
     models,
     pricing: [],
     plan_models: planModels
   }
+}
+
+/** OpenDesign Go: one shared monthly pool, no published 5-hour/weekly caps. */
+function makeOdPlan(overrides: Partial<Plan> = {}): Plan {
+  return makePlan('od-go', {
+    provider_id: 'open-design',
+    funding: 'pool',
+    monthly_price_usd: 10,
+    monthly_credit_usd: 220,
+    limits: { '5h': null, 'weekly': null, 'monthly': 220 },
+    ...overrides
+  })
 }
 
 const baseFilters = { hideOldModels: false, oldBefore: '2026-06-01', hideLowIntel: false, intelThreshold: 30 }
@@ -140,7 +152,8 @@ describe('normalizePlanComparisonDatabase - plan cards', () => {
       makePlan('oc-go', {
         limits: { '5h': 12, 'weekly': 30, 'monthly': 60 },
         limits_percent: { '5h': 20, 'weekly': 50, 'monthly': 100 }
-      })
+      }),
+      makeOdPlan()
     ]
     const oc = normalizePlanComparisonDatabase(db, baseFilters).planCards.find(c => c.id === 'oc-go')
     expect(oc?.limitPercent).toEqual({ '5h': 20, 'weekly': 50, 'monthly': 100 })
@@ -165,5 +178,32 @@ describe('normalizePlanComparisonDatabase - dot rows', () => {
     expect(result.creditRows.find(r => r.model.id === 'no-req')).toBeDefined()
     expect(result.dotRows.find(r => r.model.id === 'no-req')).toBeUndefined()
     expect(result.noRequestModelNames).toContain(model.name)
+  })
+})
+
+describe('normalizePlanComparisonDatabase - pool plan', () => {
+  it('flags its rows and card as one shared pool', () => {
+    const model = makeModel({ id: 'pooled' })
+    const db = makeDatabase([model], [
+      { plan_id: 'od-go', model_id: 'pooled', monthly_credits_usd: 220, estimates: { per_5h: null, per_week: null, per_month: 5000 } }
+    ])
+    const result = normalizePlanComparisonDatabase(db, baseFilters)
+    const row = result.creditRows.find(r => r.model.id === 'pooled')
+    expect(row?.od).toEqual({ credit: 220, request: 5000, pool: true })
+    expect(row?.cmd.pool).toBe(false)
+
+    const card = result.planCards.find(c => c.id === 'od-go')
+    expect(card?.funding).toBe('pool')
+    expect(card?.modelCount).toBe(1)
+    // Unpublished windows stay null: the card renders a dash, it does not invent one.
+    expect(card?.limits).toEqual({ '5h': null, 'weekly': null, 'monthly': 220 })
+    // The bar chart filters on this list, which comes from the plan data — so it
+    // survives a filter that hides every row.
+    expect(result.poolPlanKeys).toEqual(['od'])
+  })
+
+  it('defaults a plan without a funding kind to per_model', () => {
+    const db = makeDatabase([], [])
+    expect(normalizePlanComparisonDatabase(db, baseFilters).planCards.find(c => c.id === 'cmd-go')?.funding).toBe('per_model')
   })
 })

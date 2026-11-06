@@ -8,5 +8,9 @@ export const providers: Provider[] = [
   {
     id: 'opencode',
     name: 'OpenCode Go'
+  },
+  {
+    id: 'open-design',
+    name: 'OpenDesign Go'
   }
 ]

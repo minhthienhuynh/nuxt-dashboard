@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { buildDatabase, dedupeBy, effectiveRates, isGoGoatModel, resolveOcModelId, sameSlug } from './build'
+import { buildDatabase, dedupeBy, effectiveRates, isGoGoatModel, planCreditsUsd, resolveCatalogModelId, sameSlug } from './build'
 import { matchName } from './opencode'
 import type { Model } from '../../app/types'
+import type { OpenDesignCatalogModel } from './opendesign'
 
 function makeModel(overrides: Partial<Model> = {}): Model {
   return {
@@ -42,8 +43,10 @@ const baseInput = {
   openCodePricing: [],
   openCodeEstimates: [],
   openCodeEndpoints: [],
+  openDesignPlans: [],
+  openDesignModels: [],
   fetchedAt: '2026-09-19T00:00:00.000Z',
-  sourceUrls: { goat: 'g', go: 'o', pricingLimits: 'p', openCodeGo: 'oc' }
+  sourceUrls: { goat: 'g', go: 'o', pricingLimits: 'p', openCodeGo: 'oc', openDesignPricing: 'odp', openDesignModels: 'odm' }
 }
 
 describe('matchName', () => {
@@ -61,24 +64,24 @@ describe('sameSlug', () => {
   })
 })
 
-describe('resolveOcModelId', () => {
+describe('resolveCatalogModelId', () => {
   const cmd = [makeModel({ id: 'deepseek/deepseek-v4.1-flash', slug: 'deepseek-v4-1-flash', name: 'DeepSeek V4.1 Flash' })]
 
   it('reuses the CMD id despite missing vendor prefix and dot/dash drift', () => {
-    expect(resolveOcModelId(cmd, 'deepseek-v4.1-flash', 'DeepSeek V4.1 Flash')).toBe('deepseek/deepseek-v4.1-flash')
+    expect(resolveCatalogModelId(cmd, 'deepseek-v4.1-flash', 'DeepSeek V4.1 Flash')).toBe('deepseek/deepseek-v4.1-flash')
   })
 
   it('falls back to display-name matching', () => {
-    expect(resolveOcModelId(cmd, 'something-else', 'DeepSeek V4.1 Flash')).toBe('deepseek/deepseek-v4.1-flash')
+    expect(resolveCatalogModelId(cmd, 'something-else', 'DeepSeek V4.1 Flash')).toBe('deepseek/deepseek-v4.1-flash')
   })
 
   it('returns null for genuinely new models', () => {
-    expect(resolveOcModelId(cmd, 'grok-4.6', 'Grok 4.6')).toBeNull()
+    expect(resolveCatalogModelId(cmd, 'grok-4.6', 'Grok 4.6')).toBeNull()
   })
 
   it('joins a bare endpoint id to the CMD variant row', () => {
     const hy = [makeModel({ id: 'tencent/hy3-paid', slug: 'tencent-hy3', name: 'Tencent Hy3' })]
-    expect(resolveOcModelId(hy, 'hy3', 'Hy3')).toBe('tencent/hy3-paid')
+    expect(resolveCatalogModelId(hy, 'hy3', 'Hy3')).toBe('tencent/hy3-paid')
   })
 
   it('leaves an ambiguous bare id unresolved instead of picking a variant', () => {
@@ -86,7 +89,7 @@ describe('resolveOcModelId', () => {
       makeModel({ id: 'acme/widget-paid', slug: 'widget-paid', name: 'Widget Paid' }),
       makeModel({ id: 'acme/widget-free', slug: 'widget-free', name: 'Widget Free' })
     ]
-    expect(resolveOcModelId(variants, 'widget', 'Widget')).toBeNull()
+    expect(resolveCatalogModelId(variants, 'widget', 'Widget')).toBeNull()
   })
 })
 describe('dedupeBy', () => {
@@ -229,5 +232,94 @@ describe('buildDatabase', () => {
     })
     expect(db.models.some(m => m.id === 'opencode/glitch')).toBe(true)
     expect(db.plan_models.some(p => p.model_id === 'opencode/glitch')).toBe(true)
+  })
+})
+
+const odPlansFixture = [{ name: 'Go', monthly: 10, design: 220 }]
+
+function odModel(overrides: Partial<OpenDesignCatalogModel> = {}): OpenDesignCatalogModel {
+  return {
+    id: 'widget',
+    slug: 'widget',
+    name: 'Widget',
+    vendor: 'Acme',
+    plans: ['go', 'plus', 'pro', 'max'],
+    tiers: [{ input: 0.3, output: 1.2, cacheRead: 0.006, cacheWrite: null }],
+    ...overrides
+  }
+}
+
+describe('planCreditsUsd', () => {
+  it('reads the Coding Plan pool of the named plan', () => {
+    expect(planCreditsUsd(odPlansFixture, 'go')).toBe(220)
+    expect(planCreditsUsd(odPlansFixture, 'Missing')).toBeNull()
+  })
+})
+
+describe('buildDatabase - OpenDesign Go pool plan', () => {
+  it('gives every Go-eligible model the whole shared pool as its credit', () => {
+    const db = buildDatabase({ ...baseInput, openDesignPlans: odPlansFixture, openDesignModels: [odModel()] })
+    const row = db.plan_models.find(p => p.plan_id === 'od-go')
+    expect(row?.model_id).toBe('acme/widget')
+    expect(row?.monthly_credits_usd).toBe(220)
+    // 800 in + 200 out + 50K cache at $0.3/$1.2/$0.006 = $0.00078/req
+    // → 282,051 req/mo → round3 282000. The plan publishes no 5h/weekly cap.
+    expect(row?.estimates).toEqual({ per_5h: null, per_week: null, per_month: 282000 })
+    // Credit comes from the plan table, rates from the catalog: both recorded.
+    expect(row?.sourceUrl).toBe('odp')
+    expect(row?.note).toBe('Pool from the plan table; rates from odm')
+  })
+
+  it('falls back to the static pool when the page stops listing the Go row', () => {
+    const db = buildDatabase({ ...baseInput, openDesignModels: [odModel()] })
+    expect(db.plan_models.find(p => p.plan_id === 'od-go')?.monthly_credits_usd).toBe(220)
+  })
+
+  it('prices a plan-only model without granting it Go credit', () => {
+    const db = buildDatabase({
+      ...baseInput,
+      openDesignPlans: odPlansFixture,
+      openDesignModels: [odModel({ plans: ['pro', 'max'] })]
+    })
+    expect(db.pricing.filter(p => p.provider_id === 'open-design').map(p => p.model_id)).toEqual(['acme/widget'])
+    expect(db.plan_models.some(p => p.plan_id === 'od-go')).toBe(false)
+  })
+
+  it('maps input-length tiers to standard then extended', () => {
+    const db = buildDatabase({
+      ...baseInput,
+      openDesignPlans: odPlansFixture,
+      openDesignModels: [odModel({
+        tiers: [
+          { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 },
+          { input: 4, output: 15, cacheRead: 0.2, cacheWrite: 5 }
+        ]
+      })]
+    })
+    expect(db.pricing.filter(p => p.provider_id === 'open-design').map(p => p.tier)).toEqual(['standard', 'extended'])
+  })
+
+  it('skips a legacy panel that has no catalog card at all', () => {
+    // 13 live panels are legacy rate cards (older Grok/GLM/Opus versions) with
+    // no `a.catalog-card`: they are not offered by any plan, so neither their
+    // rates nor a row may enter the dataset.
+    const db = buildDatabase({
+      ...baseInput,
+      openDesignPlans: odPlansFixture,
+      openDesignModels: [odModel({ plans: [] })]
+    })
+    expect(db.pricing.some(p => p.provider_id === 'open-design')).toBe(false)
+    expect(db.plan_models.some(p => p.plan_id === 'od-go')).toBe(false)
+  })
+
+  it('leaves models outside the catalog out of the dataset', () => {
+    const db = buildDatabase({
+      ...baseInput,
+      openDesignPlans: odPlansFixture,
+      openDesignModels: [odModel({ id: 'ghost-1', slug: 'ghost-1', name: 'Ghost' })]
+    })
+    expect(db.models.map(m => m.id)).toEqual(['acme/widget'])
+    expect(db.pricing.some(p => p.provider_id === 'open-design')).toBe(false)
+    expect(db.plan_models.some(p => p.plan_id === 'od-go')).toBe(false)
   })
 })

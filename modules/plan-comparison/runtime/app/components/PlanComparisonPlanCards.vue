@@ -16,10 +16,19 @@ function usd(value: number): string {
  * ("5-hour — 20% of the monthly limit; weekly — 50%; monthly — 100%"), so a
  * flat dollar figure only holds for the models whose limit matches the plan
  * pool. The plan carries the fractions; per-model dollars live in the charts.
+ *
+ * A `null` window means the plan publishes no such cap at all (OpenDesign Go
+ * sells one monthly pool), so the card shows a dash instead of inventing one.
  */
 function windowValue(plan: PlanCard, window: '5h' | 'weekly' | 'monthly'): string {
-  if (!plan.limitPercent) return usd(plan.limits[window])
-  return `${plan.limitPercent[window]}%`
+  if (plan.limitPercent) return `${plan.limitPercent[window]}%`
+  const limit = plan.limits[window]
+  return limit == null ? '—' : usd(limit)
+}
+
+/** Pool plans grant one shared allowance instead of a per-model credit. */
+function creditLabel(plan: PlanCard): string {
+  return plan.funding === 'pool' ? '/mo shared pool' : '/mo credit'
 }
 
 const ROWS: Array<{ label: string, value: (plan: PlanCard) => string }> = [
@@ -32,7 +41,7 @@ const ROWS: Array<{ label: string, value: (plan: PlanCard) => string }> = [
 </script>
 
 <template>
-  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
     <UCard
       v-for="plan in planCards"
       :key="plan.id"
@@ -47,7 +56,7 @@ const ROWS: Array<{ label: string, value: (plan: PlanCard) => string }> = [
       </div>
 
       <p class="text-3xl font-bold text-highlighted">
-        {{ usd(plan.monthlyCredit) }}<span class="text-sm font-normal text-muted">/mo credit</span>
+        {{ usd(plan.monthlyCredit) }}<span class="text-sm font-normal text-muted">{{ creditLabel(plan) }}</span>
       </p>
 
       <dl class="mt-2 space-y-0.5 text-[13px] text-muted">

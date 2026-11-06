@@ -3,11 +3,25 @@ export interface Provider {
   name: string
 }
 
+/**
+ * Rolling windows in dollars. `null` means the plan does not publish that
+ * window: gateway plans (OpenDesign Go) sell one shared monthly pool and
+ * publish no 5-hour or weekly cap, so the card renders `—` rather than a
+ * number nobody published.
+ */
 export interface PlanLimits {
-  '5h': number
-  'weekly': number
+  '5h': number | null
+  'weekly': number | null
   'monthly': number
 }
+
+/**
+ * `per_model` = every model carries its own monthly credit (Command Code,
+ * OpenCode Go). `pool` = the plan funds one shared credit pool that any
+ * eligible model can drain, so `monthly_credits_usd` is the same number on
+ * every row and means "if this model used the whole pool".
+ */
+export type PlanFundingKind = 'per_model' | 'pool'
 
 /**
  * Plans that publish rolling windows as a share of each model's own monthly
@@ -31,6 +45,8 @@ export interface Plan {
   limits: PlanLimits
   limits_percent?: PlanLimitsPercent
   weekly_window_days?: number
+  /** Defaults to `per_model` when absent. */
+  funding?: PlanFundingKind
 }
 
 export interface ModelTierRates {
@@ -102,8 +118,10 @@ export interface PricingEntry {
 }
 
 export interface PlanModelEstimateValues {
-  per_5h: number
-  per_week: number
+  /** Null when the plan publishes no 5-hour window (see `PlanLimits`). */
+  per_5h: number | null
+  /** Null when the plan publishes no weekly window (see `PlanLimits`). */
+  per_week: number | null
   per_month: number
 }
 

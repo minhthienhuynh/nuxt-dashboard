@@ -2,7 +2,12 @@ export const SOURCE_URLS = {
   goat: 'https://commandcode.ai/docs/plans/goat',
   go: 'https://commandcode.ai/docs/plans/go',
   pricingLimits: 'https://commandcode.ai/docs/resources/pricing-limits',
-  openCodeGo: 'https://opencode.ai/v2/docs/console/go/'
+  openCodeGo: 'https://opencode.ai/v2/docs/console/go/',
+  // Astro static pages: plan table lives in the JSON settings block on either
+  // page, the model catalog (API ids, vendor, plan access, tier rates) only on
+  // the models index.
+  openDesignGo: 'https://go.open-design.ai/',
+  openDesignModels: 'https://go.open-design.ai/models/'
 } as const
 
 export const CRAWLER_USER_AGENT = 'Mozilla/5.0 (plan-comparison-crawler)'
@@ -21,6 +26,20 @@ async function fetchText(fetchImpl: FetchImpl, url: string): Promise<string> {
     }
   }
   throw lastError
+}
+
+/**
+ * Additive sources (a plan that can disappear without invalidating the core
+ * dataset) fetch through this: on failure the page comes back empty, the
+ * parsers yield no rows, and the crawl still produces the core plans. A failed
+ * *core* source must keep failing loudly — the cache/backup path covers it.
+ */
+async function fetchTextOptional(fetchImpl: FetchImpl, url: string): Promise<string> {
+  try {
+    return await fetchText(fetchImpl, url)
+  } catch {
+    return ''
+  }
 }
 
 /** Extracts a bracket-balanced JSON value starting at `start` (the opening bracket). */
@@ -122,14 +141,18 @@ export interface CrawlSources {
   goHtml: string
   pricingLimitsHtml: string
   openCodeGoHtml: string
+  openDesignGoHtml: string
+  openDesignModelsHtml: string
 }
 
 export async function fetchSources(fetchImpl: FetchImpl = fetch): Promise<CrawlSources> {
-  const [goatHtml, goHtml, pricingLimitsHtml, openCodeGoHtml] = await Promise.all([
+  const [goatHtml, goHtml, pricingLimitsHtml, openCodeGoHtml, openDesignGoHtml, openDesignModelsHtml] = await Promise.all([
     fetchText(fetchImpl, SOURCE_URLS.goat),
     fetchText(fetchImpl, SOURCE_URLS.go),
     fetchText(fetchImpl, SOURCE_URLS.pricingLimits),
-    fetchText(fetchImpl, SOURCE_URLS.openCodeGo)
+    fetchText(fetchImpl, SOURCE_URLS.openCodeGo),
+    fetchTextOptional(fetchImpl, SOURCE_URLS.openDesignGo),
+    fetchTextOptional(fetchImpl, SOURCE_URLS.openDesignModels)
   ])
-  return { goatHtml, goHtml, pricingLimitsHtml, openCodeGoHtml }
+  return { goatHtml, goHtml, pricingLimitsHtml, openCodeGoHtml, openDesignGoHtml, openDesignModelsHtml }
 }

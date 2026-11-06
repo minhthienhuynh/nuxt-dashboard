@@ -131,14 +131,19 @@ const FUNDING_DASH = '—'
 
 function fundingValue(funding: EnrichedModelRow['cmd']): string {
   if (funding.credit == null) return FUNDING_DASH
-  const credit = `$${displayNumber(funding.credit)} credit`
+  // Pool plans report the whole shared pool on every row: label it as such so
+  // the tooltip does not read like a per-model grant.
+  const credit = funding.pool
+    ? `$${displayNumber(funding.credit)} shared pool`
+    : `$${displayNumber(funding.credit)} credit`
   if (funding.request == null) return `${credit} · ${FUNDING_DASH} req/mo`
   return `${credit} · ${funding.request.toLocaleString('en-US')} req/mo`
 }
 
 /**
  * Per-plan funding rows for the tooltip: one entry per plan in registry order,
- * `$X credit · Y req/mo`, with a dash for values the data does not publish.
+ * `$X credit · Y req/mo` (`$X shared pool` for pool plans), with a dash for
+ * values the data does not publish.
  */
 export function fundingFields(row: EnrichedModelRow): ModelInfoField[] {
   return PLAN_COMPARISON_PLANS.map(plan => ({

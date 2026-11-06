@@ -8,13 +8,22 @@ import { computed, useTemplateRef } from 'vue'
 import { useElementSize } from '@vueuse/core'
 import type { EnrichedModelRow } from './composables/usePlanComparisonDatabase'
 import { PLAN_COMPARISON_PLANS } from './plan-colors'
+import type { PlanComparisonPlanMeta } from './plan-colors'
 import {
   chartAxisLayout,
   rowHeightForLabels,
   tickLabel
 } from './plan-chart-axis'
 
-export function usePlanComparisonChartFrame(rows: () => EnrichedModelRow[]) {
+/**
+ * `series` defaults to every plan in the registry; a chart that cannot draw a
+ * plan meaningfully (pool plans report one shared credit on every row) passes
+ * the series it actually plots so the legend matches the drawn marks.
+ */
+export function usePlanComparisonChartFrame(
+  rows: () => EnrichedModelRow[],
+  series: () => PlanComparisonPlanMeta[] = () => PLAN_COMPARISON_PLANS
+) {
   const cardRef = useTemplateRef<HTMLElement | null>('cardRef')
   const chartRef = useTemplateRef<HTMLElement | null>('chartRef')
   const { width } = useElementSize(cardRef)
@@ -30,7 +39,7 @@ export function usePlanComparisonChartFrame(rows: () => EnrichedModelRow[]) {
   const tickValues = computed(() => rows().map((_, i) => i))
   const yTickFormat = (value: number) => tickLabels.value[Math.round(value)] ?? ''
 
-  const legendItems = PLAN_COMPARISON_PLANS.map(plan => ({ name: plan.label, color: plan.color }))
+  const legendItems = computed(() => series().map(plan => ({ name: plan.label, color: plan.color })))
 
   return {
     cardRef,

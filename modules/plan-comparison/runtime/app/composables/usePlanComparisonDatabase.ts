@@ -1,11 +1,12 @@
 import { computed, ref } from 'vue'
 // useFetch/$fetch resolve via Nuxt auto-imports (also keeps vitest green,
 // which cannot resolve the '#imports' alias outside a Nuxt build).
-import type { Model, Plan, PlanLimitsPercent, PlanModelEstimate, PlanComparisonDatabase, PlanComparisonPayload, PricingEntry } from '../types'
+import type { Model, Plan, PlanFundingKind, PlanLimitsPercent, PlanModelEstimate, PlanComparisonDatabase, PlanComparisonPayload, PricingEntry } from '../types'
 import { buildPricingIndex, inputPrice } from './usePlanComparisonPricing'
 import { sortRows } from './usePlanComparisonSort'
 import type { SortableModelRow, SortOptionId } from './usePlanComparisonSort'
-import { PLAN_COMPARISON_PLANS, type PlanComparisonPlanKey } from '../plan-colors'
+import { PLAN_COMPARISON_PLANS } from '../plan-colors'
+import type { PlanComparisonPlanKey, PlanComparisonPlanMeta } from '../plan-colors'
 
 export const DEFAULT_OLD_BEFORE = '2026-08-26'
 export const DEFAULT_INTEL_THRESHOLD = 37
@@ -13,16 +14,21 @@ export const DEFAULT_INTEL_THRESHOLD = 37
 export interface PlanFunding {
   credit: number | null
   request: number | null
+  /**
+   * True when the plan funds one shared pool instead of a per-model grant:
+   * `credit` is then the whole pool on every row (see `PlanFundingKind`).
+   */
+  pool: boolean
 }
 
-export interface EnrichedModelRow extends SortableModelRow {
+/** One funding entry per plan in the registry, keyed by its chart series key. */
+export type PlanFundingByPlan = Record<PlanComparisonPlanKey, PlanFunding>
+
+export interface EnrichedModelRow extends SortableModelRow, PlanFundingByPlan {
   model: Model
   label: string
   /** First `command-code` pricing entry (the one `inputPrice` sorts on). */
   pricing: PricingEntry | null
-  cmd: PlanFunding
-  goat: PlanFunding
-  go: PlanFunding
 }
 
 export interface PlanCard {
@@ -37,11 +43,15 @@ export interface PlanCard {
    * 100%). The card shows the percentages; `limits` stays the pool-equivalent.
    */
   limitPercent?: PlanLimitsPercent
+  /** `pool` plans show one shared credit pool instead of per-model grants. */
+  funding: PlanFundingKind
   modelCount: number
 }
 
 export interface NormalizedPlanComparisonData {
   planCards: PlanCard[]
+  /** Series keys funded from one shared pool — the credit bar chart drops them. */
+  poolPlanKeys: PlanComparisonPlanKey[]
   creditRows: EnrichedModelRow[]
   dotRows: EnrichedModelRow[]
   skippedModelNames: string[]
@@ -53,13 +63,6 @@ export interface PlanComparisonFilters {
   oldBefore: string
   hideLowIntel: boolean
   intelThreshold: number
-}
-
-/** Plan id for a chart series key, from the single plan registry (plan-colors.ts). */
-function planIdOf(key: PlanComparisonPlanKey): string {
-  const plan = PLAN_COMPARISON_PLANS.find(p => p.key === key)
-  if (!plan) throw new Error(`Unknown plan key: ${key}`)
-  return plan.planId
 }
 
 // The intelligence score used to ride along in the axis label (`Model (42)`);
@@ -84,13 +87,29 @@ export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filt
     planModelIndex.set(`${row.plan_id}:${row.model_id}`, row)
   }
 
-  const getFunding = (planId: string, modelId: string): PlanFunding => {
-    const planModel = planModelIndex.get(`${planId}:${modelId}`) ?? null
+  // Plan data (funding kind, limits) is looked up by registry id, so a new plan
+  // reaches the cards, charts and tooltips through plan-colors.ts alone.
+  const planDataById = new Map(db.plans.map(plan => [plan.id, plan]))
+
+  const getFunding = (plan: PlanComparisonPlanMeta, modelId: string): PlanFunding => {
+    const planModel = planModelIndex.get(`${plan.planId}:${modelId}`) ?? null
     return {
       credit: planModel?.monthly_credits_usd ?? null,
-      request: planModel?.estimates?.per_month ?? null
+      request: planModel?.estimates?.per_month ?? null,
+      pool: planDataById.get(plan.planId)?.funding === 'pool'
     }
   }
+
+  const fundingOf = (modelId: string): PlanFundingByPlan => {
+    const funding = {} as PlanFundingByPlan
+    for (const plan of PLAN_COMPARISON_PLANS) funding[plan.key] = getFunding(plan, modelId)
+    return funding
+  }
+
+  const fundedByAny = (row: EnrichedModelRow): boolean =>
+    PLAN_COMPARISON_PLANS.some(plan => row[plan.key].credit != null)
+  const requestedByAny = (row: EnrichedModelRow): boolean =>
+    PLAN_COMPARISON_PLANS.some(plan => row[plan.key].request != null)
 
   const pricingIndex = buildPricingIndex(db.pricing)
 
@@ -110,38 +129,44 @@ export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filt
     speed: model.outputTokensPerSec,
     inputPrice: inputPrice(model.id, pricingIndex),
     pricing: pricingIndex.get(model.id) ?? null,
-    cmd: getFunding(planIdOf('cmd'), model.id),
-    goat: getFunding(planIdOf('goat'), model.id),
-    go: getFunding(planIdOf('go'), model.id)
+    ...fundingOf(model.id)
   }))
 
-  const creditRows = enrichedRows.filter(row => row.cmd.credit != null || row.goat.credit != null || row.go.credit != null)
-  const dotRows = creditRows.filter(row => row.cmd.request != null || row.goat.request != null || row.go.request != null)
+  const creditRows = enrichedRows.filter(fundedByAny)
+  const dotRows = creditRows.filter(requestedByAny)
 
   const skippedModelNames = enrichedRows
-    .filter(row => row.cmd.credit == null && row.goat.credit == null && row.go.credit == null)
+    .filter(row => !fundedByAny(row))
     .map(row => row.model.name)
 
   const noRequestModelNames = creditRows
-    .filter(row => row.cmd.request == null && row.goat.request == null && row.go.request == null)
+    .filter(row => !requestedByAny(row))
     .map(row => row.model.name)
 
-  const planCard = (planId: string): PlanCard => {
-    const plan = db.plans.find(p => p.id === planId)
-    if (!plan) throw new Error(`Unknown plan id: ${planId}`)
+  const planCard = (plan: PlanComparisonPlanMeta): PlanCard => {
+    const data = planDataById.get(plan.planId)
+    if (!data) throw new Error(`Unknown plan id: ${plan.planId}`)
     return {
-      id: plan.id,
-      name: plan.name,
-      monthlyCredit: plan.monthly_credit_usd,
-      price: plan.monthly_price_usd,
-      limits: plan.limits,
-      limitPercent: plan.limits_percent,
-      modelCount: db.plan_models.filter(pm => pm.plan_id === planId).length
+      id: data.id,
+      name: data.name,
+      monthlyCredit: data.monthly_credit_usd,
+      price: data.monthly_price_usd,
+      limits: data.limits,
+      limitPercent: data.limits_percent,
+      funding: data.funding ?? 'per_model',
+      modelCount: db.plan_models.filter(pm => pm.plan_id === data.id).length
     }
   }
 
+  const cards = PLAN_COMPARISON_PLANS.map(planCard)
   return {
-    planCards: [planCard(planIdOf('cmd')), planCard(planIdOf('goat')), planCard(planIdOf('go'))],
+    planCards: cards,
+    // Derived from the plan data (not from the visible rows), so a fully
+    // filtered chart keeps the same series list and footnote.
+    poolPlanKeys: cards
+      .filter(card => card.funding === 'pool')
+      .map(card => PLAN_COMPARISON_PLANS.find(plan => plan.planId === card.id)?.key)
+      .filter((key): key is PlanComparisonPlanKey => key != null),
     creditRows,
     dotRows,
     skippedModelNames,
@@ -208,6 +233,7 @@ export function usePlanComparisonDatabase() {
     intelThreshold,
     sortOption,
     planCards: computed(() => normalized.value?.planCards ?? []),
+    poolPlanKeys: computed(() => normalized.value?.poolPlanKeys ?? []),
     creditRows: computed(() => normalized.value ? sortRows(normalized.value.creditRows, sortOption.value) : []),
     dotRows: computed(() => normalized.value ? sortRows(normalized.value.dotRows, sortOption.value) : []),
     skippedModelNames: computed(() => normalized.value?.skippedModelNames ?? []),
