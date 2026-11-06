@@ -11,17 +11,19 @@ import '../plan-chart.css'
 const props = defineProps<{
   rows: EnrichedModelRow[]
   skipped: string[]
-  /** Plans funded from one shared pool (no per-model grant): excluded from the bars. */
+  /** Plans funded from one shared pool: their bar is the pool, not a per-model grant. */
   poolPlanKeys: PlanComparisonPlanKey[]
 }>()
 
-// A pool plan reports the same shared credit on every row, so its bars would be
-// N identical columns — the pool is a card-level fact, not a per-model grant.
-// It stays out of the bars (chart 2 still plots its dots) and is named in the
-// header. The key list comes from the plan data, not from `rows`, so an empty
-// (fully filtered) chart keeps its legend and footnote.
+// Every plan is plotted, pool plans included: their bar is the whole shared pool
+// ("if this model used all of it"), which is the same number the dot chart sizes
+// its markers with. The legend names the pot so the equal-length bars are not
+// read as per-model grants.
 const poolPlans = computed(() => PLAN_COMPARISON_PLANS.filter(plan => props.poolPlanKeys.includes(plan.key)))
-const seriesPlans = computed(() => PLAN_COMPARISON_PLANS.filter(plan => !props.poolPlanKeys.includes(plan.key)))
+const chartLegend = computed(() => PLAN_COMPARISON_PLANS.map(plan => ({
+  name: props.poolPlanKeys.includes(plan.key) ? `${plan.label} (shared pool)` : plan.label,
+  color: plan.color
+})))
 
 const {
   cardRef,
@@ -33,14 +35,13 @@ const {
   yDomain,
   zebraRows,
   tickValues,
-  yTickFormat,
-  legendItems
-} = usePlanComparisonChartFrame(() => props.rows, () => seriesPlans.value)
+  yTickFormat
+} = usePlanComparisonChartFrame(() => props.rows)
 
 const BAR_H = 16
-// One bar per plotted plan defines the visual band; a taller label (name
-// wrapped onto two lines) grows the row band instead of overlapping the next.
-const bandHeight = computed(() => Math.max(seriesPlans.value.length * BAR_H, rowBandHeight.value))
+// One bar per plan defines the visual band; a taller label (name wrapped onto
+// two lines) grows the row band instead of overlapping the next.
+const bandHeight = computed(() => Math.max(PLAN_COMPARISON_PLANS.length * BAR_H, rowBandHeight.value))
 const chartHeight = computed(() => props.rows.length * bandHeight.value + 60)
 
 // Hover (or tap on touch) a model — its y-axis label or any of its bars — for
@@ -53,10 +54,10 @@ const { hovered, onPointerMove, onPointerLeave, onPointerUp, onTooltipPointerEnt
 
 const xIndex = (_d: EnrichedModelRow, i: number) => i
 
-const yAccessors = computed(() => seriesPlans.value.map(plan => (d: EnrichedModelRow) => d[plan.key].credit ?? 0))
+const yAccessors = PLAN_COMPARISON_PLANS.map(plan => (d: EnrichedModelRow) => d[plan.key].credit ?? 0)
 
 const barColor = (_d: EnrichedModelRow, accessorIndex: number) =>
-  seriesPlans.value[accessorIndex]?.color ?? 'var(--ui-border-accented)'
+  PLAN_COMPARISON_PLANS[accessorIndex]?.color ?? 'var(--ui-border-accented)'
 
 const xTickFormat = (value: number) => `$${value}`
 </script>
@@ -72,13 +73,13 @@ const xTickFormat = (value: number) => `$${value}`
           Bar length = max monthly credit. Hover a model's bar or name to see its specs
           (intelligence, pricing, caps) and per-plan funding.
           <template v-if="poolPlans.length">
-            {{ poolPlans.map(plan => plan.label).join(', ') }} funds one shared pool (see the card), so it has no per-model bars — its dots are in chart 2.
+            {{ poolPlans.map(plan => plan.label).join(', ') }} bills one shared pool, so its bar is that whole pot on every row — if the model used all of it — not a per-model grant.
           </template>
           <template v-if="skipped.length">
             Skipped: {{ skipped.join(', ') }} (no plan grants them credit).
           </template>
         </p>
-        <VisBulletLegend :items="legendItems" class="justify-center" />
+        <VisBulletLegend :items="chartLegend" class="justify-center" />
       </div>
     </template>
 
