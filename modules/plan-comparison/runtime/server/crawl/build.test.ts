@@ -260,7 +260,12 @@ describe('allowanceFor', () => {
 
 describe('buildDatabase - OpenDesign Go pool plan', () => {
   it('gives every Go-eligible model the whole shared pool as its credit', () => {
-    const db = buildDatabase({ ...baseInput, openDesignAllowances: odAllowancesFixture, openDesignModels: [odModel()] })
+    const db = buildDatabase({
+      ...baseInput,
+      openDesignAllowances: odAllowancesFixture,
+      openDesignModels: [odModel()],
+      openDesignMultipliers: [{ name: 'Widget', multiplier: 1 }]
+    })
     const row = db.plan_models.find(p => p.plan_id === 'od-go')
     expect(row?.model_id).toBe('acme/widget')
     expect(row?.monthly_credits_usd).toBe(220)
@@ -275,7 +280,11 @@ describe('buildDatabase - OpenDesign Go pool plan', () => {
   })
 
   it('falls back to the static pool when the page stops listing the Go row', () => {
-    const db = buildDatabase({ ...baseInput, openDesignModels: [odModel()] })
+    const db = buildDatabase({
+      ...baseInput,
+      openDesignModels: [odModel()],
+      openDesignMultipliers: [{ name: 'Widget', multiplier: 1 }]
+    })
     expect(db.plan_models.find(p => p.plan_id === 'od-go')?.monthly_credits_usd).toBe(220)
   })
 
@@ -308,12 +317,12 @@ describe('buildDatabase - OpenDesign Go pool plan', () => {
     // from the $220 pool, a 2× model $110 and a 4× model $55
     // (open-design.ai/model-credits). Only one catalog model is available here,
     // so each multiplier gets its own build.
-    const build = (multiplier?: number) => {
+    const build = (multiplier: number) => {
       const db = buildDatabase({
         ...baseInput,
         openDesignAllowances: odAllowancesFixture,
         openDesignModels: [odModel()],
-        openDesignMultipliers: multiplier == null ? [] : [{ name: 'Widget', multiplier }]
+        openDesignMultipliers: [{ name: 'Widget', multiplier }]
       })
       const row = db.plan_models.find(p => p.plan_id === 'od-go')
       return { credits: row?.monthly_credits_usd, perMonth: row?.estimates?.per_month, note: row?.note }
@@ -322,8 +331,7 @@ describe('buildDatabase - OpenDesign Go pool plan', () => {
     expect(build(0.5)).toMatchObject({ credits: 440, perMonth: 564000 })
     expect(build(2)).toMatchObject({ credits: 110, perMonth: 141000 })
     expect(build(4)).toMatchObject({ credits: 55, perMonth: 70500 })
-    // The table only lists what is not 1×: unlisted models keep the full pool.
-    expect(build()).toMatchObject({ credits: 220, perMonth: 282000 })
+    expect(build(1)).toMatchObject({ credits: 220, perMonth: 282000 })
     expect(build(0.5).note).toBe('Pool 220/mo at 0.5× from odc; rates from odm')
   })
 
@@ -338,6 +346,34 @@ describe('buildDatabase - OpenDesign Go pool plan', () => {
     })
     expect(db.pricing.some(p => p.provider_id === 'open-design')).toBe(false)
     expect(db.plan_models.some(p => p.plan_id === 'od-go')).toBe(false)
+  })
+
+  it('funds every Design Plan model, including ones with no /models panel', () => {
+    // Go's model list includes MiniMax M3.1 Flash and DeepSeek V4.1 Flash Eco,
+    // neither of which has a panel with rates: membership comes from the credit
+    // multiplier table, and their rows carry credit with null estimates.
+    const db = buildDatabase({
+      ...baseInput,
+      openDesignAllowances: odAllowancesFixture,
+      openDesignModels: [odModel()],
+      openDesignMultipliers: [
+        { name: 'Widget', multiplier: 1 },
+        { name: 'MiniMax M3.1 Flash', multiplier: 1 },
+        { name: 'DeepSeek V4.1 Flash Eco', multiplier: 0.27 }
+      ]
+    })
+    const rows = db.plan_models.filter(p => p.plan_id === 'od-go')
+    expect(rows).toHaveLength(3)
+    const byModel = new Map(db.models.map(m => [m.id, m.name]))
+    const summary = rows.map(r => [byModel.get(r.model_id), r.monthly_credits_usd, r.estimates])
+    expect(summary).toEqual([
+      ['Widget', 220, { per_5h: 23100, per_week: 70500, per_month: 282000 }],
+      // In the catalog, but OpenDesign publishes no rates for it.
+      ['MiniMax M3.1 Flash', 220, null],
+      // Not in any catalog source: gets a minimal entry so the row can exist.
+      ['DeepSeek V4.1 Flash Eco', 814.81, null]
+    ])
+    expect(rows[2]?.note).toBe('Pool 220/mo at 0.27× from odc; no published rates')
   })
 
   it('leaves models outside the catalog out of the dataset', () => {

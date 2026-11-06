@@ -19,7 +19,7 @@ Nguồn live → crawler (parse + merge + validate) → Nitro storage (S3, khôn
 | Pricing-limits HTML (`#<slug>-...`) | Cột **Was** (giá list) |
 | Go page summary | Credits $10 cho derived rows |
 | OpenCode Go (Astro): pricing / `#estimated-requests` / endpoints | Giá hiện hành, estimates, Model ID (join key) |
-| OpenDesign Go: bảng "Plan allowances" + `/models/` + `open-design.ai/model-credits` | Credits/cửa sổ từng gói ($220 + $55/7d + $18/5h cho Go), catalog model id/vendor/plan access + giá theo tier, credit multiplier từng model |
+| OpenDesign Go: bảng "Plan allowances" + `/models/` + `open-design.ai/model-credits` | Credits/cửa sổ từng gói ($220 + $55/7d + $18/5h cho Go), catalog model id/vendor/plan access + giá theo tier; **membership = danh sách Design Plan models (14)** + credit multiplier từng model |
 | AA `/models/<slug>` JSON-LD | Điểm intel exact cho model CMD thiếu điểm (map `AA_MODEL_SLUGS`, tròn 1dp) |
 
 Kiểm chứng tay: `curl -A "Mozilla/5.0"` 2 lần + `cmp`. Runtime: fetch 1 + retry 1, zod guard. Chunk hash đổi mỗi deploy — dò qua HTML.
