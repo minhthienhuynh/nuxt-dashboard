@@ -7,7 +7,7 @@ import { SOURCE_URLS, extractFlightEstimates, extractFlightModels, fetchSources 
 import { parseGoatEstimates, parseGoatModels } from '../../crawl/goat'
 import { parseGoPlanLimits, parsePricingLimits } from '../../crawl/ccpricing'
 import { parseOpenCodeEndpoints, parseOpenCodeEstimates, parseOpenCodePricing } from '../../crawl/opencode'
-import { parseOpenDesignAllowances, parseOpenDesignModels } from '../../crawl/opendesign'
+import { parseOpenDesignAllowances, parseOpenDesignModels, parseOpenDesignMultipliers } from '../../crawl/opendesign'
 import { crawledDatabaseSchema } from '../../crawl/schemas'
 import { AA_MODEL_SLUGS, fetchAaScore, fetchLeaderboardIntel, resolveAaScore } from '../../crawl/aa'
 import { plans as staticPlans } from '../../data/plans'
@@ -77,6 +77,7 @@ async function crawlFresh(): Promise<PlanComparisonPayload> {
   // plan access, tier rates) come from two Astro pages, no Flight payload.
   const odAllowances = parseOpenDesignAllowances(sources.openDesignGoHtml)
   const odModels = parseOpenDesignModels(sources.openDesignModelsHtml)
+  const odMultipliers = parseOpenDesignMultipliers(sources.openDesignCreditsHtml)
   const built = buildDatabase({
     goatModels,
     goatEstimates: goatEstimates.rows,
@@ -90,6 +91,7 @@ async function crawlFresh(): Promise<PlanComparisonPayload> {
     openCodeEndpoints: ocEndpoints,
     openDesignAllowances: odAllowances,
     openDesignModels: odModels,
+    openDesignMultipliers: odMultipliers,
     fetchedAt,
     sourceUrls: {
       goat: SOURCE_URLS.goat,
@@ -97,7 +99,8 @@ async function crawlFresh(): Promise<PlanComparisonPayload> {
       pricingLimits: SOURCE_URLS.pricingLimits,
       openCodeGo: SOURCE_URLS.openCodeGo,
       openDesignPricing: SOURCE_URLS.openDesignGo,
-      openDesignModels: SOURCE_URLS.openDesignModels
+      openDesignModels: SOURCE_URLS.openDesignModels,
+      openDesignCredits: SOURCE_URLS.openDesignCredits
     }
   })
   const validated = crawledDatabaseSchema.safeParse(built)

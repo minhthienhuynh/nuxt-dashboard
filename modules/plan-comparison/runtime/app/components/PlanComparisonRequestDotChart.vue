@@ -135,7 +135,7 @@ const DURATION = 200
           Horizontal position = requests/mo (log scale), dot diameter = credit/mo (area-proportional).
           Hover a dot or model name to see its specs and per-plan funding.
           <template v-if="poolPlans.length">
-            {{ poolPlans.map(plan => plan.label).join(', ') }} shares one pool, so its dot diameter is that whole pool on every row.
+            {{ poolPlans.map(plan => plan.label).join(', ') }} shares one pool, so its dot diameter is that pool divided by the model's credit multiplier.
           </template>
           <template v-if="noRequest.length">
             {{ noRequest.length }} models without a published request count are omitted: {{ noRequest.join(', ') }}.

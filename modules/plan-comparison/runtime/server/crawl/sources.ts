@@ -7,7 +7,8 @@ export const SOURCE_URLS = {
   // page, the model catalog (API ids, vendor, plan access, tier rates) only on
   // the models index.
   openDesignGo: 'https://go.open-design.ai/',
-  openDesignModels: 'https://go.open-design.ai/models/'
+  openDesignModels: 'https://go.open-design.ai/models/',
+  openDesignCredits: 'https://open-design.ai/model-credits/'
 } as const
 
 export const CRAWLER_USER_AGENT = 'Mozilla/5.0 (plan-comparison-crawler)'
@@ -143,16 +144,18 @@ export interface CrawlSources {
   openCodeGoHtml: string
   openDesignGoHtml: string
   openDesignModelsHtml: string
+  openDesignCreditsHtml: string
 }
 
 export async function fetchSources(fetchImpl: FetchImpl = fetch): Promise<CrawlSources> {
-  const [goatHtml, goHtml, pricingLimitsHtml, openCodeGoHtml, openDesignGoHtml, openDesignModelsHtml] = await Promise.all([
+  const [goatHtml, goHtml, pricingLimitsHtml, openCodeGoHtml, openDesignGoHtml, openDesignModelsHtml, openDesignCreditsHtml] = await Promise.all([
     fetchText(fetchImpl, SOURCE_URLS.goat),
     fetchText(fetchImpl, SOURCE_URLS.go),
     fetchText(fetchImpl, SOURCE_URLS.pricingLimits),
     fetchText(fetchImpl, SOURCE_URLS.openCodeGo),
     fetchTextOptional(fetchImpl, SOURCE_URLS.openDesignGo),
-    fetchTextOptional(fetchImpl, SOURCE_URLS.openDesignModels)
+    fetchTextOptional(fetchImpl, SOURCE_URLS.openDesignModels),
+    fetchTextOptional(fetchImpl, SOURCE_URLS.openDesignCredits)
   ])
-  return { goatHtml, goHtml, pricingLimitsHtml, openCodeGoHtml, openDesignGoHtml, openDesignModelsHtml }
+  return { goatHtml, goHtml, pricingLimitsHtml, openCodeGoHtml, openDesignGoHtml, openDesignModelsHtml, openDesignCreditsHtml }
 }

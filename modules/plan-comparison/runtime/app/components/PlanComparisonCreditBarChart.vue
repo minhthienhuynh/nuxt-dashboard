@@ -73,7 +73,7 @@ const xTickFormat = (value: number) => `$${value}`
           Bar length = max monthly credit. Hover a model's bar or name to see its specs
           (intelligence, pricing, caps) and per-plan funding.
           <template v-if="poolPlans.length">
-            {{ poolPlans.map(plan => plan.label).join(', ') }} bills one shared pool, so its bar is that whole pot on every row — if the model used all of it — not a per-model grant.
+            {{ poolPlans.map(plan => plan.label).join(', ') }} bills one shared pool, so each bar is that pool after the model's own credit multiplier — what the model could use on its own, not a per-model grant.
           </template>
           <template v-if="skipped.length">
             Skipped: {{ skipped.join(', ') }} (no plan grants them credit).

@@ -5,7 +5,7 @@ import { mapOpenCodeModelRows, matchName } from './opencode'
 import type { FlightEstimateRow, GoatEstimateRow } from './goat'
 import type { PricingLimitsSection } from './ccpricing'
 import type { OpenCodeEndpointRow, OpenCodeEstimateRow, OpenCodePricingRow } from './opencode'
-import type { OpenDesignAllowanceRow, OpenDesignCatalogModel } from './opendesign'
+import type { OpenDesignAllowanceRow, OpenDesignCatalogModel, OpenDesignMultiplierRow } from './opendesign'
 import { plans } from '../data/plans'
 
 export interface BuildInput {
@@ -21,6 +21,7 @@ export interface BuildInput {
   openCodeEndpoints: OpenCodeEndpointRow[]
   openDesignAllowances: OpenDesignAllowanceRow[]
   openDesignModels: OpenDesignCatalogModel[]
+  openDesignMultipliers: OpenDesignMultiplierRow[]
   fetchedAt: string
   sourceUrls: {
     goat: string
@@ -31,6 +32,8 @@ export interface BuildInput {
     openDesignPricing: string
     /** Where the OpenDesign per-model rates live. */
     openDesignModels: string
+    /** Where the OpenDesign credit multipliers live. */
+    openDesignCredits: string
   }
 }
 
@@ -105,6 +108,39 @@ function pricingEntriesForModel(
     })
   }
   return entries
+}
+
+/** Minimal catalog entry for a model a plan funds but no catalog source lists. */
+function emptyModel(id: string, name: string): Model {
+  return {
+    id,
+    slug: id.split('/')[1] ?? id,
+    name,
+    vendor: null,
+    category: null,
+    contextWindow: null,
+    reasoning: null,
+    vision: null,
+    inputCost: null,
+    outputCost: null,
+    cacheReadCost: null,
+    cacheWriteCost: null,
+    tiers: [],
+    minPlanName: null,
+    deal: null,
+    caps: {},
+    intelligenceIndex: null,
+    codingIndex: null,
+    outputTokensPerSec: null,
+    releaseDate: null,
+    launchedAt: null,
+    timeOfDay: null
+  }
+}
+
+/** `DeepSeek V4.1 Flash Eco` → `deepseek-v4-1-flash-eco`. */
+export function slugifyModelName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
 
 function planModelRow(
@@ -358,10 +394,8 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
   // OpenDesign Go is a gateway plan: one shared monthly pool funds every
   // eligible model, so each row carries the pool as its credit ("if this model
   // used all of it") and requests are derived from OpenDesign's own rates for
-  // that model. Only models already in the catalog get a row — OpenDesign-only
-  // ids (GPT-6 Sol, Opus 5.5, image models…) wait until the catalog adds them.
-  // Credits and windows come from the live allowance table, with the static
-  // plan as fallback (same pattern as cmd-go's `goCreditsUsd`).
+  // that model. Credits and windows come from the live allowance table, with the
+  // static plan as fallback (same pattern as cmd-go's `goCreditsUsd`).
   const odAllowance = allowanceFor(input.openDesignAllowances, 'Go')
   const odCredits = odAllowance?.codingCredits ?? odPlan.monthly_credit_usd
   const odLimits: PlanLimits = {
@@ -369,6 +403,12 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
     'weekly': odAllowance?.weeklyWindow ?? odPlan.limits.weekly,
     'monthly': odAllowance?.codingCredits ?? odPlan.limits.monthly
   }
+  // Credits spent = model usage × multiplier, so the pool buys `pool / multiplier`
+  // dollars of that model's usage, comparable to the per-model credits the other
+  // plans grant.
+
+  // Pricing: every catalog-listed OpenDesign model that publishes rates.
+  const odRateByName = new Map(input.openDesignModels.map(row => [matchName(row.name), row]))
   for (const od of input.openDesignModels) {
     // A panel with no catalog card is a legacy rate card, not an offering the
     // page sells: skip it whole (no pricing entry, no row).
@@ -393,18 +433,40 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
         cache_write: tier.cacheWrite
       })
     }
-    if (!od.plans.includes('go')) continue
-    const base = od.tiers[0]
-    const catalogModel = models.find(m => m.id === modelId)
-    const row = estimateRow('od-go', modelId, odCredits, {
+  }
+
+  // Rows: membership is the Design Plan model list from the credits page, which
+  // is what Go funds — MiniMax M3.1 Flash and DeepSeek V4.1 Flash Eco are in it
+  // but have no /models panel, so a panel-driven loop missed them. A model with
+  // no published rates still gets its credit row; its estimates stay null
+  // rather than borrowing another provider's prices.
+  for (const odModelRow of input.openDesignMultipliers) {
+    const key = matchName(odModelRow.name)
+    const od = odRateByName.get(key)
+    let modelId = resolveCatalogModelId(models, od?.id ?? null, odModelRow.name)
+    if (!modelId) {
+      modelId = `open-design/${slugifyModelName(odModelRow.name)}`
+      if (!seenIds.has(modelId)) {
+        seenIds.add(modelId)
+        models.push(emptyModel(modelId, odModelRow.name))
+      }
+    }
+    const base = od?.tiers[0]
+    const row = estimateRow('od-go', modelId, Math.round((odCredits / odModelRow.multiplier) * 100) / 100, {
       input: base?.input ?? null,
       output: base?.output ?? null,
       cacheRead: base?.cacheRead ?? null,
-      vendor: catalogModel?.vendor ?? null
+      vendor: models.find(m => m.id === modelId)?.vendor ?? null
     }, odLimits, input.sourceUrls.openDesignPricing, input.fetchedAt)
-    // The credit comes from the plan table (pricing page), the rates from the
-    // model catalog: one `sourceUrl` cannot stand for both.
-    planModels.push({ ...row, note: `Pool from the plan table; rates from ${input.sourceUrls.openDesignModels}` })
+    // The credit comes from the plan table (pricing page), the multiplier from
+    // the credits page and the rates from the model catalog: one `sourceUrl`
+    // cannot stand for all three.
+    planModels.push({
+      ...row,
+      note: `Pool ${odCredits}/mo at ${odModelRow.multiplier}× from ${input.sourceUrls.openDesignCredits}; ${
+        od ? `rates from ${input.sourceUrls.openDesignModels}` : 'no published rates'
+      }`
+    })
   }
 
   return {
