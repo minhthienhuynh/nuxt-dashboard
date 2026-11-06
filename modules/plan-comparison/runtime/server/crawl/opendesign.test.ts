@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { parseOpenDesignModels, parseOpenDesignPlans, parsePlanAccess } from './opendesign'
+import { parseOpenDesignAllowances, parseOpenDesignModels, parsePlanAccess } from './opendesign'
 
 // Trimmed copy of go.open-design.ai: the pricing page embeds the plan table as
 // a JSON settings block, the models index carries one catalog card (vendor +
 // plan access) and one explorer panel (API id + input-length tiers) per model.
-const settingsHtml = `<html><body><script type="application/json" data-corouter-settings>{"copy":{"budget":"Credits"},"plans":[
-  {"name":"Go","monthly":10,"first":8,"annual":7,"year":84,"pool":0,"design":220},
-  {"name":"Plus","monthly":20,"first":16,"annual":14,"year":168,"pool":20,"design":290}
-]}</script></body></html>`
+const allowancesHtml = `<table>
+  <tr><th>Plan</th><th>Regular monthly price</th><th>Monthly maximum =</th><th>Plan model credits<br><small>No 7-day or 5-hour limits</small></th><th>+</th><th>Coding Plan</th></tr>
+  <tr><th>Monthly maximum</th><th>Maximum credits per 7-day window</th><th>Maximum credits per 5-hour window</th></tr>
+  <tr><td>Go</td><td>$10</td><td>$220</td><td>$0</td><td></td><td>$220</td><td>$55</td><td>$18</td></tr>
+  <tr><td>Go-Plus</td><td>$20</td><td>$310</td><td>$20</td><td></td><td>$290 Bonus</td><td>$74</td><td>No limit window</td></tr>
+</table>`
 
 const modelsHtml = `<main>
   <a class="catalog-card" href="/models/gpt-6-luna/"><span class="model-tag">OpenAI</span><h2>GPT-6 Luna</h2>
@@ -44,22 +46,17 @@ const modelsHtml = `<main>
   </div>
 </main>`
 
-describe('parseOpenDesignPlans', () => {
-  it('keeps the name, list price and Coding Plan pool; promo fields are not carried', () => {
-    expect(parseOpenDesignPlans(settingsHtml)).toEqual([
-      { name: 'Go', monthly: 10, design: 220 },
-      { name: 'Plus', monthly: 20, design: 290 }
+describe('parseOpenDesignAllowances', () => {
+  it('reads coding credits and both rolling windows per plan', () => {
+    expect(parseOpenDesignAllowances(allowancesHtml)).toEqual([
+      { name: 'Go', monthly: 10, codingCredits: 220, weeklyWindow: 55, fiveHourWindow: 18 },
+      // "No limit window" is the page's way of publishing no 5-hour cap.
+      { name: 'Go-Plus', monthly: 20, codingCredits: 290, weeklyWindow: 74, fiveHourWindow: null }
     ])
   })
 
-  it('returns nothing when the settings block is absent or unparsable', () => {
-    expect(parseOpenDesignPlans('<html><body>no json</body></html>')).toEqual([])
-    expect(parseOpenDesignPlans('<script type="application/json" data-corouter-settings>{oops</script>')).toEqual([])
-  })
-
-  it('skips rows without a name or a price', () => {
-    const html = '<script type="application/json" data-corouter-settings>{"plans":[{"name":"Go"},{"monthly":10},{"name":"Go","monthly":10,"design":220}]}</script>'
-    expect(parseOpenDesignPlans(html)).toHaveLength(1)
+  it('returns nothing when the table is absent', () => {
+    expect(parseOpenDesignAllowances('<html><body>no table</body></html>')).toEqual([])
   })
 })
 

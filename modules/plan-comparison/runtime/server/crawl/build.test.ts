@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildDatabase, dedupeBy, effectiveRates, isGoGoatModel, planCreditsUsd, resolveCatalogModelId, sameSlug } from './build'
+import { allowanceFor, buildDatabase, dedupeBy, effectiveRates, isGoGoatModel, resolveCatalogModelId, sameSlug } from './build'
 import { matchName } from './opencode'
 import type { Model } from '../../app/types'
 import type { OpenDesignCatalogModel } from './opendesign'
@@ -43,7 +43,7 @@ const baseInput = {
   openCodePricing: [],
   openCodeEstimates: [],
   openCodeEndpoints: [],
-  openDesignPlans: [],
+  openDesignAllowances: [],
   openDesignModels: [],
   fetchedAt: '2026-09-19T00:00:00.000Z',
   sourceUrls: { goat: 'g', go: 'o', pricingLimits: 'p', openCodeGo: 'oc', openDesignPricing: 'odp', openDesignModels: 'odm' }
@@ -235,7 +235,7 @@ describe('buildDatabase', () => {
   })
 })
 
-const odPlansFixture = [{ name: 'Go', monthly: 10, design: 220 }]
+const odAllowancesFixture = [{ name: 'Go', monthly: 10, codingCredits: 220, weeklyWindow: 55, fiveHourWindow: 18 }]
 
 function odModel(overrides: Partial<OpenDesignCatalogModel> = {}): OpenDesignCatalogModel {
   return {
@@ -249,22 +249,24 @@ function odModel(overrides: Partial<OpenDesignCatalogModel> = {}): OpenDesignCat
   }
 }
 
-describe('planCreditsUsd', () => {
-  it('reads the Coding Plan pool of the named plan', () => {
-    expect(planCreditsUsd(odPlansFixture, 'go')).toBe(220)
-    expect(planCreditsUsd(odPlansFixture, 'Missing')).toBeNull()
+describe('allowanceFor', () => {
+  it('reads the Coding Plan credits and windows of the named plan', () => {
+    expect(allowanceFor(odAllowancesFixture, 'go')?.codingCredits).toBe(220)
+    expect(allowanceFor(odAllowancesFixture, 'go')?.weeklyWindow).toBe(55)
+    expect(allowanceFor(odAllowancesFixture, 'Missing')).toBeNull()
   })
 })
 
 describe('buildDatabase - OpenDesign Go pool plan', () => {
   it('gives every Go-eligible model the whole shared pool as its credit', () => {
-    const db = buildDatabase({ ...baseInput, openDesignPlans: odPlansFixture, openDesignModels: [odModel()] })
+    const db = buildDatabase({ ...baseInput, openDesignAllowances: odAllowancesFixture, openDesignModels: [odModel()] })
     const row = db.plan_models.find(p => p.plan_id === 'od-go')
     expect(row?.model_id).toBe('acme/widget')
     expect(row?.monthly_credits_usd).toBe(220)
     // 800 in + 200 out + 50K cache at $0.3/$1.2/$0.006 = $0.00078/req
-    // → 282,051 req/mo → round3 282000. The plan publishes no 5h/weekly cap.
-    expect(row?.estimates).toEqual({ per_5h: null, per_week: null, per_month: 282000 })
+    // → 282,051 req/mo → round3 282000; windows from the allowance table
+    // ($18 per 5h, $55 per 7d over a $220 pool) → 23100 / 70500.
+    expect(row?.estimates).toEqual({ per_5h: 23100, per_week: 70500, per_month: 282000 })
     // Credit comes from the plan table, rates from the catalog: both recorded.
     expect(row?.sourceUrl).toBe('odp')
     expect(row?.note).toBe('Pool from the plan table; rates from odm')
@@ -278,7 +280,7 @@ describe('buildDatabase - OpenDesign Go pool plan', () => {
   it('prices a plan-only model without granting it Go credit', () => {
     const db = buildDatabase({
       ...baseInput,
-      openDesignPlans: odPlansFixture,
+      openDesignAllowances: odAllowancesFixture,
       openDesignModels: [odModel({ plans: ['pro', 'max'] })]
     })
     expect(db.pricing.filter(p => p.provider_id === 'open-design').map(p => p.model_id)).toEqual(['acme/widget'])
@@ -288,7 +290,7 @@ describe('buildDatabase - OpenDesign Go pool plan', () => {
   it('maps input-length tiers to standard then extended', () => {
     const db = buildDatabase({
       ...baseInput,
-      openDesignPlans: odPlansFixture,
+      openDesignAllowances: odAllowancesFixture,
       openDesignModels: [odModel({
         tiers: [
           { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 },
@@ -305,7 +307,7 @@ describe('buildDatabase - OpenDesign Go pool plan', () => {
     // rates nor a row may enter the dataset.
     const db = buildDatabase({
       ...baseInput,
-      openDesignPlans: odPlansFixture,
+      openDesignAllowances: odAllowancesFixture,
       openDesignModels: [odModel({ plans: [] })]
     })
     expect(db.pricing.some(p => p.provider_id === 'open-design')).toBe(false)
@@ -315,7 +317,7 @@ describe('buildDatabase - OpenDesign Go pool plan', () => {
   it('leaves models outside the catalog out of the dataset', () => {
     const db = buildDatabase({
       ...baseInput,
-      openDesignPlans: odPlansFixture,
+      openDesignAllowances: odAllowancesFixture,
       openDesignModels: [odModel({ id: 'ghost-1', slug: 'ghost-1', name: 'Ghost' })]
     })
     expect(db.models.map(m => m.id)).toEqual(['acme/widget'])
