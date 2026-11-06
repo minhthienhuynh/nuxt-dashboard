@@ -3,6 +3,7 @@ import { VisAxis, VisBulletLegend, VisPlotband, VisScatter, VisXYContainer } fro
 import { Scale } from '@unovis/ts'
 import type { EnrichedModelRow } from '../composables/usePlanComparisonDatabase'
 import { PLAN_COMPARISON_PLANS } from '../plan-colors'
+import type { PlanComparisonPlanKey } from '../plan-colors'
 import { AXIS_TICK_SEPARATOR, thinTicks } from '../plan-chart-axis'
 import { usePlanComparisonChartFrame } from '../usePlanComparisonChartFrame'
 import { usePlanChartHover } from '../usePlanChartHover'
@@ -11,11 +12,13 @@ import '../plan-chart.css'
 const props = defineProps<{
   rows: EnrichedModelRow[]
   noRequest: string[]
+  /** Plans funded from one shared pool: their dots all share the pool diameter. */
+  poolPlanKeys: PlanComparisonPlanKey[]
 }>()
 
 // Pool plans report one shared credit on every row; their dots therefore share
 // one diameter. Saying so beats letting the reader infer a per-model grant.
-const poolPlans = computed(() => PLAN_COMPARISON_PLANS.filter(plan => props.rows.some(row => row[plan.key].pool)))
+const poolPlans = computed(() => PLAN_COMPARISON_PLANS.filter(plan => props.poolPlanKeys.includes(plan.key)))
 
 const {
   cardRef,

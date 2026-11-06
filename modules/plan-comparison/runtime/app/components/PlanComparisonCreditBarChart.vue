@@ -2,6 +2,7 @@
 import { VisAxis, VisBulletLegend, VisGroupedBar, VisPlotband, VisXYContainer } from '@unovis/vue'
 import type { EnrichedModelRow } from '../composables/usePlanComparisonDatabase'
 import { PLAN_COMPARISON_PLANS } from '../plan-colors'
+import type { PlanComparisonPlanKey } from '../plan-colors'
 import { AXIS_TICK_SEPARATOR } from '../plan-chart-axis'
 import { usePlanComparisonChartFrame } from '../usePlanComparisonChartFrame'
 import { usePlanChartHover } from '../usePlanChartHover'
@@ -10,14 +11,17 @@ import '../plan-chart.css'
 const props = defineProps<{
   rows: EnrichedModelRow[]
   skipped: string[]
+  /** Plans funded from one shared pool (no per-model grant): excluded from the bars. */
+  poolPlanKeys: PlanComparisonPlanKey[]
 }>()
 
 // A pool plan reports the same shared credit on every row, so its bars would be
 // N identical columns — the pool is a card-level fact, not a per-model grant.
 // It stays out of the bars (chart 2 still plots its dots) and is named in the
-// header instead.
-const poolPlans = computed(() => PLAN_COMPARISON_PLANS.filter(plan => props.rows.some(row => row[plan.key].pool)))
-const seriesPlans = computed(() => PLAN_COMPARISON_PLANS.filter(plan => !poolPlans.value.includes(plan)))
+// header. The key list comes from the plan data, not from `rows`, so an empty
+// (fully filtered) chart keeps its legend and footnote.
+const poolPlans = computed(() => PLAN_COMPARISON_PLANS.filter(plan => props.poolPlanKeys.includes(plan.key)))
+const seriesPlans = computed(() => PLAN_COMPARISON_PLANS.filter(plan => !props.poolPlanKeys.includes(plan.key)))
 
 const {
   cardRef,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { extractFlightEstimates, extractFlightModels } from './sources'
+import { extractFlightEstimates, extractFlightModels, fetchSources } from './sources'
 
 describe('extractFlightModels', () => {
   it('extracts the models array from Flight HTML', () => {
@@ -23,5 +23,27 @@ describe('extractFlightEstimates', () => {
 
   it('returns null when absent', () => {
     expect(extractFlightEstimates('<html>no data</html>')).toBeNull()
+  })
+})
+
+describe('fetchSources', () => {
+  const ok = async () => new Response('<html>core</html>', { status: 200 })
+
+  it('keeps the core sources when an additive OpenDesign page fails', async () => {
+    const fetchImpl = (async (url: string) => {
+      if (url.includes('open-design')) throw new Error('down')
+      return ok()
+    }) as typeof fetch
+    const sources = await fetchSources(fetchImpl)
+    expect(sources.goatHtml).toBe('<html>core</html>')
+    expect(sources.openDesignGoHtml).toBe('')
+    expect(sources.openDesignModelsHtml).toBe('')
+  })
+
+  it('still fails when a core source is down', async () => {
+    const fetchImpl = (async () => {
+      throw new Error('down')
+    }) as typeof fetch
+    await expect(fetchSources(fetchImpl)).rejects.toThrow('down')
   })
 })

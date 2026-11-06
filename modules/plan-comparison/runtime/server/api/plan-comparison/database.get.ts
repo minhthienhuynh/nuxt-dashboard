@@ -96,7 +96,8 @@ async function crawlFresh(): Promise<PlanComparisonPayload> {
       go: SOURCE_URLS.go,
       pricingLimits: SOURCE_URLS.pricingLimits,
       openCodeGo: SOURCE_URLS.openCodeGo,
-      openDesign: SOURCE_URLS.openDesignModels
+      openDesignPricing: SOURCE_URLS.openDesignGo,
+      openDesignModels: SOURCE_URLS.openDesignModels
     }
   })
   const validated = crawledDatabaseSchema.safeParse(built)

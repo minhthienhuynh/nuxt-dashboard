@@ -28,6 +28,20 @@ async function fetchText(fetchImpl: FetchImpl, url: string): Promise<string> {
   throw lastError
 }
 
+/**
+ * Additive sources (a plan that can disappear without invalidating the core
+ * dataset) fetch through this: on failure the page comes back empty, the
+ * parsers yield no rows, and the crawl still produces the core plans. A failed
+ * *core* source must keep failing loudly — the cache/backup path covers it.
+ */
+async function fetchTextOptional(fetchImpl: FetchImpl, url: string): Promise<string> {
+  try {
+    return await fetchText(fetchImpl, url)
+  } catch {
+    return ''
+  }
+}
+
 /** Extracts a bracket-balanced JSON value starting at `start` (the opening bracket). */
 function balancedSlice(text: string, start: number): string | null {
   const open = text[start]
@@ -137,8 +151,8 @@ export async function fetchSources(fetchImpl: FetchImpl = fetch): Promise<CrawlS
     fetchText(fetchImpl, SOURCE_URLS.go),
     fetchText(fetchImpl, SOURCE_URLS.pricingLimits),
     fetchText(fetchImpl, SOURCE_URLS.openCodeGo),
-    fetchText(fetchImpl, SOURCE_URLS.openDesignGo),
-    fetchText(fetchImpl, SOURCE_URLS.openDesignModels)
+    fetchTextOptional(fetchImpl, SOURCE_URLS.openDesignGo),
+    fetchTextOptional(fetchImpl, SOURCE_URLS.openDesignModels)
   ])
   return { goatHtml, goHtml, pricingLimitsHtml, openCodeGoHtml, openDesignGoHtml, openDesignModelsHtml }
 }

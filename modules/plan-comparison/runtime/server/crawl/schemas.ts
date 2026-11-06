@@ -73,6 +73,7 @@ export const crawledPlanModelSchema = z.object({
     per_month: z.number()
   }).nullable(),
   sourceUrl: z.string().optional(),
+  note: z.string().optional(),
   fetchedAt: z.string().optional()
 })
 

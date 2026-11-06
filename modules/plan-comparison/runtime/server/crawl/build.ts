@@ -27,7 +27,10 @@ export interface BuildInput {
     go: string
     pricingLimits: string
     openCodeGo: string
-    openDesign: string
+    /** Where the OpenDesign pool/plan table lives. */
+    openDesignPricing: string
+    /** Where the OpenDesign per-model rates live. */
+    openDesignModels: string
   }
 }
 
@@ -360,6 +363,9 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
   // ids (GPT-6 Sol, Opus 5.5, image models…) wait until the catalog adds them.
   const odCredits = planCreditsUsd(input.openDesignPlans, 'Go') ?? odPlan.monthly_credit_usd
   for (const od of input.openDesignModels) {
+    // A panel with no catalog card is a legacy rate card, not an offering the
+    // page sells: skip it whole (no pricing entry, no row).
+    if (od.plans.length === 0) continue
     const modelId = resolveCatalogModelId(models, od.id, od.name)
     if (!modelId) continue
     for (const [index, tier] of od.tiers.entries()) {
@@ -370,7 +376,8 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
         model_id: modelId,
         // OpenDesign publishes input-length tiers; `PricingEntry` has no
         // context-tier field, so the first (cheapest) tier is `standard` and
-        // the wider ones `extended`.
+        // the wider ones `extended`. Reference data only: no consumer reads
+        // `tier` (it preserves entry order for the price sort).
         tier: index === 0 ? 'standard' : 'extended',
         peak_utc_hours: null,
         input: tier.input ?? 0,
@@ -382,12 +389,15 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
     if (!od.plans.includes('go')) continue
     const base = od.tiers[0]
     const catalogModel = models.find(m => m.id === modelId)
-    planModels.push(estimateRow('od-go', modelId, odCredits, {
+    const row = estimateRow('od-go', modelId, odCredits, {
       input: base?.input ?? null,
       output: base?.output ?? null,
       cacheRead: base?.cacheRead ?? null,
       vendor: catalogModel?.vendor ?? null
-    }, odPlan.limits, input.sourceUrls.openDesign, input.fetchedAt))
+    }, odPlan.limits, input.sourceUrls.openDesignPricing, input.fetchedAt)
+    // The credit comes from the plan table (pricing page), the rates from the
+    // model catalog: one `sourceUrl` cannot stand for both.
+    planModels.push({ ...row, note: `Pool from the plan table; rates from ${input.sourceUrls.openDesignModels}` })
   }
 
   return {

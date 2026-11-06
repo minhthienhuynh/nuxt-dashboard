@@ -50,6 +50,8 @@ export interface PlanCard {
 
 export interface NormalizedPlanComparisonData {
   planCards: PlanCard[]
+  /** Series keys funded from one shared pool — the credit bar chart drops them. */
+  poolPlanKeys: PlanComparisonPlanKey[]
   creditRows: EnrichedModelRow[]
   dotRows: EnrichedModelRow[]
   skippedModelNames: string[]
@@ -156,8 +158,15 @@ export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filt
     }
   }
 
+  const cards = PLAN_COMPARISON_PLANS.map(planCard)
   return {
-    planCards: PLAN_COMPARISON_PLANS.map(planCard),
+    planCards: cards,
+    // Derived from the plan data (not from the visible rows), so a fully
+    // filtered chart keeps the same series list and footnote.
+    poolPlanKeys: cards
+      .filter(card => card.funding === 'pool')
+      .map(card => PLAN_COMPARISON_PLANS.find(plan => plan.planId === card.id)?.key)
+      .filter((key): key is PlanComparisonPlanKey => key != null),
     creditRows,
     dotRows,
     skippedModelNames,
@@ -224,6 +233,7 @@ export function usePlanComparisonDatabase() {
     intelThreshold,
     sortOption,
     planCards: computed(() => normalized.value?.planCards ?? []),
+    poolPlanKeys: computed(() => normalized.value?.poolPlanKeys ?? []),
     creditRows: computed(() => normalized.value ? sortRows(normalized.value.creditRows, sortOption.value) : []),
     dotRows: computed(() => normalized.value ? sortRows(normalized.value.dotRows, sortOption.value) : []),
     skippedModelNames: computed(() => normalized.value?.skippedModelNames ?? []),

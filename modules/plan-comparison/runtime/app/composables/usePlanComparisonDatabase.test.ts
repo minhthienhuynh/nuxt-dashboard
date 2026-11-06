@@ -197,6 +197,9 @@ describe('normalizePlanComparisonDatabase - pool plan', () => {
     expect(card?.modelCount).toBe(1)
     // Unpublished windows stay null: the card renders a dash, it does not invent one.
     expect(card?.limits).toEqual({ '5h': null, 'weekly': null, 'monthly': 220 })
+    // The bar chart filters on this list, which comes from the plan data — so it
+    // survives a filter that hides every row.
+    expect(result.poolPlanKeys).toEqual(['od'])
   })
 
   it('defaults a plan without a funding kind to per_model', () => {

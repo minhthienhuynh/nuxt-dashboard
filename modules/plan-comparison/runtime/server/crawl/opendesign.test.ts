@@ -45,10 +45,10 @@ const modelsHtml = `<main>
 </main>`
 
 describe('parseOpenDesignPlans', () => {
-  it('reads monthly/first/annual prices and both credit pools', () => {
+  it('keeps the name, list price and Coding Plan pool; promo fields are not carried', () => {
     expect(parseOpenDesignPlans(settingsHtml)).toEqual([
-      { name: 'Go', monthly: 10, first: 8, annual: 7, year: 84, design: 220, pool: 0 },
-      { name: 'Plus', monthly: 20, first: 16, annual: 14, year: 168, design: 290, pool: 20 }
+      { name: 'Go', monthly: 10, design: 220 },
+      { name: 'Plus', monthly: 20, design: 290 }
     ])
   })
 
@@ -94,5 +94,16 @@ describe('parseOpenDesignModels', () => {
 
   it('returns an empty list for a page without panels', () => {
     expect(parseOpenDesignModels('<html><body>nothing</body></html>')).toEqual([])
+  })
+
+  it('leaves the plan list empty for a legacy panel with no catalog card', () => {
+    // 13 live panels (older Grok/GLM/Opus versions) carry rates but no
+    // `a.catalog-card`: no plan sells them, so the build must skip them.
+    const legacy = parseOpenDesignModels(
+      '<div class="model-explorer-panel" id="model-panel-grok-4-5" data-model-panel="grok-4.5"><h3>Grok 4.5</h3></div>'
+    )
+    expect(legacy).toEqual([
+      { id: 'grok-4.5', slug: 'grok-4-5', name: 'Grok 4.5', vendor: null, plans: [], tiers: [] }
+    ])
   })
 })

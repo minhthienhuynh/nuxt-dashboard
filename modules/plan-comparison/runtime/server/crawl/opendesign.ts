@@ -18,18 +18,11 @@ import { toNumber } from './parse'
 export interface OpenDesignPlanRow {
   /** `Go` / `Plus` / `Pro` / `Max`. */
   name: string
-  /** Regular monthly price. */
+  /** Regular monthly price — the validity gate for the row (never stored: the
+   * card price lives in `data/plans.ts`, promos are not baked into the dataset). */
   monthly: number
-  /** Introductory first-month price. */
-  first: number
-  /** Monthly equivalent when billed yearly. */
-  annual: number
-  /** Yearly total. */
-  year: number
-  /** Coding Plan credits (the pool the coding agents draw on). */
+  /** Coding Plan credits: the pool the plan's coding models draw on. */
   design: number
-  /** Plan-model credits (image/video/plan-only models). */
-  pool: number
 }
 
 export interface OpenDesignTierRates {
@@ -71,16 +64,15 @@ export function parseOpenDesignPlans(html: string): OpenDesignPlanRow[] {
     const record = entry as Record<string, unknown>
     const name = typeof record.name === 'string' ? record.name.trim() : ''
     const monthly = toNumber(record.monthly)
-    // A row without a name or a price is not a plan the card can render.
+    // A row without a name or a price is not a plan the card can render. The
+    // promo fields (`first`/`annual`/`year`) and plan-model `pool` are read off
+    // the page but deliberately not carried: nothing in the dataset consumes
+    // them, and stored promos go stale the day they end.
     if (name === '' || monthly == null) continue
     rows.push({
       name,
       monthly,
-      first: toNumber(record.first) ?? monthly,
-      annual: toNumber(record.annual) ?? monthly,
-      year: toNumber(record.year) ?? monthly * 12,
-      design: toNumber(record.design) ?? 0,
-      pool: toNumber(record.pool) ?? 0
+      design: toNumber(record.design) ?? 0
     })
   }
   return rows

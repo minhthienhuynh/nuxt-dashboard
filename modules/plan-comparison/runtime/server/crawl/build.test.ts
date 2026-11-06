@@ -46,7 +46,7 @@ const baseInput = {
   openDesignPlans: [],
   openDesignModels: [],
   fetchedAt: '2026-09-19T00:00:00.000Z',
-  sourceUrls: { goat: 'g', go: 'o', pricingLimits: 'p', openCodeGo: 'oc', openDesign: 'od' }
+  sourceUrls: { goat: 'g', go: 'o', pricingLimits: 'p', openCodeGo: 'oc', openDesignPricing: 'odp', openDesignModels: 'odm' }
 }
 
 describe('matchName', () => {
@@ -235,7 +235,7 @@ describe('buildDatabase', () => {
   })
 })
 
-const odPlansFixture = [{ name: 'Go', monthly: 10, first: 8, annual: 7, year: 84, design: 220, pool: 0 }]
+const odPlansFixture = [{ name: 'Go', monthly: 10, design: 220 }]
 
 function odModel(overrides: Partial<OpenDesignCatalogModel> = {}): OpenDesignCatalogModel {
   return {
@@ -265,7 +265,9 @@ describe('buildDatabase - OpenDesign Go pool plan', () => {
     // 800 in + 200 out + 50K cache at $0.3/$1.2/$0.006 = $0.00078/req
     // → 282,051 req/mo → round3 282000. The plan publishes no 5h/weekly cap.
     expect(row?.estimates).toEqual({ per_5h: null, per_week: null, per_month: 282000 })
-    expect(row?.sourceUrl).toBe('od')
+    // Credit comes from the plan table, rates from the catalog: both recorded.
+    expect(row?.sourceUrl).toBe('odp')
+    expect(row?.note).toBe('Pool from the plan table; rates from odm')
   })
 
   it('falls back to the static pool when the page stops listing the Go row', () => {
@@ -295,6 +297,19 @@ describe('buildDatabase - OpenDesign Go pool plan', () => {
       })]
     })
     expect(db.pricing.filter(p => p.provider_id === 'open-design').map(p => p.tier)).toEqual(['standard', 'extended'])
+  })
+
+  it('skips a legacy panel that has no catalog card at all', () => {
+    // 13 live panels are legacy rate cards (older Grok/GLM/Opus versions) with
+    // no `a.catalog-card`: they are not offered by any plan, so neither their
+    // rates nor a row may enter the dataset.
+    const db = buildDatabase({
+      ...baseInput,
+      openDesignPlans: odPlansFixture,
+      openDesignModels: [odModel({ plans: [] })]
+    })
+    expect(db.pricing.some(p => p.provider_id === 'open-design')).toBe(false)
+    expect(db.plan_models.some(p => p.plan_id === 'od-go')).toBe(false)
   })
 
   it('leaves models outside the catalog out of the dataset', () => {
