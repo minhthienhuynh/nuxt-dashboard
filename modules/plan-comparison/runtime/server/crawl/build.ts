@@ -323,6 +323,10 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
   }
 
   const ocIdByName = new Map(input.openCodeEndpoints.map(e => [matchName(e.name), e.modelId]))
+  // The full catalog, including Pro/Max rows the plan scope drops. OC funds
+  // some of those models on Go (Gemini 4 Argon is Pro on CMD), and the catalog
+  // entry is the only source for their vendor/context/tooltip metadata.
+  const catalogById = new Map(input.goatModels.map(model => [model.id, model]))
   // Union of all OC table keys: rows with an endpoint Model ID use it,
   // otherwise a deterministic `opencode/<slug>` id keeps the three OC
   // tables joinable with each other.
@@ -339,9 +343,14 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
 
   for (const key of ocKeys) {
     const displayName = ocNameByKey.get(key) ?? input.openCodePricing.find(p => matchName(p.name) === key)?.name ?? key
+    const endpointId = ocIdByName.get(key) ?? null
     // Same model as a CMD row → reuse the CMD id so pricing/estimates join
-    // instead of splitting into a duplicate model row.
-    const modelId = resolveCatalogModelId(models, ocIdByName.get(key) ?? null, displayName) ?? ocIdFor(key)
+    // instead of splitting into a duplicate model row. Models outside the
+    // Go/GOAT scope (Pro/Max) still join here for their metadata; the CMD plan
+    // loops above never emit rows for them.
+    const modelId = resolveCatalogModelId(models, endpointId, displayName)
+      ?? resolveCatalogModelId(input.goatModels, endpointId, displayName)
+      ?? ocIdFor(key)
     const priceRows = input.openCodePricing.filter(p => matchName(p.name) === key)
     const price = priceRows[0]
     // Free promo rows never enter the dataset (mirrors goat isFreeModel).
@@ -381,13 +390,20 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
     }
     if (!seenIds.has(modelId)) {
       seenIds.add(modelId)
-      const [ocModel] = mapOpenCodeModelRows({
-        pricing: price ? [price] : [],
-        endpoints: [],
-        idFor: () => modelId,
-        nameFor: () => displayName
-      })
-      if (ocModel) models.push(ocModel)
+      const catalogModel = catalogById.get(modelId)
+      if (catalogModel) {
+        // Resolved against the full catalog (Pro/Max scope): keep the entry's
+        // metadata instead of degrading it to an OC-only shell.
+        models.push(catalogModel)
+      } else {
+        const [ocModel] = mapOpenCodeModelRows({
+          pricing: price ? [price] : [],
+          endpoints: [],
+          idFor: () => modelId,
+          nameFor: () => displayName
+        })
+        if (ocModel) models.push(ocModel)
+      }
     }
   }
 

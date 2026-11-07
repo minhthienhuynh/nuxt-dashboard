@@ -2,7 +2,7 @@ export const SOURCE_URLS = {
   goat: 'https://commandcode.ai/docs/plans/goat',
   go: 'https://commandcode.ai/docs/plans/go',
   pricingLimits: 'https://commandcode.ai/docs/resources/pricing-limits',
-  openCodeGo: 'https://opencode.ai/v2/docs/console/go/',
+  openCodeGo: 'https://opencode.ai/docs/console/go/',
   // Astro static pages: plan table lives in the JSON settings block on either
   // page, the model catalog (API ids, vendor, plan access, tier rates) only on
   // the models index.
