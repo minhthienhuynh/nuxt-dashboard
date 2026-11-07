@@ -178,6 +178,34 @@ describe('buildDatabase', () => {
     expect(oc[0]?.model_id).toBe('acme/widget')
   })
 
+  it('keeps catalog metadata when an OC row funds a Pro-only model', () => {
+    // Gemini 4 Argon is a Pro model on CMD but Go on OpenCode Go; the OC row
+    // still needs the catalog's vendor/context/AA instead of a bare shell.
+    const db = buildDatabase({
+      ...baseInput,
+      goatModels: [makeModel({
+        id: 'google/gemini-4-argon',
+        slug: 'gemini-4-argon',
+        name: 'Gemini 4 Argon',
+        vendor: 'Google',
+        minPlanName: 'Pro',
+        contextWindow: 1000000,
+        intelligenceIndex: 52.6
+      })],
+      openCodePricing: [{ name: 'Gemini 4 Argon', tier: 'standard', input: 2, output: 10, cacheRead: 0.1, cacheWrite: null, monthlyLimit: 30 }],
+      openCodeEstimates: [{ name: 'Gemini 4 Argon', per5h: 530, perWeek: 1060, perMonth: 2120 }],
+      openCodeEndpoints: [{ name: 'Gemini 4 Argon', modelId: 'gemini-4-argon' }]
+    })
+    const oc = db.plan_models.filter(p => p.plan_id === 'oc-go')
+    expect(oc).toHaveLength(1)
+    expect(oc[0]?.model_id).toBe('google/gemini-4-argon')
+    expect(db.models.find(m => m.id === 'google/gemini-4-argon')?.vendor).toBe('Google')
+    expect(db.models.find(m => m.id === 'google/gemini-4-argon')?.intelligenceIndex).toBe(52.6)
+    // Pro models still get no CMD plan row or CMD pricing entry.
+    expect(db.plan_models.some(p => p.plan_id === 'cmd-go' && p.model_id === 'google/gemini-4-argon')).toBe(false)
+    expect(db.pricing.some(p => p.provider_id === 'command-code' && p.model_id === 'google/gemini-4-argon')).toBe(false)
+  })
+
   it('joins an OpenCode bare id to the CMD variant row instead of duplicating it', () => {
     const db = buildDatabase({
       ...baseInput,
