@@ -219,3 +219,37 @@ describe('normalizePlanComparisonDatabase - pool plan', () => {
     expect(normalizePlanComparisonDatabase(db, baseFilters).planCards.find(c => c.id === 'cmd-go')?.funding).toBe('per_model')
   })
 })
+
+describe('normalizePlanComparisonDatabase - plan cards', () => {
+  it('reports the per-model allowance range for a per-model plan', () => {
+    const db = makeDatabase(
+      [makeModel({ id: 'cheap' }), makeModel({ id: 'pricey' })],
+      [
+        { plan_id: 'cmd-goat', model_id: 'cheap', monthly_credits_usd: 20, estimates: null },
+        { plan_id: 'cmd-goat', model_id: 'pricey', monthly_credits_usd: 100, estimates: null }
+      ]
+    )
+    const card = normalizePlanComparisonDatabase(db, baseFilters).planCards.find(c => c.id === 'cmd-goat')
+    expect(card?.creditRange).toEqual({ min: 20, max: 100 })
+  })
+
+  it('leaves the range empty when every model gets the same credit', () => {
+    const db = makeDatabase(
+      [makeModel({ id: 'only' })],
+      [{ plan_id: 'cmd-goat', model_id: 'only', monthly_credits_usd: 100, estimates: null }]
+    )
+    expect(normalizePlanComparisonDatabase(db, baseFilters).planCards.find(c => c.id === 'cmd-goat')?.creditRange).toBeNull()
+  })
+
+  it('never reports a range for a pool plan', () => {
+    // OpenDesign rows differ by credit multiplier ($55-$440), which is not a cap.
+    const db = makeDatabase(
+      [makeModel({ id: 'luna' }), makeModel({ id: 'flash' })],
+      [
+        { plan_id: 'od-go', model_id: 'luna', monthly_credits_usd: 55, estimates: null },
+        { plan_id: 'od-go', model_id: 'flash', monthly_credits_usd: 440, estimates: null }
+      ]
+    )
+    expect(normalizePlanComparisonDatabase(db, baseFilters).planCards.find(c => c.id === 'od-go')?.creditRange).toBeNull()
+  })
+})

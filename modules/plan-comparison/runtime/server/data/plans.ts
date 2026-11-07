@@ -7,6 +7,9 @@ export const plans: Plan[] = [
     name: 'Go Plan',
     monthly_price_usd: 1,
     monthly_credit_usd: 10,
+    // docs/plans/go says "$3 / $6 / $10 of usage"; the pricing-limits table
+    // lists "$2 / $5" for the same windows. The plan page is authoritative for
+    // its own plan, so these follow it (verified 2026-11-06).
     has_api_access: false,
     limits: {
       '5h': 3,
@@ -19,7 +22,12 @@ export const plans: Plan[] = [
     provider_id: 'command-code',
     name: 'Cmd GOAT Plan',
     monthly_price_usd: 10,
-    monthly_credit_usd: 70,
+    // "Your $10 buys up to $100 of credits" (docs/plans/goat intro) and the
+    // usage-limits block says "Monthly limit - up to $100 of usage", which the
+    // pricing-limits table repeats ("GOAT | $10 | Up to $100 of usage"). The
+    // per-model allowances in the same doc table run $10-$100, so $70 is one
+    // model's allowance (GLM-5.2 / Tencent Hy3 / Qwen 3.8 27B), not the plan's.
+    monthly_credit_usd: 100,
     has_api_access: true,
     // Published as dollar usage windows ("5-hour up to $20 / weekly up to $50 /
     // monthly up to $100", docs/plans/goat + pricing-limits). The ratios
@@ -37,17 +45,22 @@ export const plans: Plan[] = [
     provider_id: 'opencode',
     name: 'OpenCode Go',
     monthly_price_usd: 10,
-    monthly_credit_usd: 60,
+    // OpenCode publishes no plan-wide pool: each model carries its own monthly
+    // limit (docs table: GLM-5.3-Flash $60, Kimi K3 $15, MiniMax M3.1 $20,
+    // Qwen3.8 Flash $30, DeepSeek V4.1 Flash $100), so the headline is the
+    // largest of them and the card labels it "max per model".
+    monthly_credit_usd: 100,
     has_api_access: true,
-    // OpenCode sizes the windows per model, not per plan: "5-hour — 20% of the
-    // monthly limit; weekly — 50%; monthly — 100%" (opencode.ai/v2/docs/
-    // console/go/). A model with a $15 limit therefore gets $3 / $7.50, not
-    // the $12 / $30 the $60 pool would imply. `limits` keeps the pool-equivalent
-    // dollars (the estimate math's fallback); the card renders the percentages.
+    credit_is_per_model: true,
+    // Windows are shares of each model's own limit: "5-hour — 20% of the
+    // monthly limit; weekly — 50%; monthly — 100%" (opencode.ai/docs/console/
+    // go/). A $15 model therefore gets $3 / $7.50. `limits` keeps the
+    // pool-equivalent dollars (the estimate math's fallback for a model with no
+    // parsed limit); the card renders the percentages.
     limits: {
-      '5h': 12,
-      'weekly': 30,
-      'monthly': 60
+      '5h': 20,
+      'weekly': 50,
+      'monthly': 100
     },
     limits_percent: {
       '5h': 20,

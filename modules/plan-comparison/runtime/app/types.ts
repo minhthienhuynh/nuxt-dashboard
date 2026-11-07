@@ -47,6 +47,12 @@ export interface Plan {
   weekly_window_days?: number
   /** Defaults to `per_model` when absent. */
   funding?: PlanFundingKind
+  /**
+   * The plan sells per-model monthly limits only (no plan-wide pool), so
+   * `monthly_credit_usd` is the largest of them and the card must say so.
+   * OpenCode Go: $15–$100 per model, no shared pool.
+   */
+  credit_is_per_model?: boolean
 }
 
 export interface ModelTierRates {
