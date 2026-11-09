@@ -7,7 +7,7 @@ import type { PricingLimitsSection } from './ccpricing'
 import type { OpenCodeEndpointRow, OpenCodeEstimateRow, OpenCodePricingRow } from './opencode'
 import type { OpenDesignAllowanceRow, OpenDesignCatalogModel, OpenDesignMultiplierRow } from './opendesign'
 import type { TokenHarborBoostRow, TokenHarborModel } from './tokenharbor'
-import { TOKEN_HARBOR_AGENT_CAPS, TOKEN_HARBOR_MODEL_ALIASES, TOKEN_HARBOR_REQUEST_SHAPE, isAgentPassModel, tokenHarborRequestCost, tokenHarborVendor } from './tokenharbor'
+import { TOKEN_HARBOR_AGENT_CAPS, TOKEN_HARBOR_MODEL_ALIASES, TOKEN_HARBOR_OFFICE_CAPS, TOKEN_HARBOR_REQUEST_SHAPE, isAgentPassModel, isOfficePassModel, tokenHarborRequestCost, tokenHarborVendor } from './tokenharbor'
 import { plans } from '../data/plans'
 
 export interface BuildInput {
@@ -532,68 +532,75 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
     })
   }
 
-  // TokenHarbor Agent Pass: the plan funds a published *rule* (docs) applied to
-  // the gateway's public catalogue (models page), so membership is derived
-  // rather than copied off a table. Each eligible row carries the pool as its
-  // credit — stretched by its Model Boost — and requests come from
-  // TokenHarbor's own published profile (10K input, 8K of it cached, + 1K
-  // output), which is the basis of the vendor's "estimated requests" widget.
-  const thPlan = planById('th-agent')
+  // TokenHarbor passes (Agent, Office): each plan funds a published *rule*
+  // (docs) applied to the gateway's public catalogue (models page), so
+  // membership is derived rather than copied off a table. Each eligible row
+  // carries that pass's pool as its credit — stretched by its Model Boost —
+  // and requests come from TokenHarbor's own published profile (10K input,
+  // 8K of it cached, + 1K output), which is the basis of the vendor's
+  // "estimated requests" widget.
   const thBoostByName = new Map(input.tokenHarborBoosts.map(row => [matchName(row.name), row]))
-  const thWeeklyFraction = thPlan.limits.weekly == null ? null : thPlan.limits.weekly / thPlan.limits.monthly
-  for (const th of input.tokenHarborModels) {
-    if (!isAgentPassModel(th)) continue
-    const boost = thBoostByName.get(matchName(th.label))
-    // A badge whose title calls it a promo is already priced into the
-    // published rate (the promo *is* the price difference), so only a standing
-    // Model Boost stretches the pool.
-    const multiple = boost && !boost.promo ? boost.multiple : 1
-    // TokenHarbor's own id can be a dated pin of a catalog model (`-1017`) —
-    // resolve through the alias so the row joins that model, not a duplicate.
-    const lookupId = TOKEN_HARBOR_MODEL_ALIASES[th.id] ?? th.id
-    const catalogModel = models.find(m => sameSlug(m.id.split('/').pop() ?? '', lookupId) || sameSlug(m.slug, lookupId))
-      ?? input.goatModels.find(m => m.id === lookupId || sameSlug(m.slug, lookupId))
-    // Same model as a CMD row (in or outside the Go/GOAT scope) → reuse that id
-    // so pricing/metadata join instead of splitting into a duplicate model.
-    const modelId = resolveCatalogModelId(models, lookupId, th.label)
-      ?? resolveCatalogModelId(input.goatModels, lookupId, th.label)
-      ?? `tokenharbor/${slugifyModelName(lookupId)}`
-    if (!catalogModel && !seenIds.has(modelId)) {
-      seenIds.add(modelId)
-      models.push(tokenHarborCatalogEntry(modelId, th))
+  const thPasses = [
+    { planId: 'th-agent', label: 'Agent Pass', caps: TOKEN_HARBOR_AGENT_CAPS, isPassModel: isAgentPassModel },
+    { planId: 'th-office', label: 'Office Pass', caps: TOKEN_HARBOR_OFFICE_CAPS, isPassModel: isOfficePassModel }
+  ] as const
+  for (const pass of thPasses) {
+    const thPlan = planById(pass.planId)
+    const thWeeklyFraction = thPlan.limits.weekly == null ? null : thPlan.limits.weekly / thPlan.limits.monthly
+    for (const th of input.tokenHarborModels) {
+      if (!pass.isPassModel(th)) continue
+      const boost = thBoostByName.get(matchName(th.label))
+      // A badge whose title calls it a promo is already priced into the
+      // published rate (the promo *is* the price difference), so only a standing
+      // Model Boost stretches the pool.
+      const multiple = boost && !boost.promo ? boost.multiple : 1
+      // TokenHarbor's own id can be a dated pin of a catalog model (`-1017`) —
+      // resolve through the alias so the row joins that model, not a duplicate.
+      const lookupId = TOKEN_HARBOR_MODEL_ALIASES[th.id] ?? th.id
+      const catalogModel = models.find(m => sameSlug(m.id.split('/').pop() ?? '', lookupId) || sameSlug(m.slug, lookupId))
+        ?? input.goatModels.find(m => m.id === lookupId || sameSlug(m.slug, lookupId))
+      // Same model as a CMD row (in or outside the Go/GOAT scope) → reuse that id
+      // so pricing/metadata join instead of splitting into a duplicate model.
+      const modelId = resolveCatalogModelId(models, lookupId, th.label)
+        ?? resolveCatalogModelId(input.goatModels, lookupId, th.label)
+        ?? `tokenharbor/${slugifyModelName(lookupId)}`
+      if (!catalogModel && !seenIds.has(modelId)) {
+        seenIds.add(modelId)
+        models.push(tokenHarborCatalogEntry(modelId, th))
+      }
+      const vendor = catalogModel?.vendor ?? tokenHarborVendor(th.family)
+      pricing.push({
+        provider_id: 'tokenharbor',
+        model_id: modelId,
+        // One flat published rate per model; the pass does not price per context
+        // tier and TokenHarbor publishes no peak/off-peak split.
+        tier: 'standard',
+        peak_utc_hours: null,
+        input: th.priceIn ?? 0,
+        output: th.priceOut ?? 0,
+        cache_read: th.cacheRead ?? 0,
+        cache_write: th.cacheWrite
+      })
+      // "A boosted model is billed against the same Pass allowance at a reduced
+      // rate, which lets that allowance go further on it" — so the pool buys
+      // `pool × boost` dollars of that model's usage, which is exactly the
+      // "$10 included usage / up to $20 of usage value" the pass advertises.
+      const credits = thPlan.monthly_credit_usd * multiple
+      const computed = computeRowEstimates(credits, {
+        rates: { inputCost: th.priceIn, outputCost: th.priceOut, cacheReadCost: th.cacheRead },
+        shape: { ...TOKEN_HARBOR_REQUEST_SHAPE },
+        timeOfDay: null
+      }, vendor, { fiveHour: null, weekly: thWeeklyFraction })
+      planModels.push({
+        plan_id: pass.planId,
+        model_id: modelId,
+        monthly_credits_usd: credits,
+        estimates: computed ? { per_5h: computed.per5h, per_week: computed.perWeek, per_month: computed.perMonth } : null,
+        sourceUrl: input.sourceUrls.tokenHarborPricing,
+        fetchedAt: input.fetchedAt,
+        note: `${pass.label} rule (≤ $${pass.caps.input} in / $${pass.caps.output} out per 1M, plus by-name${pass.planId === 'th-office' ? ', including everything the Agent Pass funds' : ''}) from https://tokenharbor.ai/docs/billing/subscription; rates from ${input.sourceUrls.tokenHarborModels}; request profile 10K in (8K cache) + 1K out = $${(tokenHarborRequestCost(th) ?? 0).toFixed(6)}/req${multiple > 1 ? `; Model Boost ${multiple}×` : ''}${boost?.promo ? '; promo multiplier not applied (promo is in the published rate)' : ''}`
+      })
     }
-    const vendor = catalogModel?.vendor ?? tokenHarborVendor(th.family)
-    pricing.push({
-      provider_id: 'tokenharbor',
-      model_id: modelId,
-      // One flat published rate per model; the pass does not price per context
-      // tier and TokenHarbor publishes no peak/off-peak split.
-      tier: 'standard',
-      peak_utc_hours: null,
-      input: th.priceIn ?? 0,
-      output: th.priceOut ?? 0,
-      cache_read: th.cacheRead ?? 0,
-      cache_write: th.cacheWrite
-    })
-    // "A boosted model is billed against the same Pass allowance at a reduced
-    // rate, which lets that allowance go further on it" — so the pool buys
-    // `pool × boost` dollars of that model's usage, which is exactly the
-    // "$10 included usage / up to $20 of usage value" the pass advertises.
-    const credits = thPlan.monthly_credit_usd * multiple
-    const computed = computeRowEstimates(credits, {
-      rates: { inputCost: th.priceIn, outputCost: th.priceOut, cacheReadCost: th.cacheRead },
-      shape: { ...TOKEN_HARBOR_REQUEST_SHAPE },
-      timeOfDay: null
-    }, vendor, { fiveHour: null, weekly: thWeeklyFraction })
-    planModels.push({
-      plan_id: 'th-agent',
-      model_id: modelId,
-      monthly_credits_usd: credits,
-      estimates: computed ? { per_5h: computed.per5h, per_week: computed.perWeek, per_month: computed.perMonth } : null,
-      sourceUrl: input.sourceUrls.tokenHarborPricing,
-      fetchedAt: input.fetchedAt,
-      note: `Agent Pass rule (≤ $${TOKEN_HARBOR_AGENT_CAPS.input} in / $${TOKEN_HARBOR_AGENT_CAPS.output} out per 1M, plus by-name) from https://tokenharbor.ai/docs/billing/subscription; rates from ${input.sourceUrls.tokenHarborModels}; request profile 10K in (8K cache) + 1K out = $${(tokenHarborRequestCost(th) ?? 0).toFixed(6)}/req${multiple > 1 ? `; Model Boost ${multiple}×` : ''}${boost?.promo ? '; promo multiplier not applied (promo is in the published rate)' : ''}`
-    })
   }
 
   return {

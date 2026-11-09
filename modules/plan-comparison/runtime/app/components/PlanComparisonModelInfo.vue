@@ -7,7 +7,7 @@ import type { PlanComparisonPlanMeta } from '../plan-colors'
 const props = defineProps<{
   /** Hovered row; `null` renders nothing. */
   row: EnrichedModelRow | null
-  /** Checked plans: the tooltip lists funding for these only, not all five. */
+  /** Checked plans: the tooltip lists funding for these only, not all of them. */
   plans: PlanComparisonPlanMeta[]
   /** Anchor for the popover, in viewport coordinates (clientX/Y). */
   x: number

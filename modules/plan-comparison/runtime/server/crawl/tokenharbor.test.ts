@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isAgentPassModel, parseTokenHarborBoosts, parseTokenHarborCatalogue, tokenHarborRequestCost, tokenHarborVendor } from './tokenharbor'
+import { isAgentPassModel, isOfficePassModel, parseTokenHarborBoosts, parseTokenHarborCatalogue, tokenHarborRequestCost, tokenHarborVendor } from './tokenharbor'
 import type { TokenHarborModel } from './tokenharbor'
 
 // Trimmed copy of tokenharbor.ai/models: the catalogue is a Next.js Flight
@@ -89,6 +89,30 @@ describe('isAgentPassModel', () => {
 
   it('never funds a free route', () => {
     expect(isAgentPassModel(model({ id: 'mimo-v2.5:free', priceIn: 0, priceOut: 0, isFree: true }))).toBe(false)
+  })
+})
+
+describe('isOfficePassModel', () => {
+  it('funds the wider published caps ($1 in / $4 out)', () => {
+    expect(isOfficePassModel(model({ priceIn: 1, priceOut: 4 }))).toBe(true)
+    expect(isOfficePassModel(model({ priceIn: 1.01, priceOut: 3 }))).toBe(false)
+    expect(isOfficePassModel(model({ priceIn: 0.5, priceOut: 4.01 }))).toBe(false)
+  })
+
+  it('keeps everything the Agent Pass funds', () => {
+    expect(isOfficePassModel(model({ priceIn: 0.2, priceOut: 1 }))).toBe(true)
+    expect(isOfficePassModel(model({ id: 'gpt-5.6-luna', priceIn: 0.2, priceOut: 1.2 }))).toBe(true)
+    expect(isOfficePassModel(model({ id: 'mimo-v2.5-pro', priceIn: 0.435, priceOut: 0.87 }))).toBe(true)
+  })
+
+  it('funds the by-name office models even far above the caps', () => {
+    expect(isOfficePassModel(model({ id: 'claude-sonnet-5', priceIn: 2, priceOut: 10 }))).toBe(true)
+    expect(isOfficePassModel(model({ id: 'grok-4.6', priceIn: 3, priceOut: 15 }))).toBe(true)
+    expect(isOfficePassModel(model({ id: 'muse-spark-1-3', priceIn: 0.5, priceOut: 6 }))).toBe(true)
+  })
+
+  it('never funds a free route', () => {
+    expect(isOfficePassModel(model({ id: 'mimo-v2.5:free', priceIn: 0, priceOut: 0, isFree: true }))).toBe(false)
   })
 })
 

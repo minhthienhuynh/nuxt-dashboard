@@ -7,6 +7,8 @@ import { plans } from './plans'
  * - Command Code docs/plans/go + docs/plans/goat + commandcode.ai/pricing
  * - opencode.ai/docs/console/go ("5-hour — 20% of the monthly limit; weekly — 50%")
  * - go.open-design.ai "Plan allowances" (Go: $220, $55/7d, $18/5h)
+ * - tokenharbor.ai/docs/billing/subscription (Office Pass $9.99/mo, $35 per
+ *   four-week cycle divided into four 7-day windows)
  */
 describe('plans - published card values', () => {
   const byId = (id: string) => plans.find(plan => plan.id === id)
@@ -20,6 +22,9 @@ describe('plans - published card values', () => {
     // Agent Pass: $1.99 standard renewal ($0.99 is the first-month promo, not
     // stored) and one shared $10 allowance every eligible model drains.
     expect(byId('th-agent')).toMatchObject({ monthly_price_usd: 1.99, monthly_credit_usd: 10, funding: 'pool' })
+    // Office Pass: flat price ("cost the same amount every month, including
+    // the first") and one shared $35 allowance.
+    expect(byId('th-office')).toMatchObject({ monthly_price_usd: 9.99, monthly_credit_usd: 35, funding: 'pool' })
   })
 
   it('carries the published rolling windows', () => {
@@ -31,6 +36,9 @@ describe('plans - published card values', () => {
     // publishes no 5-hour window, so it stays null rather than invented.
     expect(byId('th-agent')?.limits).toEqual({ '5h': null, 'weekly': 2.5, 'monthly': 10 })
     expect(byId('th-agent')?.weekly_window_days).toBe(7)
+    // Same four-week cycle → $8.75 of the $35 per week; no 5-hour window.
+    expect(byId('th-office')?.limits).toEqual({ '5h': null, 'weekly': 8.75, 'monthly': 35 })
+    expect(byId('th-office')?.weekly_window_days).toBe(7)
   })
 
   it('keeps OpenCode Go windows as shares of each model limit', () => {

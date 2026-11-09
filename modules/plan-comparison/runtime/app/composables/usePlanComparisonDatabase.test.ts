@@ -46,7 +46,7 @@ function makeModel(overrides: Partial<Model>): Model {
 function makeDatabase(models: Model[], planModels: PlanModelEstimate[]): PlanComparisonDatabase {
   return {
     providers: [{ id: 'command-code', name: 'Command Code' }],
-    plans: [makePlan('cmd-go'), makePlan('cmd-goat'), makePlan('oc-go'), makeOdPlan(), makeThPlan()],
+    plans: [makePlan('cmd-go'), makePlan('cmd-goat'), makePlan('oc-go'), makeOdPlan(), makeThPlan(), makeThOfficePlan()],
     models,
     pricing: [],
     plan_models: planModels
@@ -61,6 +61,18 @@ function makeThPlan(overrides: Partial<Plan> = {}): Plan {
     monthly_price_usd: 1.99,
     monthly_credit_usd: 10,
     limits: { '5h': null, 'weekly': 2.5, 'monthly': 10 },
+    ...overrides
+  })
+}
+
+/** TokenHarbor Office Pass: one shared $35 pool, weekly window only. */
+function makeThOfficePlan(overrides: Partial<Plan> = {}): Plan {
+  return makePlan('th-office', {
+    provider_id: 'tokenharbor',
+    funding: 'pool',
+    monthly_price_usd: 9.99,
+    monthly_credit_usd: 35,
+    limits: { '5h': null, 'weekly': 8.75, 'monthly': 35 },
     ...overrides
   })
 }
@@ -211,9 +223,10 @@ describe('normalizePlanComparisonDatabase - pool plan', () => {
     // carry null and the card would render a dash instead).
     expect(card?.limits).toEqual({ '5h': 18, 'weekly': 55, 'monthly': 220 })
     // The bar chart filters on this list, which comes from the plan data — so it
-    // survives a filter that hides every row. Both shared-pool plans (OpenDesign
-    // Go and TokenHarbor Agent Pass) are in the fixture database.
-    expect(result.poolPlanKeys).toEqual(['od', 'th'])
+    // survives a filter that hides every row. All three shared-pool plans
+    // (OpenDesign Go, TokenHarbor Agent and Office Pass) are in the fixture
+    // database.
+    expect(result.poolPlanKeys).toEqual(['od', 'th', 'th-office'])
   })
 
   it('keeps rendering when the stored data predates a registry plan', () => {
@@ -289,7 +302,7 @@ describe('normalizePlanComparisonDatabase - plan selection (card checkboxes)', (
 
   it('reports the checked plans so the charts draw only those series', () => {
     const result = normalizePlanComparisonDatabase(db, baseFilters, { ...defaultPlanSelection(), th: false })
-    expect(result.selectedPlans.map(plan => plan.key)).toEqual(['cmd', 'goat', 'go', 'od'])
+    expect(result.selectedPlans.map(plan => plan.key)).toEqual(['cmd', 'goat', 'go', 'od', 'th-office'])
   })
 
   it('drops a model only an unchecked plan funds', () => {
@@ -304,7 +317,7 @@ describe('normalizePlanComparisonDatabase - plan selection (card checkboxes)', (
 
   it('empties both charts when no plan is checked', () => {
     const result = normalizePlanComparisonDatabase(db, baseFilters, {
-      cmd: false, goat: false, go: false, od: false, th: false
+      'cmd': false, 'goat': false, 'go': false, 'od': false, 'th': false, 'th-office': false
     })
     expect(result.creditRows).toEqual([])
     expect(result.dotRows).toEqual([])
