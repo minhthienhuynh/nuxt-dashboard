@@ -17,6 +17,9 @@ describe('plans - published card values', () => {
     expect(byId('cmd-goat')).toMatchObject({ monthly_price_usd: 10, monthly_credit_usd: 100 })
     expect(byId('oc-go')).toMatchObject({ monthly_price_usd: 10, monthly_credit_usd: 100, credit_is_per_model: true })
     expect(byId('od-go')).toMatchObject({ monthly_price_usd: 10, monthly_credit_usd: 220, funding: 'pool' })
+    // Agent Pass: $1.99 standard renewal ($0.99 is the first-month promo, not
+    // stored) and one shared $10 allowance every eligible model drains.
+    expect(byId('th-agent')).toMatchObject({ monthly_price_usd: 1.99, monthly_credit_usd: 10, funding: 'pool' })
   })
 
   it('carries the published rolling windows', () => {
@@ -24,6 +27,10 @@ describe('plans - published card values', () => {
     expect(byId('cmd-goat')?.limits).toEqual({ '5h': 20, 'weekly': 50, 'monthly': 100 })
     expect(byId('od-go')?.limits).toEqual({ '5h': 18, 'weekly': 55, 'monthly': 220 })
     expect(byId('od-go')?.weekly_window_days).toBe(7)
+    // "divided into four 7-day windows" → $2.50 of the $10 per week; the pass
+    // publishes no 5-hour window, so it stays null rather than invented.
+    expect(byId('th-agent')?.limits).toEqual({ '5h': null, 'weekly': 2.5, 'monthly': 10 })
+    expect(byId('th-agent')?.weekly_window_days).toBe(7)
   })
 
   it('keeps OpenCode Go windows as shares of each model limit', () => {

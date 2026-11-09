@@ -8,7 +8,12 @@ export const SOURCE_URLS = {
   // the models index.
   openDesignGo: 'https://go.open-design.ai/',
   openDesignModels: 'https://go.open-design.ai/models/',
-  openDesignCredits: 'https://open-design.ai/model-credits/'
+  openDesignCredits: 'https://open-design.ai/model-credits/',
+  // TokenHarbor publishes its Pass rules on the docs pages and the model
+  // catalogue (rates + vendor intelligence index) as a Flight payload on the
+  // models page; the pricing page renders the Agent Pass request widget.
+  tokenHarborModels: 'https://tokenharbor.ai/models',
+  tokenHarborPricing: 'https://tokenharbor.ai/pricing'
 } as const
 
 export const CRAWLER_USER_AGENT = 'Mozilla/5.0 (plan-comparison-crawler)'
@@ -145,17 +150,31 @@ export interface CrawlSources {
   openDesignGoHtml: string
   openDesignModelsHtml: string
   openDesignCreditsHtml: string
+  tokenHarborModelsHtml: string
+  tokenHarborPricingHtml: string
 }
 
 export async function fetchSources(fetchImpl: FetchImpl = fetch): Promise<CrawlSources> {
-  const [goatHtml, goHtml, pricingLimitsHtml, openCodeGoHtml, openDesignGoHtml, openDesignModelsHtml, openDesignCreditsHtml] = await Promise.all([
+  const [goatHtml, goHtml, pricingLimitsHtml, openCodeGoHtml, openDesignGoHtml, openDesignModelsHtml, openDesignCreditsHtml, tokenHarborModelsHtml, tokenHarborPricingHtml] = await Promise.all([
     fetchText(fetchImpl, SOURCE_URLS.goat),
     fetchText(fetchImpl, SOURCE_URLS.go),
     fetchText(fetchImpl, SOURCE_URLS.pricingLimits),
     fetchText(fetchImpl, SOURCE_URLS.openCodeGo),
     fetchTextOptional(fetchImpl, SOURCE_URLS.openDesignGo),
     fetchTextOptional(fetchImpl, SOURCE_URLS.openDesignModels),
-    fetchTextOptional(fetchImpl, SOURCE_URLS.openDesignCredits)
+    fetchTextOptional(fetchImpl, SOURCE_URLS.openDesignCredits),
+    fetchTextOptional(fetchImpl, SOURCE_URLS.tokenHarborModels),
+    fetchTextOptional(fetchImpl, SOURCE_URLS.tokenHarborPricing)
   ])
-  return { goatHtml, goHtml, pricingLimitsHtml, openCodeGoHtml, openDesignGoHtml, openDesignModelsHtml, openDesignCreditsHtml }
+  return {
+    goatHtml,
+    goHtml,
+    pricingLimitsHtml,
+    openCodeGoHtml,
+    openDesignGoHtml,
+    openDesignModelsHtml,
+    openDesignCreditsHtml,
+    tokenHarborModelsHtml,
+    tokenHarborPricingHtml
+  }
 }

@@ -3,6 +3,7 @@ import { allowanceFor, buildDatabase, dedupeBy, effectiveRates, isGoGoatModel, r
 import { matchName } from './opencode'
 import type { Model } from '../../app/types'
 import type { OpenDesignCatalogModel } from './opendesign'
+import type { TokenHarborModel } from './tokenharbor'
 
 function makeModel(overrides: Partial<Model> = {}): Model {
   return {
@@ -46,8 +47,10 @@ const baseInput = {
   openDesignAllowances: [],
   openDesignModels: [],
   openDesignMultipliers: [],
+  tokenHarborModels: [],
+  tokenHarborBoosts: [],
   fetchedAt: '2026-09-19T00:00:00.000Z',
-  sourceUrls: { goat: 'g', go: 'o', pricingLimits: 'p', openCodeGo: 'oc', openDesignPricing: 'odp', openDesignModels: 'odm', openDesignCredits: 'odc' }
+  sourceUrls: { goat: 'g', go: 'o', pricingLimits: 'p', openCodeGo: 'oc', openDesignPricing: 'odp', openDesignModels: 'odm', openDesignCredits: 'odc', tokenHarborModels: 'thm', tokenHarborPricing: 'thp' }
 }
 
 describe('matchName', () => {
@@ -413,5 +416,91 @@ describe('buildDatabase - OpenDesign Go pool plan', () => {
     expect(db.models.map(m => m.id)).toEqual(['acme/widget'])
     expect(db.pricing.some(p => p.provider_id === 'open-design')).toBe(false)
     expect(db.plan_models.some(p => p.plan_id === 'od-go')).toBe(false)
+  })
+})
+
+function thModel(overrides: Partial<TokenHarborModel> = {}): TokenHarborModel {
+  return {
+    id: 'widget',
+    label: 'Widget',
+    family: 'acme',
+    tier: 'value',
+    priceIn: 0.1,
+    priceOut: 0.5,
+    cacheRead: 0.01,
+    cacheWrite: null,
+    contextWindow: 100000,
+    maxOutput: null,
+    intelligenceIndex: null,
+    inputModalities: ['text'],
+    isFree: false,
+    speedOf: null,
+    ...overrides
+  }
+}
+
+describe('buildDatabase - TokenHarbor Agent Pass', () => {
+  const agentModels = [
+    thModel({ id: 'glm-5.3-flash', label: 'GLM 5.3 Flash', family: 'z-ai', priceIn: 0.15, priceOut: 0.5, cacheRead: 0.03, contextWindow: 1000000, intelligenceIndex: 27.8 }),
+    // By-name: above the output cap and still funded.
+    thModel({ id: 'gpt-5.6-luna', label: 'GPT-5.6 Luna', family: 'openai', priceIn: 0.2, priceOut: 1.2, cacheRead: 0.02 }),
+    thModel({ id: 'claude-opus-5.5', label: 'Claude Opus 5.5', family: 'anthropic', priceIn: 4, priceOut: 20 }),
+    thModel({ id: 'mimo-v2.5:free', label: 'MiMo V2.5', priceIn: 0, priceOut: 0, isFree: true })
+  ]
+
+  it('funds only the rule-eligible paid models and prices the published profile', () => {
+    const db = buildDatabase({
+      ...baseInput,
+      tokenHarborModels: agentModels,
+      tokenHarborBoosts: [{ name: 'GLM 5.3 Flash', multiple: 2, promo: false }]
+    })
+    const rows = db.plan_models.filter(p => p.plan_id === 'th-agent')
+    // Opus is outside the price caps and the free route is never funded.
+    expect(rows.map(r => r.model_id).sort()).toEqual(['tokenharbor/glm-5-3-flash', 'tokenharbor/gpt-5-6-luna'])
+
+    const glm = rows.find(r => r.model_id === 'tokenharbor/glm-5-3-flash')
+    // Model Boost 2× stretches the $10 pool to $20 of usage; 10K in (8K cache)
+    // + 1K out at $0.15/$0.5/$0.03 = $0.00104/req → 19231/4810 per month/week.
+    expect(glm?.monthly_credits_usd).toBe(20)
+    expect(glm?.estimates).toEqual({ per_5h: null, per_week: 4810, per_month: 19200 })
+    expect(glm?.sourceUrl).toBe('thp')
+    expect(glm?.note).toContain('Model Boost 2×')
+
+    const luna = rows.find(r => r.model_id === 'tokenharbor/gpt-5-6-luna')
+    expect(luna?.monthly_credits_usd).toBe(10)
+    // $0.00176/req → 5681.8/mo → round3; the pass publishes no 5-hour window.
+    expect(luna?.estimates).toEqual({ per_5h: null, per_week: 1420, per_month: 5680 })
+
+    // Gateway-only models still carry real metadata: vendor from the published
+    // family and the vendor's own intelligence index.
+    const entry = db.models.find(m => m.id === 'tokenharbor/glm-5-3-flash')
+    expect(entry).toMatchObject({ vendor: 'Z.ai', contextWindow: 1000000, intelligenceIndex: 27.8 })
+    expect(db.pricing.filter(p => p.provider_id === 'tokenharbor').map(p => [p.model_id, p.input, p.output]))
+      .toEqual([
+        ['tokenharbor/glm-5-3-flash', 0.15, 0.5],
+        ['tokenharbor/gpt-5-6-luna', 0.2, 1.2]
+      ])
+  })
+
+  it('does not stretch the pool for a promo badge', () => {
+    // "2x usage during the promo" is promo-shaped: the promo already sits in
+    // the published rate, so the pool must not be doubled on top of it.
+    const db = buildDatabase({
+      ...baseInput,
+      tokenHarborModels: [agentModels[0]!],
+      tokenHarborBoosts: [{ name: 'GLM 5.3 Flash', multiple: 2, promo: true }]
+    })
+    const row = db.plan_models.find(p => p.plan_id === 'th-agent')
+    expect(row?.monthly_credits_usd).toBe(10)
+    expect(row?.note).toContain('promo multiplier not applied')
+  })
+
+  it('merges a TokenHarbor model into the CMD catalog row instead of duplicating it', () => {
+    const db = buildDatabase({
+      ...baseInput,
+      tokenHarborModels: [thModel({ id: 'widget', label: 'Widget', priceIn: 0.1, priceOut: 0.5, cacheRead: 0.01 })]
+    })
+    expect(db.models.filter(m => m.slug === 'widget')).toHaveLength(1)
+    expect(db.plan_models.find(p => p.plan_id === 'th-agent')?.model_id).toBe('acme/widget')
   })
 })

@@ -64,6 +64,7 @@ function makeRow(name: string, overrides: Partial<EnrichedModelRow> = {}): Enric
     goat: { credit: null, request: null, pool: false },
     go: { credit: null, request: null, pool: false },
     od: { credit: null, request: null, pool: true },
+    th: { credit: null, request: null, pool: true },
     ...overrides
   }
 }
@@ -208,7 +209,8 @@ describe('fundingFields', () => {
       { label: 'Cmd Go', value: '$100 credit · 2,500 req/mo' },
       { label: 'Cmd GOAT', value: '$200 credit · 5,000 req/mo' },
       { label: 'OpenCode Go', value: '$50 credit · 1,000 req/mo' },
-      { label: 'OpenDesign Go', value: '—' }
+      { label: 'OpenDesign Go', value: '—' },
+      { label: 'TokenHarbor Agent', value: '—' }
     ])
   })
 
@@ -249,7 +251,8 @@ describe('fundingWithPlans', () => {
       ['cmd', 'Cmd Go', '$100 credit · 2,500 req/mo'],
       ['goat', 'Cmd GOAT', '$200 credit · 5,000 req/mo'],
       ['go', 'OpenCode Go', '$50 credit · 1,000 req/mo'],
-      ['od', 'OpenDesign Go', '—']
+      ['od', 'OpenDesign Go', '—'],
+      ['th', 'TokenHarbor Agent', '—']
     ])
     expect(fields.map(field => field.plan)).toEqual(PLAN_COMPARISON_PLANS)
   })
