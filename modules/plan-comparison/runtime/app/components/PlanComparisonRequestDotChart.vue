@@ -18,7 +18,7 @@ const props = defineProps<{
   poolPlanKeys: PlanComparisonPlanKey[]
 }>()
 
-// Pool plans report one shared credit on every row; their dots therefore share
+// Pool plans report the usage value their one pool funds on every row; dots therefore share
 // one diameter. Saying so beats letting the reader infer a per-model grant.
 const { sharedPoolPlans, sharedPoolNote, legend } = usePlanSeries(() => props.plans, () => props.poolPlanKeys)
 
@@ -130,16 +130,17 @@ const DURATION = 200
     <template #header>
       <div class="space-y-1 px-4">
         <p class="text-lg font-semibold text-highlighted">
-          2. Requests per month vs credit
+          2. Requests per month vs monthly value
         </p>
         <p class="text-[13px] text-muted">
-          Horizontal position = requests per month (log scale). Dot size =
-          monthly credit, area-proportional. Hover a dot or a model name for its
+          Horizontal position = requests per month (log scale). Dot size = the
+          monthly value the plan funds on that model, area-proportional. Hover a dot or a model name for its
           specs and what each checked plan funds it with.
           <template v-if="sharedPoolPlans.length">
             {{ sharedPoolNote.names }} {{ sharedPoolNote.verb }} one shared pool,
-            so {{ sharedPoolNote.pronoun }} dots show that pool divided by the
-            model's credit multiplier.
+            so {{ sharedPoolNote.pronoun }} dots show the usage value that pool
+            funds at the model's own rate (the vendor's published figure where
+            there is one, else the pool divided by its credit multiplier).
           </template>
           <template v-if="noRequest.length">
             Left out of this chart because no request count is published:

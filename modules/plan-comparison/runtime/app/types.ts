@@ -18,8 +18,11 @@ export interface PlanLimits {
 /**
  * `per_model` = every model carries its own monthly credit (Command Code,
  * OpenCode Go). `pool` = the plan funds one shared credit pool that any
- * eligible model can drain, so `monthly_credits_usd` is the same number on
- * every row and means "if this model used the whole pool".
+ * eligible model can drain, so a row's `monthly_credits_usd` is not a grant:
+ * it is the usage value that pool funds on that model — the vendor's published
+ * monthly-usage figure where they publish one (OpenDesign), else the pool
+ * scaled by the model's rate (`pool × Model Boost` on Token Harbor, or
+ * `pool ÷ credit multiplier` as the fallback). One pool, many per-model values.
  */
 export type PlanFundingKind = 'per_model' | 'pool'
 
@@ -134,6 +137,13 @@ export interface PlanModelEstimateValues {
 export interface PlanModelEstimate {
   plan_id: string
   model_id: string
+  /**
+   * What this model gets per month on this plan. `per_model` plans: the
+   * published per-model credit (Command Code `$20`, OpenCode Go `$15–$100`).
+   * `pool` plans: the usage value the shared pool funds here — OpenDesign's
+   * published "Monthly usage" cell ($60/$120/$220 …), Token Harbor's
+   * `pool × Model Boost`. Never the pool itself, and never a per-model grant.
+   */
   monthly_credits_usd: number
   estimates: PlanModelEstimateValues | null
   note?: string

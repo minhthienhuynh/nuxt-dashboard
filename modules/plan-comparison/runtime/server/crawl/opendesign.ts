@@ -124,6 +124,14 @@ export interface OpenDesignUsageRow {
   name: string
   /** Vendor "Est. requests / 7 days" for the Go plan, null when not quoted. */
   requestsPerWeek: number | null
+  /**
+   * Vendor "Monthly usage" for the Go plan: the usage value that model consumes
+   * at the plan's reference credit (`usage × multiplier` = the baseline, $60 on
+   * Go). The plan publishes this per model, so it is the published number to
+   * show — deriving `pool ÷ multiplier` instead produces values the vendor
+   * never prints (Eco: $814.81 vs the $220 on their table).
+   */
+  monthlyUsageUsd: number | null
 }
 
 /**
@@ -149,7 +157,12 @@ export function parseOpenDesignUsage(html: string): OpenDesignUsageRow[] {
     // A campaign row quotes "$60 / week" in the usage cell — not a monthly value.
     if (usageCell && /\/\s*week/i.test(usageCell.text)) continue
     const raw = requestCell.querySelector('[data-usage-value="go"]')?.text ?? ''
-    rows.push({ name, requestsPerWeek: toNumber(raw.replace(/,/g, '')) })
+    const usageRaw = usageCell?.querySelector('[data-usage-value="go"]')?.text ?? ''
+    rows.push({
+      name,
+      requestsPerWeek: toNumber(raw.replace(/,/g, '')),
+      monthlyUsageUsd: toNumber(usageRaw.replace(/[$,\s]/g, ''))
+    })
   }
   return rows
 }

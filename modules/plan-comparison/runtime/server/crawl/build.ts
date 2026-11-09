@@ -525,7 +525,13 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
       }
     }
     const base = od?.tiers[0]
-    const credit = Math.round((odCredits / odModelRow.multiplier) * 100) / 100
+    // The vendor publishes a monthly usage value per model ($60 baseline on Go,
+    // scaled by the model's credit multiplier). Prefer it: it is the number on
+    // their table, so a reader can check it. `pool ÷ multiplier` — the value the
+    // pool *would* buy — stays as the fallback for a model they do not quote
+    // (e.g. Eco's row is quoted, so $220, not $814.81).
+    const publishedUsage = odUsageByName.get(key)?.monthlyUsageUsd ?? null
+    const credit = publishedUsage ?? Math.round((odCredits / odModelRow.multiplier) * 100) / 100
     // A published request count is a 7-day figure; the plan splits its month
     // into four 7-day windows (the weekly cap is a quarter of the monthly one),
     // so the month is four of them and the 5-hour estimate keeps the window's
@@ -551,7 +557,11 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
     planModels.push({
       ...row,
       note: `Pool ${odCredits}/mo at ${odModelRow.multiplier}× from ${input.sourceUrls.openDesignCredits}; ${
-        published ? `requests from the vendor's Coding Plan usage table (Go column) on ${input.sourceUrls.openDesignPricing}` : od ? `rates from ${input.sourceUrls.openDesignModels}` : 'no published rates'
+        publishedUsage != null
+          ? `monthly usage $${publishedUsage} and requests from the vendor's Coding Plan usage table (Go column) on ${input.sourceUrls.openDesignPricing}`
+          : published
+            ? `requests from the vendor's Coding Plan usage table (Go column) on ${input.sourceUrls.openDesignPricing}`
+            : od ? `rates from ${input.sourceUrls.openDesignModels}` : 'no published rates'
       }`
     })
   }

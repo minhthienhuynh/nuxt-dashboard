@@ -68,17 +68,19 @@ const xTickFormat = (value: number) => `$${value}`
     <template #header>
       <div class="space-y-1 px-4">
         <p class="text-lg font-semibold text-highlighted">
-          1. Monthly credit per model
+          1. Monthly value per model
         </p>
         <p class="text-[13px] text-muted">
-          Bar length = the monthly credit a plan funds that model with, scaled to
-          the largest bar. Hover a bar or a model name for its specs
+          Bar length = what a plan funds on that model per month — its published
+          per-model credit, or for a shared-pool plan the usage value that pool
+          buys on it — scaled to the largest bar. Hover a bar or a model name for its specs
           (intelligence, pricing, caps) and what each checked plan funds it with.
           <template v-if="sharedPoolPlans.length">
             {{ sharedPoolNote.names }} {{ sharedPoolNote.verb }} one shared pool
             rather than a per-model grant, so {{ sharedPoolNote.pronoun }} bars
-            show that pool divided by the model's credit multiplier — the most
-            the model could use on its own.
+            show the usage value that pool funds at the model's own rate — the
+            vendor's published monthly-usage figure where there is one, else the
+            pool divided by the model's credit multiplier.
           </template>
           <template v-if="skipped.length">
             No plan funds: {{ skipped.join(', ') }}.

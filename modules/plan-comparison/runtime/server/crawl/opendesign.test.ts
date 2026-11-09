@@ -91,8 +91,8 @@ const usageHtml = `<div class="dpu-row" role="row">
 describe('parseOpenDesignUsage', () => {
   it('reads the Go request estimate per model and skips the campaign row', () => {
     expect(parseOpenDesignUsage(usageHtml)).toEqual([
-      { name: 'GPT-6 Luna', requestsPerWeek: 12100 },
-      { name: 'DeepSeek V4.1 Flash Eco', requestsPerWeek: 266933 }
+      { name: 'GPT-6 Luna', requestsPerWeek: 12100, monthlyUsageUsd: 15 },
+      { name: 'DeepSeek V4.1 Flash Eco', requestsPerWeek: 266933, monthlyUsageUsd: 220 }
     ])
   })
 
