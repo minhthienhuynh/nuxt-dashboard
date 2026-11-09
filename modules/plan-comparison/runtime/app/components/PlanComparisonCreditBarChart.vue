@@ -52,7 +52,10 @@ const { hovered, onPointerMove, onPointerLeave, onPointerUp, onTooltipPointerEnt
 
 const xIndex = (_d: EnrichedModelRow, i: number) => i
 
-const yAccessors = props.plans.map(plan => (d: EnrichedModelRow) => d[plan.key].credit ?? 0)
+// Computed, not captured: the accessor list IS the series list, so it has to
+// follow the checked plans — a stale array here keeps drawing the bars of a plan
+// the reader unchecked.
+const yAccessors = computed(() => props.plans.map(plan => (d: EnrichedModelRow) => d[plan.key].credit ?? 0))
 
 const barColor = (_d: EnrichedModelRow, accessorIndex: number) =>
   props.plans[accessorIndex]?.color ?? 'var(--ui-border-accented)'
