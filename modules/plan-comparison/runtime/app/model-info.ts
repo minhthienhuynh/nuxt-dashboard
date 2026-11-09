@@ -91,7 +91,7 @@ function dealField(deal: ModelDeal | null): ModelInfoField | null {
 function minPlanField(minPlanName: string | null): ModelInfoField | null {
   if (!minPlanName) return null
   const key = minPlanName.trim().toLowerCase()
-  const value = key === 'go' ? 'Cmd Go' : key === 'goat' ? 'Cmd GOAT' : minPlanName
+  const value = key === 'go' ? 'Command Code Go' : key === 'goat' ? 'Command Code GOAT' : minPlanName
   return { label: 'Included from', value }
 }
 

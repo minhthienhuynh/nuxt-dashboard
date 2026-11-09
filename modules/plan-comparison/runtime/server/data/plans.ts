@@ -20,7 +20,7 @@ export const plans: Plan[] = [
   {
     id: 'cmd-goat',
     provider_id: 'command-code',
-    name: 'Cmd GOAT Plan',
+    name: 'GOAT Plan',
     monthly_price_usd: 10,
     // "Your $10 buys up to $100 of credits" (docs/plans/goat intro) and the
     // usage-limits block says "Monthly limit - up to $100 of usage", which the
