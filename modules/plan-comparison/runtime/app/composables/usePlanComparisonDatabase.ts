@@ -107,9 +107,12 @@ function isLowIntel(model: Model, intelThreshold: number): boolean {
   return model.intelligenceIndex == null || model.intelligenceIndex < intelThreshold
 }
 
-// A model with no launch date is treated as old whenever the "hide old" filter is active.
+// The "hide old" filter works on the lab release date (models.dev fills what
+// CC's payload leaves unset — see the crawl's release-dates.ts), not the
+// later date Command Code listed the model. A model with no release date is
+// treated as old whenever the filter is active.
 function isOld(model: Model, oldBefore: string): boolean {
-  return model.launchedAt == null || model.launchedAt < oldBefore
+  return model.releaseDate == null || model.releaseDate < oldBefore
 }
 
 export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filters: PlanComparisonFilters, selection: PlanSelection = defaultPlanSelection()): NormalizedPlanComparisonData {

@@ -92,16 +92,16 @@ function makeOdPlan(overrides: Partial<Plan> = {}): Plan {
 const baseFilters = { hideOldModels: false, oldBefore: '2026-06-01', hideLowIntel: false, intelThreshold: 30 }
 
 describe('normalizePlanComparisonDatabase - model filtering', () => {
-  it('excludes a model with no launch date when hideOldModels is on', () => {
-    const model = makeModel({ id: 'no-date', launchedAt: null })
+  it('excludes a model with no release date when hideOldModels is on', () => {
+    const model = makeModel({ id: 'no-date', releaseDate: null })
     const db = makeDatabase([model], [])
     const result = normalizePlanComparisonDatabase(db, { ...baseFilters, hideOldModels: true })
     expect(result.creditRows.find(r => r.model.id === 'no-date')).toBeUndefined()
     expect(result.skippedModelNames).not.toContain(model.name)
   })
 
-  it('excludes a model launched before the cutoff when hideOldModels is on', () => {
-    const model = makeModel({ id: 'old', launchedAt: '2026-01-01' })
+  it('excludes a model released before the cutoff when hideOldModels is on — launch date no longer counts', () => {
+    const model = makeModel({ id: 'old', releaseDate: '2026-01-01', launchedAt: '2026-09-01' })
     const db = makeDatabase([model], [])
     const result = normalizePlanComparisonDatabase(db, { ...baseFilters, hideOldModels: true, oldBefore: '2026-06-01' })
     expect(result.creditRows.find(r => r.model.id === 'old')).toBeUndefined()
