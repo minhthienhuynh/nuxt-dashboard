@@ -92,7 +92,7 @@ function minPlanField(minPlanName: string | null): ModelInfoField | null {
   if (!minPlanName) return null
   const key = minPlanName.trim().toLowerCase()
   const value = key === 'go' ? 'Cmd Go' : key === 'goat' ? 'Cmd GOAT' : minPlanName
-  return { label: 'Min plan', value }
+  return { label: 'Included from', value }
 }
 
 /** `$0` rates are indistinguishable from "not published" in the crawl → hide them. */
@@ -110,7 +110,7 @@ export function modelInfoFields(model: Model, pricing: PricingEntry | null): Mod
   const candidates: (ModelInfoField | null)[] = [
     model.vendor ? { label: 'Vendor', value: model.vendor } : null,
     model.contextWindow != null ? { label: 'Context', value: `${formatTokenCount(model.contextWindow)} tokens` } : null,
-    model.intelligenceIndex != null ? { label: 'Intelligence', value: formatScore(model.intelligenceIndex) } : null,
+    model.intelligenceIndex != null ? { label: 'Intelligence Index', value: formatScore(model.intelligenceIndex) } : null,
     model.codingIndex != null ? { label: 'Coding index', value: formatScore(model.codingIndex) } : null,
     model.outputTokensPerSec != null ? { label: 'Output speed', value: `${formatScore(model.outputTokensPerSec)} tok/s` } : null,
     model.category ? { label: 'Category', value: model.category } : null,
@@ -120,7 +120,9 @@ export function modelInfoFields(model: Model, pricing: PricingEntry | null): Mod
     priceField('Cache write', pricing?.cache_write),
     capsValue(model),
     model.releaseDate ? { label: 'Released', value: formatDate(model.releaseDate) } : null,
-    model.launchedAt ? { label: 'On Command Code', value: formatDate(model.launchedAt) } : null,
+    // The page compares five vendors, so this is the catalogue date, not a
+    // Command Code-only fact.
+    model.launchedAt ? { label: 'Listed since', value: formatDate(model.launchedAt) } : null,
     minPlanField(model.minPlanName),
     dealField(model.deal)
   ]

@@ -32,18 +32,35 @@ function ageText(fromIso: string, now: number): string {
   if (Number.isNaN(ms) || ms < 0) return 'just now'
   const minutes = Math.floor(ms / 60000)
   if (minutes < 1) return 'just now'
-  if (minutes < 60) return `${minutes} minutes ago`
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours} hours ago`
-  return `${Math.floor(hours / 24)} days ago`
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`
+  const days = Math.floor(hours / 24)
+  return `${days} day${days === 1 ? '' : 's'} ago`
+}
+
+/**
+ * "9 Nov 2026, 07:43 UTC" — month first spelled out so nobody has to guess
+ * whether 11/9 is November 9th or the 11th of September, and the zone spelled
+ * out so the timestamp means the same thing to every reader.
+ */
+function fetchedLabel(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return iso
+  const formatted = date.toLocaleString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'UTC'
+  })
+  return `${formatted} UTC`
 }
 
 const syncText = computed(() => {
   if (!fetchedAt.value) return 'Loading data...'
-  const date = new Date(fetchedAt.value)
-  const when = Number.isNaN(date.getTime())
-    ? `Data from ${fetchedAt.value}`
-    : `Data from ${date.toLocaleString('en-US')} (${ageText(fetchedAt.value, Date.now())})`
+  const when = `Data from ${fetchedLabel(fetchedAt.value)} (${ageText(fetchedAt.value, Date.now())})`
   return rolledBack.value ? `${when} — restored from backup` : when
 })
 

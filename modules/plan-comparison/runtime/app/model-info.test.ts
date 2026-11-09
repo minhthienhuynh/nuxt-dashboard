@@ -129,7 +129,7 @@ describe('modelInfoFields', () => {
     expect(fields.map(field => field.label)).toEqual([
       'Vendor',
       'Context',
-      'Intelligence',
+      'Intelligence Index',
       'Coding index',
       'Output speed',
       'Category',
@@ -139,14 +139,14 @@ describe('modelInfoFields', () => {
       'Cache write',
       'Caps',
       'Released',
-      'On Command Code',
-      'Min plan',
+      'Listed since',
+      'Included from',
       'Deal'
     ])
     expect(Object.fromEntries(fields.map(field => [field.label, field.value]))).toEqual({
       'Vendor': 'Qwen',
       'Context': '1M tokens',
-      'Intelligence': '58.68',
+      'Intelligence Index': '58.68',
       'Coding index': '70.2',
       'Output speed': '160 tok/s',
       'Category': 'frontier',
@@ -156,8 +156,8 @@ describe('modelInfoFields', () => {
       'Cache write': '$2.5/1M tokens',
       'Caps': 'Text, Vision, Reasoning',
       'Released': 'Sep 2, 2026',
-      'On Command Code': 'Sep 3, 2026',
-      'Min plan': 'Cmd GOAT',
+      'Listed since': 'Sep 3, 2026',
+      'Included from': 'Cmd GOAT',
       'Deal': 'On sale until Oct 1, 2026'
     })
   })
