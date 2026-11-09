@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseOpenDesignAllowances, parseOpenDesignModels, parseOpenDesignMultipliers, parsePlanAccess } from './opendesign'
+import { parseOpenDesignAllowances, parseOpenDesignModels, parseOpenDesignMultipliers, parseOpenDesignUsage, parsePlanAccess } from './opendesign'
 
 // Trimmed copy of go.open-design.ai: the pricing page embeds the plan table as
 // a JSON settings block, the models index carries one catalog card (vendor +
@@ -68,6 +68,38 @@ const multipliersHtml = `<table>
   <tr><th scope="row">GPT-6 Luna</th><td><span class="multiplier-value">4×</span></td></tr>
   <tr><th scope="row">MiMo V2.6 Flash</th><td><span class="multiplier-value">1×</span></td></tr>
 </table>`
+
+// Trimmed copy of the pricing page's "Coding Plan usage" table: div rows, the
+// first number cell per plan (Go/Plus/Pro/Max) for requests, the second for the
+// normalised usage values. The campaign row quotes a weekly figure.
+const usageHtml = `<div class="dpu-row" role="row">
+  <span class="dpu-model" role="cell"><strong>GPT-6 Luna</strong></span>
+  <span class="dpu-number" role="cell"><span data-usage-value="go">12,100</span><span data-usage-value="plus">16,100</span></span>
+  <span class="dpu-number" role="cell"><span data-usage-value="go">$15</span><span data-usage-value="plus">$20</span></span>
+</div>
+<div class="dpu-row" role="row">
+  <span class="dpu-model" role="cell"><strong>DeepSeek V4.1 Flash Eco</strong></span>
+  <span class="dpu-number" role="cell"><span data-usage-value="go">266,933</span><span data-usage-value="plus">359,270</span></span>
+  <span class="dpu-number" role="cell"><span data-usage-value="go">$220</span><span data-usage-value="plus">$290</span></span>
+</div>
+<div class="dpu-row" role="row">
+  <span class="dpu-model" role="cell"><strong>DeepSeek V4.1 Flash Off-peak promo</strong></span>
+  <span class="dpu-number" role="cell"><span data-usage-value="go">291,200</span></span>
+  <span class="dpu-number" role="cell"><span data-usage-value="go">$60 / week</span></span>
+</div>`
+
+describe('parseOpenDesignUsage', () => {
+  it('reads the Go request estimate per model and skips the campaign row', () => {
+    expect(parseOpenDesignUsage(usageHtml)).toEqual([
+      { name: 'GPT-6 Luna', requestsPerWeek: 12100 },
+      { name: 'DeepSeek V4.1 Flash Eco', requestsPerWeek: 266933 }
+    ])
+  })
+
+  it('returns nothing on a page without the usage table', () => {
+    expect(parseOpenDesignUsage('<main><p>no table</p></main>')).toEqual([])
+  })
+})
 
 describe('parseOpenDesignMultipliers', () => {
   it('reads each model multiplier, preferring the Go rate', () => {

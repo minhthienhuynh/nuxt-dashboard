@@ -1,11 +1,11 @@
 import type { Model, Plan, PlanLimits, PlanModelEstimate, PricingEntry } from '../../app/types'
-import { computeEstimates, computeRowEstimates } from './estimates'
+import { computeEstimates, computeRowEstimates, round3 } from './estimates'
 import type { ComputedEstimates, EstimateFractions } from './estimates'
 import { mapOpenCodeModelRows, matchName } from './opencode'
 import type { FlightEstimateRow, GoatEstimateRow } from './goat'
 import type { PricingLimitsSection } from './ccpricing'
 import type { OpenCodeEndpointRow, OpenCodeEstimateRow, OpenCodePricingRow } from './opencode'
-import type { OpenDesignAllowanceRow, OpenDesignCatalogModel, OpenDesignMultiplierRow } from './opendesign'
+import type { OpenDesignAllowanceRow, OpenDesignCatalogModel, OpenDesignMultiplierRow, OpenDesignUsageRow } from './opendesign'
 import type { TokenHarborBoostRow, TokenHarborModel } from './tokenharbor'
 import { TOKEN_HARBOR_AGENT_CAPS, TOKEN_HARBOR_MODEL_ALIASES, TOKEN_HARBOR_OFFICE_CAPS, TOKEN_HARBOR_REQUEST_SHAPE, isAgentPassModel, isOfficePassModel, tokenHarborRequestCost, tokenHarborVendor } from './tokenharbor'
 import { RELEASE_DATE_FALLBACKS } from './release-dates'
@@ -25,6 +25,8 @@ export interface BuildInput {
   openDesignAllowances: OpenDesignAllowanceRow[]
   openDesignModels: OpenDesignCatalogModel[]
   openDesignMultipliers: OpenDesignMultiplierRow[]
+  /** Vendor's own request estimates from the "Coding Plan usage" table (Go). */
+  openDesignUsage: OpenDesignUsageRow[]
   tokenHarborModels: TokenHarborModel[]
   tokenHarborBoosts: TokenHarborBoostRow[]
   fetchedAt: string
@@ -504,9 +506,16 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
   // but have no /models panel, so a panel-driven loop missed them. A model with
   // no published rates still gets its credit row; its estimates stay null
   // rather than borrowing another provider's prices.
+  // The vendor publishes its own request estimate per model on the pricing page
+  // ("Coding Plan usage", Go column) — the same way Command Code and OpenCode Go
+  // publish theirs. Those numbers win over the repo's derivation; the repo
+  // profile stays the fallback for a model the table does not quote.
+  const odUsageByName = new Map(input.openDesignUsage.map(row => [matchName(row.name), row]))
+  const odWindow = { '5h': odLimits['5h'], 'monthly': odLimits.monthly }
   for (const odModelRow of input.openDesignMultipliers) {
     const key = matchName(odModelRow.name)
     const od = odRateByName.get(key)
+    const publishedPerWeek = odUsageByName.get(key)?.requestsPerWeek ?? null
     let modelId = resolveCatalogModelId(models, od?.id ?? null, odModelRow.name)
     if (!modelId) {
       modelId = `open-design/${slugifyModelName(odModelRow.name)}`
@@ -516,19 +525,33 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
       }
     }
     const base = od?.tiers[0]
-    const row = estimateRow('od-go', modelId, Math.round((odCredits / odModelRow.multiplier) * 100) / 100, {
-      input: base?.input ?? null,
-      output: base?.output ?? null,
-      cacheRead: base?.cacheRead ?? null,
-      vendor: models.find(m => m.id === modelId)?.vendor ?? null
-    }, odLimits, input.sourceUrls.openDesignPricing, input.fetchedAt)
+    const credit = Math.round((odCredits / odModelRow.multiplier) * 100) / 100
+    // A published request count is a 7-day figure; the plan splits its month
+    // into four 7-day windows (the weekly cap is a quarter of the monthly one),
+    // so the month is four of them and the 5-hour estimate keeps the window's
+    // share of the month.
+    const published = publishedPerWeek == null
+      ? null
+      : {
+          perWeek: round3(publishedPerWeek),
+          perMonth: round3(publishedPerWeek * 4),
+          per5h: odWindow['5h'] == null ? null : round3(publishedPerWeek * 4 * (odWindow['5h'] / odWindow.monthly))
+        }
+    const row = published
+      ? planModelRow('od-go', modelId, credit, published, input.sourceUrls.openDesignPricing, input.fetchedAt)
+      : estimateRow('od-go', modelId, credit, {
+          input: base?.input ?? null,
+          output: base?.output ?? null,
+          cacheRead: base?.cacheRead ?? null,
+          vendor: models.find(m => m.id === modelId)?.vendor ?? null
+        }, odLimits, input.sourceUrls.openDesignPricing, input.fetchedAt)
     // The credit comes from the plan table (pricing page), the multiplier from
     // the credits page and the rates from the model catalog: one `sourceUrl`
     // cannot stand for all three.
     planModels.push({
       ...row,
       note: `Pool ${odCredits}/mo at ${odModelRow.multiplier}× from ${input.sourceUrls.openDesignCredits}; ${
-        od ? `rates from ${input.sourceUrls.openDesignModels}` : 'no published rates'
+        published ? `requests from the vendor's Coding Plan usage table (Go column) on ${input.sourceUrls.openDesignPricing}` : od ? `rates from ${input.sourceUrls.openDesignModels}` : 'no published rates'
       }`
     })
   }

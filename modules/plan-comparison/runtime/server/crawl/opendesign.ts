@@ -115,6 +115,46 @@ export function parseOpenDesignAllowances(html: string): OpenDesignAllowanceRow[
 }
 
 /**
+ * Row of the pricing page's "Coding Plan usage" table, Go column: the vendor's
+ * own request estimate (per 7 days) and the usage value it quotes. The usage
+ * column is a normalisation constant (`usage × multiplier` = the plan's
+ * baseline, $60 on Go), NOT an allocation — so only the request count is read.
+ */
+export interface OpenDesignUsageRow {
+  name: string
+  /** Vendor "Est. requests / 7 days" for the Go plan, null when not quoted. */
+  requestsPerWeek: number | null
+}
+
+/**
+ * Parses the "Coding Plan usage" table. Rows are `div.dpu-row` (not table rows):
+ * the first number cell holds the per-plan request estimates, the second the
+ * normalised usage values. Only the Go column is read — the dataset compares
+ * the Go plan.
+ *
+ * The off-peak promo row (`DeepSeek V4.1 Flash Off-peak promo`) quotes a weekly
+ * campaign figure instead of a monthly one and is skipped, as everywhere else
+ * promos are not baked into the dataset.
+ */
+export function parseOpenDesignUsage(html: string): OpenDesignUsageRow[] {
+  const root = parseHtml(html)
+  const rows: OpenDesignUsageRow[] = []
+  for (const row of root.querySelectorAll('.dpu-row')) {
+    const name = row.querySelector('.dpu-model strong')?.text.replace(/\s+/g, ' ').trim() ?? ''
+    if (!name || /promo/i.test(name)) continue
+    const cells = row.querySelectorAll('.dpu-number')
+    const requestCell = cells[0]
+    const usageCell = cells[1]
+    if (!requestCell) continue
+    // A campaign row quotes "$60 / week" in the usage cell — not a monthly value.
+    if (usageCell && /\/\s*week/i.test(usageCell.text)) continue
+    const raw = requestCell.querySelector('[data-usage-value="go"]')?.text ?? ''
+    rows.push({ name, requestsPerWeek: toNumber(raw.replace(/,/g, '')) })
+  }
+  return rows
+}
+
+/**
  * Parses the "Design Plan models and credit multipliers" table. The Go tab's
  * rate wins (`data-go-rate`, which the model-level rows such as Eco carry);
  * plain rows are the same across tabs and expose the value as text.
