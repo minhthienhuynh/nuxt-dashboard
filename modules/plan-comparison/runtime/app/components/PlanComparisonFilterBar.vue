@@ -22,8 +22,8 @@ const SORT_LABELS: Record<SortOptionId, string> = {
 }
 
 const SORT_HINTS: Record<SortOptionId, string> = {
-  'newest': 'Newest launch date first.',
-  'oldest': 'Oldest launch date first.',
+  'newest': 'Newest release first.',
+  'oldest': 'Oldest release first.',
   'name-asc': 'Name A→Z.',
   'name-desc': 'Name Z→A.',
   'context-desc': 'Largest context window first.',
