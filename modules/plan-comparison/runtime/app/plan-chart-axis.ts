@@ -21,7 +21,6 @@ export const AXIS_LABEL_WIDTH_RATIO = 0.55
 /** Narrow screens give the label column less room: long names wrap to 2 lines. */
 export const AXIS_NARROW_LABEL_WIDTH_RATIO = 0.38
 export const AXIS_NARROW_WIDTH = 420
-export const AXIS_MEDIUM_WIDTH = 760
 export const AXIS_TICK_LABEL_FONT_SIZE = 14
 export const AXIS_NARROW_TICK_LABEL_FONT_SIZE = 11
 /** Tick label line box, used to keep wrapped labels inside their row band. */

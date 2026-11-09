@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatScore, formatTokenCount, fundingFields, fundingWithPlans, modelInfoFields, normalizeLabelText, rowFromClickDatum, rowFromEventTarget } from './model-info'
+import { formatDate, formatScore, formatTokenCount, fundingWithPlans, modelInfoFields, normalizeLabelText, rowFromClickDatum, rowFromEventTarget } from './model-info'
 import { PLAN_COMPARISON_PLANS } from './plan-colors'
 import type { EnrichedModelRow } from './composables/usePlanComparisonDatabase'
 import type { Model, PricingEntry } from './types'
+
+/** Funding rows for the tooltip are label/value pairs; the plan meta rides along. */
+function fundingValues(row: EnrichedModelRow) {
+  return fundingWithPlans(row).map(({ label, value }) => ({ label, value }))
+}
 
 function makeModel(overrides: Partial<Model> = {}): Model {
   return {
@@ -198,14 +203,14 @@ describe('modelInfoFields', () => {
   })
 })
 
-describe('fundingFields', () => {
+describe('funding values', () => {
   it('lists every plan in registry order with credit and request counts', () => {
     const row = makeRow('Alpha', {
       cmd: { credit: 100, request: 2500, pool: false },
       goat: { credit: 200, request: 5000, pool: false },
       go: { credit: 50, request: 1000, pool: false }
     })
-    expect(fundingFields(row)).toEqual([
+    expect(fundingValues(row)).toEqual([
       { label: 'Command Code Go', value: '$100 credit · 2,500 req/mo' },
       { label: 'Command Code GOAT', value: '$200 credit · 5,000 req/mo' },
       { label: 'OpenCode Go', value: '$50 credit · 1,000 req/mo' },
@@ -216,26 +221,26 @@ describe('fundingFields', () => {
 
   it('labels a pool plan as a shared pool instead of a per-model credit', () => {
     const row = makeRow('Alpha', { od: { credit: 220, request: 12345, pool: true } })
-    expect(fundingFields(row)[3]).toEqual({ label: 'OpenDesign Go', value: '$220 shared pool · 12,345 req/mo' })
+    expect(fundingValues(row)[3]).toEqual({ label: 'OpenDesign Go', value: '$220 shared pool · 12,345 req/mo' })
   })
 
   it('dashes an unpublished request count', () => {
     const row = makeRow('Alpha', { cmd: { credit: 100, request: null, pool: false } })
-    expect(fundingFields(row)[0]).toEqual({ label: 'Command Code Go', value: '$100 credit · — req/mo' })
+    expect(fundingValues(row)[0]).toEqual({ label: 'Command Code Go', value: '$100 credit · — req/mo' })
   })
 
   it('cleans float artifacts in credit', () => {
     const row = makeRow('Alpha', { cmd: { credit: 49.99999999999999, request: 100, pool: false } })
-    expect(fundingFields(row)[0]).toEqual({ label: 'Command Code Go', value: '$50 credit · 100 req/mo' })
+    expect(fundingValues(row)[0]).toEqual({ label: 'Command Code Go', value: '$50 credit · 100 req/mo' })
   })
 
   it('dashes the whole row when a plan grants no credit', () => {
     const row = makeRow('Alpha', { go: { credit: null, request: 1000, pool: false } })
-    expect(fundingFields(row)[2]).toEqual({ label: 'OpenCode Go', value: '—' })
+    expect(fundingValues(row)[2]).toEqual({ label: 'OpenCode Go', value: '—' })
   })
 
   it('dashes every row for an unfunded model', () => {
-    expect(fundingFields(makeRow('Alpha')).every(field => field.value === '—')).toBe(true)
+    expect(fundingValues(makeRow('Alpha')).every(field => field.value === '—')).toBe(true)
   })
 })
 

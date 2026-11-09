@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { PlanCard, PlanSelection } from '../composables/usePlanComparisonDatabase'
 import type { PlanComparisonPlanKey } from '../plan-colors'
+import { formatUsd } from '../format-usd'
 import { planColor } from '../plan-colors'
 
 defineProps<{
@@ -13,12 +14,6 @@ const emit = defineEmits<{
   (event: 'toggle', key: PlanComparisonPlanKey, selected: boolean): void
 }>()
 
-/** Whole dollars stay "$10"; fractional windows keep both decimals ("$2.50"). */
-function usd(value: number): string {
-  const decimals = Number.isInteger(value) ? 0 : 2
-  return `$${value.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`
-}
-
 /**
  * OpenCode Go sizes its windows as a share of each model's own monthly limit
  * ("5-hour — 20% of the monthly limit; weekly — 50%; monthly — 100%"), so a
@@ -26,13 +21,13 @@ function usd(value: number): string {
  * pool. The plan carries the fractions; per-model dollars live in the charts.
  *
  * A `null` window means the plan publishes no such cap at all (OpenDesign Go
- * and TokenHarbor Agent sell one monthly pool), so the card shows a dash
+ * and Token Harbor Agent sell one monthly pool), so the card shows a dash
  * instead of inventing one.
  */
 function windowValue(plan: PlanCard, window: '5h' | 'weekly' | 'monthly'): string {
   if (plan.limitPercent) return `${plan.limitPercent[window]}%`
   const limit = plan.limits[window]
-  return limit == null ? '—' : usd(limit)
+  return limit == null ? '—' : formatUsd(limit)
 }
 
 /** How a plan hands out its allowance, in the card's own words. */
@@ -77,17 +72,17 @@ function planWords(value: string, dropGenerics: boolean): Set<string> {
 function vendorPlanName(plan: PlanCard): string {
   const name = planWords(plan.name, true)
   // "Agent Pass" is nothing but generic words: it names the tier, so it is all
-  // new information next to "TokenHarbor Agent".
+  // new information next to "Token Harbor Agent".
   if (!name.size) return plan.name
   const label = planWords(plan.label, true)
   return [...name].some(word => !label.has(word)) ? plan.name : ''
 }
 
 const ROWS: Array<{ label: string, value: (plan: PlanCard) => string, show?: (plan: PlanCard) => boolean }> = [
-  { label: 'Price', value: plan => `${usd(plan.price)}/mo` },
+  { label: 'Price', value: plan => `${formatUsd(plan.price)}/mo` },
   // Command Code caps most models well below the headline credit ($20 of a
   // $100 GOAT pool), so the range is the number that matters per model.
-  { label: 'Per-model cap', value: plan => plan.creditRange ? `${usd(plan.creditRange.min)}–${usd(plan.creditRange.max)}` : '' },
+  { label: 'Per-model cap', value: plan => plan.creditRange ? `${formatUsd(plan.creditRange.min)}–${formatUsd(plan.creditRange.max)}` : '' },
   { label: '5-hour cap', value: plan => windowValue(plan, '5h') },
   { label: 'Weekly cap', value: plan => windowValue(plan, 'weekly') },
   { label: 'Monthly cap', value: plan => windowValue(plan, 'monthly'), show: showMonthlyCap },
@@ -132,7 +127,7 @@ const ROWS: Array<{ label: string, value: (plan: PlanCard) => string, show?: (pl
       </div>
 
       <p class="text-3xl font-bold text-highlighted">
-        {{ usd(plan.monthlyCredit) }}<span class="text-sm font-normal text-muted"> credit/mo</span>
+        {{ formatUsd(plan.monthlyCredit) }}<span class="text-sm font-normal text-muted"> credit/mo</span>
       </p>
       <p class="text-xs text-muted">
         {{ fundingShape(plan) }}
