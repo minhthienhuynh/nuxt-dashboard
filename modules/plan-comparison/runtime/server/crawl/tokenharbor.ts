@@ -90,7 +90,12 @@ export const TOKEN_HARBOR_OFFICE_BY_NAME = [
  * `-<digits>` strip would also fuse genuinely distinct snapshots.
  */
 export const TOKEN_HARBOR_MODEL_ALIASES: Record<string, string> = {
-  'deepseek-v4.1-flash-1017': 'deepseek-v4.1-flash'
+  'deepseek-v4.1-flash-1017': 'deepseek-v4.1-flash',
+  // Same pin for the fast serving tier: Token Harbor sells the snapshot with
+  // the `-1017-fast` id, Command Code lists it as `deepseek-v4.1-flash-fast`
+  // ("latest") — without the alias the pass quota splits onto a second,
+  // metadata-poor model.
+  'deepseek-v4.1-flash-1017-fast': 'deepseek-v4.1-flash-fast'
 }
 
 /**

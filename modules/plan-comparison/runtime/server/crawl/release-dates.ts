@@ -46,7 +46,6 @@ export const RELEASE_DATE_FALLBACKS: Record<string, string> = {
   'mimo-v2.5': '2026-04-22',
   'mimo-v2.5-pro': '2026-04-22',
   'tokenharbor/gpt-6-luna-fast': '2026-09-22',
-  'tokenharbor/deepseek-v4-1-flash-1017-fast': '2026-10-17',
   'tokenharbor/mistral-large-2512': '2025-12-02',
   'tokenharbor/gpt-5-6-luna-fast': '2026-07-09',
   'tokenharbor/qwen3-6-27b': '2026-04-22',
