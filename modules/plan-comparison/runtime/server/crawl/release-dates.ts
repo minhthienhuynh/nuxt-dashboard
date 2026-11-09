@@ -19,9 +19,10 @@
  *
  * DeepSeek variants models.dev has no entry for take their family base's
  * date (`ultrafast`/Eco inherit V4.1 Flash's 2026-09-10, `-flash-fast`
- * inherits V4 Flash's 2026-07-31) — per user decision 2026-11-09. Jev 1.14.0
- * is on models.dev as a specialized model page (Release 2026-10-14) though
- * absent from the default `api.json` payload; the base `jev` has no page.
+ * inherits V4 Flash's 2026-07-31) — per user decision 2026-11-09. Jev is on
+ * models.dev as specialized model pages though absent from the default
+ * `api.json` payload: `jev-latest` (Release 2026-09-15) and
+ * `jev-1.14.0` (2026-10-14).
  *
  * Keyed by dataset model id; only applied when the payload leaves the date
  * unset, so a date CC starts publishing always wins.
@@ -56,6 +57,7 @@ export const RELEASE_DATE_FALLBACKS: Record<string, string> = {
   'deepseek/deepseek-v4.1-flash-ultrafast': '2026-09-10',
   'open-design/deepseek-v4-1-flash-eco': '2026-09-10',
   'deepseek/deepseek-v4-flash-fast': '2026-07-31',
-  // Specialized models.dev page (not in the default api.json payload).
-  'typesafe/jev-1.14.0': '2026-10-14'
+  // Specialized models.dev pages (not in the default api.json payload).
+  'typesafe/jev-1.14.0': '2026-10-14',
+  'typesafe/jev': '2026-09-15'
 }
