@@ -8,6 +8,7 @@ import { parseGoatEstimates, parseGoatModels } from '../../crawl/goat'
 import { parseGoPlanLimits, parsePricingLimits } from '../../crawl/ccpricing'
 import { parseOpenCodeEndpoints, parseOpenCodeEstimates, parseOpenCodePricing } from '../../crawl/opencode'
 import { parseOpenDesignAllowances, parseOpenDesignModels, parseOpenDesignMultipliers } from '../../crawl/opendesign'
+import { parseTokenHarborBoosts, parseTokenHarborCatalogue } from '../../crawl/tokenharbor'
 import { crawledDatabaseSchema } from '../../crawl/schemas'
 import { AA_MODEL_SLUGS, fetchAaScore, fetchLeaderboardIntel, resolveAaScore } from '../../crawl/aa'
 import { plans as staticPlans } from '../../data/plans'
@@ -78,6 +79,11 @@ async function crawlFresh(): Promise<PlanComparisonPayload> {
   const odAllowances = parseOpenDesignAllowances(sources.openDesignGoHtml)
   const odModels = parseOpenDesignModels(sources.openDesignModelsHtml)
   const odMultipliers = parseOpenDesignMultipliers(sources.openDesignCreditsHtml)
+  // TokenHarbor Agent Pass: the docs publish the coverage rule, the models
+  // page's Flight payload the catalogue with rates. The pricing page carries
+  // the Model Boost badges the rule's estimate widget shows.
+  const thModels = parseTokenHarborCatalogue(sources.tokenHarborModelsHtml)
+  const thBoosts = parseTokenHarborBoosts(sources.tokenHarborPricingHtml)
   const built = buildDatabase({
     goatModels,
     goatEstimates: goatEstimates.rows,
@@ -92,6 +98,8 @@ async function crawlFresh(): Promise<PlanComparisonPayload> {
     openDesignAllowances: odAllowances,
     openDesignModels: odModels,
     openDesignMultipliers: odMultipliers,
+    tokenHarborModels: thModels,
+    tokenHarborBoosts: thBoosts,
     fetchedAt,
     sourceUrls: {
       goat: SOURCE_URLS.goat,
@@ -100,7 +108,9 @@ async function crawlFresh(): Promise<PlanComparisonPayload> {
       openCodeGo: SOURCE_URLS.openCodeGo,
       openDesignPricing: SOURCE_URLS.openDesignGo,
       openDesignModels: SOURCE_URLS.openDesignModels,
-      openDesignCredits: SOURCE_URLS.openDesignCredits
+      openDesignCredits: SOURCE_URLS.openDesignCredits,
+      tokenHarborModels: SOURCE_URLS.tokenHarborModels,
+      tokenHarborPricing: SOURCE_URLS.tokenHarborPricing
     }
   })
   const validated = crawledDatabaseSchema.safeParse(built)

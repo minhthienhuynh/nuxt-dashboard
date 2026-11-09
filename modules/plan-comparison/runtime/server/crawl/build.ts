@@ -6,6 +6,8 @@ import type { FlightEstimateRow, GoatEstimateRow } from './goat'
 import type { PricingLimitsSection } from './ccpricing'
 import type { OpenCodeEndpointRow, OpenCodeEstimateRow, OpenCodePricingRow } from './opencode'
 import type { OpenDesignAllowanceRow, OpenDesignCatalogModel, OpenDesignMultiplierRow } from './opendesign'
+import type { TokenHarborBoostRow, TokenHarborModel } from './tokenharbor'
+import { TOKEN_HARBOR_AGENT_CAPS, TOKEN_HARBOR_REQUEST_SHAPE, isAgentPassModel, tokenHarborRequestCost, tokenHarborVendor } from './tokenharbor'
 import { plans } from '../data/plans'
 
 export interface BuildInput {
@@ -22,6 +24,8 @@ export interface BuildInput {
   openDesignAllowances: OpenDesignAllowanceRow[]
   openDesignModels: OpenDesignCatalogModel[]
   openDesignMultipliers: OpenDesignMultiplierRow[]
+  tokenHarborModels: TokenHarborModel[]
+  tokenHarborBoosts: TokenHarborBoostRow[]
   fetchedAt: string
   sourceUrls: {
     goat: string
@@ -34,6 +38,10 @@ export interface BuildInput {
     openDesignModels: string
     /** Where the OpenDesign credit multipliers live. */
     openDesignCredits: string
+    /** TokenHarbor model catalogue (rates, vendor, intelligence index). */
+    tokenHarborModels: string
+    /** TokenHarbor pricing page — the Agent Pass widget's Model Boost badges. */
+    tokenHarborPricing: string
   }
 }
 
@@ -130,6 +138,45 @@ function emptyModel(id: string, name: string): Model {
     deal: null,
     caps: {},
     intelligenceIndex: null,
+    codingIndex: null,
+    outputTokensPerSec: null,
+    releaseDate: null,
+    launchedAt: null,
+    timeOfDay: null
+  }
+}
+
+/**
+ * Catalog entry for a TokenHarbor-only model: the gateway publishes rates,
+ * context window, vendor family and its own intelligence index, so the row
+ * carries real metadata instead of the `emptyModel` shell.
+ */
+export function tokenHarborCatalogEntry(id: string, model: TokenHarborModel): Model {
+  const rates = {
+    input: model.priceIn,
+    output: model.priceOut,
+    cacheRead: model.cacheRead,
+    cacheWrite: model.cacheWrite
+  }
+  const vision = model.inputModalities.includes('image')
+  return {
+    id,
+    slug: id.split('/')[1] ?? id,
+    name: model.label,
+    vendor: tokenHarborVendor(model.family),
+    category: null,
+    contextWindow: model.contextWindow,
+    reasoning: null,
+    vision,
+    inputCost: model.priceIn,
+    outputCost: model.priceOut,
+    cacheReadCost: model.cacheRead,
+    cacheWriteCost: model.cacheWrite,
+    tiers: [{ rates }],
+    minPlanName: null,
+    deal: null,
+    caps: { text: true, vision },
+    intelligenceIndex: model.intelligenceIndex,
     codingIndex: null,
     outputTokensPerSec: null,
     releaseDate: null,
@@ -482,6 +529,67 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
       note: `Pool ${odCredits}/mo at ${odModelRow.multiplier}× from ${input.sourceUrls.openDesignCredits}; ${
         od ? `rates from ${input.sourceUrls.openDesignModels}` : 'no published rates'
       }`
+    })
+  }
+
+  // TokenHarbor Agent Pass: the plan funds a published *rule* (docs) applied to
+  // the gateway's public catalogue (models page), so membership is derived
+  // rather than copied off a table. Each eligible row carries the pool as its
+  // credit — stretched by its Model Boost — and requests come from
+  // TokenHarbor's own published profile (10K input, 8K of it cached, + 1K
+  // output), which is the basis of the vendor's "estimated requests" widget.
+  const thPlan = planById('th-agent')
+  const thBoostByName = new Map(input.tokenHarborBoosts.map(row => [matchName(row.name), row]))
+  const thWeeklyFraction = thPlan.limits.weekly == null ? null : thPlan.limits.weekly / thPlan.limits.monthly
+  for (const th of input.tokenHarborModels) {
+    if (!isAgentPassModel(th)) continue
+    const boost = thBoostByName.get(matchName(th.label))
+    // A badge whose title calls it a promo is already priced into the
+    // published rate (the promo *is* the price difference), so only a standing
+    // Model Boost stretches the pool.
+    const multiple = boost && !boost.promo ? boost.multiple : 1
+    const catalogModel = models.find(m => sameSlug(m.id.split('/').pop() ?? '', th.id) || sameSlug(m.slug, th.id))
+      ?? input.goatModels.find(m => m.id === th.id || sameSlug(m.slug, th.id))
+    // Same model as a CMD row (in or outside the Go/GOAT scope) → reuse that id
+    // so pricing/metadata join instead of splitting into a duplicate model.
+    const modelId = resolveCatalogModelId(models, th.id, th.label)
+      ?? resolveCatalogModelId(input.goatModels, th.id, th.label)
+      ?? `tokenharbor/${slugifyModelName(th.id)}`
+    if (!catalogModel && !seenIds.has(modelId)) {
+      seenIds.add(modelId)
+      models.push(tokenHarborCatalogEntry(modelId, th))
+    }
+    const vendor = catalogModel?.vendor ?? tokenHarborVendor(th.family)
+    pricing.push({
+      provider_id: 'tokenharbor',
+      model_id: modelId,
+      // One flat published rate per model; the pass does not price per context
+      // tier and TokenHarbor publishes no peak/off-peak split.
+      tier: 'standard',
+      peak_utc_hours: null,
+      input: th.priceIn ?? 0,
+      output: th.priceOut ?? 0,
+      cache_read: th.cacheRead ?? 0,
+      cache_write: th.cacheWrite
+    })
+    // "A boosted model is billed against the same Pass allowance at a reduced
+    // rate, which lets that allowance go further on it" — so the pool buys
+    // `pool × boost` dollars of that model's usage, which is exactly the
+    // "$10 included usage / up to $20 of usage value" the pass advertises.
+    const credits = thPlan.monthly_credit_usd * multiple
+    const computed = computeRowEstimates(credits, {
+      rates: { inputCost: th.priceIn, outputCost: th.priceOut, cacheReadCost: th.cacheRead },
+      shape: { ...TOKEN_HARBOR_REQUEST_SHAPE },
+      timeOfDay: null
+    }, vendor, { fiveHour: null, weekly: thWeeklyFraction })
+    planModels.push({
+      plan_id: 'th-agent',
+      model_id: modelId,
+      monthly_credits_usd: credits,
+      estimates: computed ? { per_5h: computed.per5h, per_week: computed.perWeek, per_month: computed.perMonth } : null,
+      sourceUrl: input.sourceUrls.tokenHarborPricing,
+      fetchedAt: input.fetchedAt,
+      note: `Agent Pass rule (≤ $${TOKEN_HARBOR_AGENT_CAPS.input} in / $${TOKEN_HARBOR_AGENT_CAPS.output} out per 1M, plus by-name) from https://tokenharbor.ai/docs/billing/subscription; rates from ${input.sourceUrls.tokenHarborModels}; request profile 10K in (8K cache) + 1K out = $${(tokenHarborRequestCost(th) ?? 0).toFixed(6)}/req${multiple > 1 ? `; Model Boost ${multiple}×` : ''}${boost?.promo ? '; promo multiplier not applied (promo is in the published rate)' : ''}`
     })
   }
 

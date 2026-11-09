@@ -12,5 +12,9 @@ export const providers: Provider[] = [
   {
     id: 'open-design',
     name: 'OpenDesign Go'
+  },
+  {
+    id: 'tokenharbor',
+    name: 'TokenHarbor'
   }
 ]
