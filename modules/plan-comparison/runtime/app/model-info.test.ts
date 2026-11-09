@@ -6,7 +6,7 @@ import type { Model, PricingEntry } from './types'
 
 /** Funding rows for the tooltip are label/value pairs; the plan meta rides along. */
 function fundingValues(row: EnrichedModelRow) {
-  return fundingWithPlans(row).map(({ label, value }) => ({ label, value }))
+  return fundingWithPlans(row, PLAN_COMPARISON_PLANS).map(({ label, value }) => ({ label, value }))
 }
 
 function makeModel(overrides: Partial<Model> = {}): Model {
@@ -245,13 +245,20 @@ describe('funding values', () => {
 })
 
 describe('fundingWithPlans', () => {
+  it('lists only the plans passed in, so an unchecked plan leaves the tooltip', () => {
+    const row = makeRow('Alpha', { cmd: { credit: 100, request: 2500, pool: false } })
+    const onlyCmd = PLAN_COMPARISON_PLANS.filter(plan => plan.key === 'cmd')
+    expect(fundingWithPlans(row, onlyCmd).map(field => [field.plan.key, field.label, field.value]))
+      .toEqual([['cmd', 'Command Code Go', '$100 credit · 2,500 req/mo']])
+  })
+
   it('joins each funding row to its plan meta by label, not position', () => {
     const row = makeRow('Alpha', {
       cmd: { credit: 100, request: 2500, pool: false },
       goat: { credit: 200, request: 5000, pool: false },
       go: { credit: 50, request: 1000, pool: false }
     })
-    const fields = fundingWithPlans(row)
+    const fields = fundingWithPlans(row, PLAN_COMPARISON_PLANS)
     expect(fields.map(field => [field.plan.key, field.label, field.value])).toEqual([
       ['cmd', 'Command Code Go', '$100 credit · 2,500 req/mo'],
       ['goat', 'Command Code GOAT', '$200 credit · 5,000 req/mo'],

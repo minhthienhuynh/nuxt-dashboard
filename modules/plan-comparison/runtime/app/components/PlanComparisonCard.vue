@@ -15,6 +15,7 @@ const {
   intelThreshold,
   sortOption,
   planCards,
+  selectedPlans,
   poolPlanKeys,
   creditRows,
   dotRows,
@@ -120,9 +121,19 @@ const isOldData = computed(() => {
         v-model:intel-threshold="intelThreshold"
       />
 
-      <PlanComparisonCreditBarChart :rows="creditRows" :skipped="skippedModelNames" :pool-plan-keys="poolPlanKeys" />
+      <PlanComparisonCreditBarChart
+        :rows="creditRows"
+        :skipped="skippedModelNames"
+        :plans="selectedPlans"
+        :pool-plan-keys="poolPlanKeys"
+      />
 
-      <PlanComparisonRequestDotChart :rows="dotRows" :no-request="noRequestModelNames" :pool-plan-keys="poolPlanKeys" />
+      <PlanComparisonRequestDotChart
+        :rows="dotRows"
+        :no-request="noRequestModelNames"
+        :plans="selectedPlans"
+        :pool-plan-keys="poolPlanKeys"
+      />
     </template>
   </div>
 </template>

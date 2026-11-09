@@ -6,7 +6,7 @@
 // geometry.
 
 import type { EnrichedModelRow } from './composables/usePlanComparisonDatabase'
-import { PLAN_COMPARISON_PLANS, type PlanComparisonPlanMeta } from './plan-colors'
+import type { PlanComparisonPlanMeta } from './plan-colors'
 import { formatUsd } from './format-usd'
 import type { Model, ModelDeal, PricingEntry } from './types'
 
@@ -153,13 +153,14 @@ export interface PlanFundingField extends ModelInfoField {
 }
 
 /**
- * Per-plan funding rows for the tooltip: one entry per plan in registry order,
- * `$X credit · Y req/mo` (`$X shared pool` for pool plans), with a dash for
- * values the data does not publish. The plan meta rides along so the template
- * tints each name without positional coupling to the array.
+ * Per-plan funding rows for the tooltip: one entry per plan in `plans` (the
+ * checked ones), in the order given, `$X credit · Y req/mo` (`$X shared pool`
+ * for pool plans), with a dash for values the data does not publish. The plan
+ * meta rides along so the template tints each name without positional coupling
+ * to the array.
  */
-export function fundingWithPlans(row: EnrichedModelRow): PlanFundingField[] {
-  return PLAN_COMPARISON_PLANS.map(plan => ({
+export function fundingWithPlans(row: EnrichedModelRow, plans: PlanComparisonPlanMeta[]): PlanFundingField[] {
+  return plans.map(plan => ({
     label: plan.label,
     value: fundingValue(row[plan.key]),
     plan

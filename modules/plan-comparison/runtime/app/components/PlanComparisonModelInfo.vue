@@ -2,10 +2,13 @@
 import { computed } from 'vue'
 import { fundingWithPlans, modelInfoFields } from '../model-info'
 import type { EnrichedModelRow } from '../composables/usePlanComparisonDatabase'
+import type { PlanComparisonPlanMeta } from '../plan-colors'
 
 const props = defineProps<{
   /** Hovered row; `null` renders nothing. */
   row: EnrichedModelRow | null
+  /** Checked plans: the tooltip lists funding for these only, not all five. */
+  plans: PlanComparisonPlanMeta[]
   /** Anchor for the popover, in viewport coordinates (clientX/Y). */
   x: number
   y: number
@@ -40,7 +43,7 @@ const specFields = computed(() => props.row ? modelInfoFields(props.row.model, p
 
 // Funding rows carry the plan meta alongside the formatted value so the
 // template can tint each plan name with its registry color.
-const funding = computed(() => props.row ? fundingWithPlans(props.row) : [])
+const funding = computed(() => props.row ? fundingWithPlans(props.row, props.plans) : [])
 </script>
 
 <template>
