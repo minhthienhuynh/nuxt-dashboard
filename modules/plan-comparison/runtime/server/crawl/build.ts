@@ -7,7 +7,7 @@ import type { PricingLimitsSection } from './ccpricing'
 import type { OpenCodeEndpointRow, OpenCodeEstimateRow, OpenCodePricingRow } from './opencode'
 import type { OpenDesignAllowanceRow, OpenDesignCatalogModel, OpenDesignMultiplierRow } from './opendesign'
 import type { TokenHarborBoostRow, TokenHarborModel } from './tokenharbor'
-import { TOKEN_HARBOR_AGENT_CAPS, TOKEN_HARBOR_REQUEST_SHAPE, isAgentPassModel, tokenHarborRequestCost, tokenHarborVendor } from './tokenharbor'
+import { TOKEN_HARBOR_AGENT_CAPS, TOKEN_HARBOR_MODEL_ALIASES, TOKEN_HARBOR_REQUEST_SHAPE, isAgentPassModel, tokenHarborRequestCost, tokenHarborVendor } from './tokenharbor'
 import { plans } from '../data/plans'
 
 export interface BuildInput {
@@ -548,13 +548,16 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
     // published rate (the promo *is* the price difference), so only a standing
     // Model Boost stretches the pool.
     const multiple = boost && !boost.promo ? boost.multiple : 1
-    const catalogModel = models.find(m => sameSlug(m.id.split('/').pop() ?? '', th.id) || sameSlug(m.slug, th.id))
-      ?? input.goatModels.find(m => m.id === th.id || sameSlug(m.slug, th.id))
+    // TokenHarbor's own id can be a dated pin of a catalog model (`-1017`) —
+    // resolve through the alias so the row joins that model, not a duplicate.
+    const lookupId = TOKEN_HARBOR_MODEL_ALIASES[th.id] ?? th.id
+    const catalogModel = models.find(m => sameSlug(m.id.split('/').pop() ?? '', lookupId) || sameSlug(m.slug, lookupId))
+      ?? input.goatModels.find(m => m.id === lookupId || sameSlug(m.slug, lookupId))
     // Same model as a CMD row (in or outside the Go/GOAT scope) → reuse that id
     // so pricing/metadata join instead of splitting into a duplicate model.
-    const modelId = resolveCatalogModelId(models, th.id, th.label)
-      ?? resolveCatalogModelId(input.goatModels, th.id, th.label)
-      ?? `tokenharbor/${slugifyModelName(th.id)}`
+    const modelId = resolveCatalogModelId(models, lookupId, th.label)
+      ?? resolveCatalogModelId(input.goatModels, lookupId, th.label)
+      ?? `tokenharbor/${slugifyModelName(lookupId)}`
     if (!catalogModel && !seenIds.has(modelId)) {
       seenIds.add(modelId)
       models.push(tokenHarborCatalogEntry(modelId, th))

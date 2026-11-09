@@ -58,6 +58,18 @@ export const TOKEN_HARBOR_AGENT_CAPS = { input: 0.2, output: 1 } as const
 export const TOKEN_HARBOR_AGENT_BY_NAME = ['gpt-5.6-luna', 'mimo-v2.5-pro'] as const
 
 /**
+ * TokenHarbor pins a dated snapshot id for some models (`-1017`) while the
+ * catalog entry for the same model keeps the base id — Command Code lists it as
+ * `deepseek/deepseek-v4.1-flash` and labels it "(latest)". Without the alias the
+ * pass row splits into a second, metadata-poor model instead of showing the
+ * quota on the row the other plans already use. Explicit on purpose: a generic
+ * `-<digits>` strip would also fuse genuinely distinct snapshots.
+ */
+export const TOKEN_HARBOR_MODEL_ALIASES: Record<string, string> = {
+  'deepseek-v4.1-flash-1017': 'deepseek-v4.1-flash'
+}
+
+/**
  * The company's published estimate basis: "a typical agent request of about
  * 10K input (8K from cache) + 1K output". The shape buckets those 10K the way
  * the billing does — 2K billed at the input rate, 8K at the cache-read rate —

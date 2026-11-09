@@ -503,4 +503,41 @@ describe('buildDatabase - TokenHarbor Agent Pass', () => {
     expect(db.models.filter(m => m.slug === 'widget')).toHaveLength(1)
     expect(db.plan_models.find(p => p.plan_id === 'th-agent')?.model_id).toBe('acme/widget')
   })
+
+  it('joins a dated TokenHarbor pin to the catalog row that other plans use', () => {
+    // TokenHarbor sells "deepseek-v4.1-flash-1017" while Command Code lists the
+    // same model as deepseek/deepseek-v4.1-flash ("(latest)"): without the alias
+    // the pass quota would sit on a second, metadata-poor row.
+    const db = buildDatabase({
+      ...baseInput,
+      goatModels: [makeModel({
+        id: 'deepseek/deepseek-v4.1-flash',
+        slug: 'deepseek-v4-1-flash',
+        name: 'DeepSeek V4.1 Flash (latest)',
+        vendor: 'DeepSeek',
+        inputCost: 0.3,
+        outputCost: 1.2,
+        cacheReadCost: 0.003,
+        contextWindow: 1048576,
+        intelligenceIndex: 39.5
+      })],
+      tokenHarborModels: [thModel({
+        id: 'deepseek-v4.1-flash-1017',
+        label: 'DeepSeek V4.1 Flash 1017',
+        family: 'deepseek',
+        priceIn: 0.15,
+        priceOut: 0.6,
+        cacheRead: 0.003,
+        contextWindow: 1048576
+      })]
+    })
+    const row = db.plan_models.find(p => p.plan_id === 'th-agent')
+    expect(row?.model_id).toBe('deepseek/deepseek-v4.1-flash')
+    // $10 pool at $0.000924/req (the published promo rate) → 10823 → round3.
+    expect(row?.monthly_credits_usd).toBe(10)
+    expect(row?.estimates).toEqual({ per_5h: null, per_week: 2710, per_month: 10800 })
+    expect(db.models.filter(m => m.slug === 'deepseek-v4-1-flash')).toHaveLength(1)
+    expect(db.pricing.filter(p => p.provider_id === 'tokenharbor').map(p => p.model_id))
+      .toEqual(['deepseek/deepseek-v4.1-flash'])
+  })
 })
