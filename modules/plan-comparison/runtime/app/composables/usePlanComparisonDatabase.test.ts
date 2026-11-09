@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizePlanComparisonDatabase } from './usePlanComparisonDatabase'
+import { defaultPlanSelection, normalizePlanComparisonDatabase } from './usePlanComparisonDatabase'
 import type { Model, Plan, PlanModelEstimate, PlanComparisonDatabase } from '../types'
 
 function makePlan(id: string, overrides: Partial<Plan> = {}): Plan {
@@ -46,11 +46,23 @@ function makeModel(overrides: Partial<Model>): Model {
 function makeDatabase(models: Model[], planModels: PlanModelEstimate[]): PlanComparisonDatabase {
   return {
     providers: [{ id: 'command-code', name: 'Command Code' }],
-    plans: [makePlan('cmd-go'), makePlan('cmd-goat'), makePlan('oc-go'), makeOdPlan()],
+    plans: [makePlan('cmd-go'), makePlan('cmd-goat'), makePlan('oc-go'), makeOdPlan(), makeThPlan()],
     models,
     pricing: [],
     plan_models: planModels
   }
+}
+
+/** TokenHarbor Agent Pass: one shared $10 pool, weekly window only. */
+function makeThPlan(overrides: Partial<Plan> = {}): Plan {
+  return makePlan('th-agent', {
+    provider_id: 'tokenharbor',
+    funding: 'pool',
+    monthly_price_usd: 1.99,
+    monthly_credit_usd: 10,
+    limits: { '5h': null, 'weekly': 2.5, 'monthly': 10 },
+    ...overrides
+  })
 }
 
 /** OpenDesign Go: one shared monthly pool ($220) with published $18/$55 windows. */
@@ -199,8 +211,9 @@ describe('normalizePlanComparisonDatabase - pool plan', () => {
     // carry null and the card would render a dash instead).
     expect(card?.limits).toEqual({ '5h': 18, 'weekly': 55, 'monthly': 220 })
     // The bar chart filters on this list, which comes from the plan data — so it
-    // survives a filter that hides every row.
-    expect(result.poolPlanKeys).toEqual(['od'])
+    // survives a filter that hides every row. Both shared-pool plans (OpenDesign
+    // Go and TokenHarbor Agent Pass) are in the fixture database.
+    expect(result.poolPlanKeys).toEqual(['od', 'th'])
   })
 
   it('keeps rendering when the stored data predates a registry plan', () => {
@@ -251,5 +264,63 @@ describe('normalizePlanComparisonDatabase - plan cards', () => {
       ]
     )
     expect(normalizePlanComparisonDatabase(db, baseFilters).planCards.find(c => c.id === 'od-go')?.creditRange).toBeNull()
+  })
+})
+
+describe('normalizePlanComparisonDatabase - plan selection (card checkboxes)', () => {
+  const models = [
+    makeModel({ id: 'both', slug: 'both', name: 'Both' }),
+    makeModel({ id: 'cmd-only', slug: 'cmd-only', name: 'Cmd Only' }),
+    makeModel({ id: 'th-only', slug: 'th-only', name: 'Th Only' })
+  ]
+  const planModels: PlanModelEstimate[] = [
+    { plan_id: 'cmd-go', model_id: 'both', monthly_credits_usd: 10, estimates: { per_5h: 1, per_week: 2, per_month: 3 } },
+    { plan_id: 'th-agent', model_id: 'both', monthly_credits_usd: 10, estimates: { per_5h: null, per_week: 2, per_month: 3 } },
+    { plan_id: 'th-agent', model_id: 'th-only', monthly_credits_usd: 10, estimates: { per_5h: null, per_week: 2, per_month: 3 } },
+    { plan_id: 'cmd-go', model_id: 'cmd-only', monthly_credits_usd: 10, estimates: { per_5h: 1, per_week: 2, per_month: 3 } }
+  ]
+  const db = makeDatabase(models, planModels)
+  const ids = (rows: Array<{ model: Model }>) => rows.map(row => row.model.id).sort()
+
+  it('starts with every plan checked, so all funded models are listed', () => {
+    expect(ids(normalizePlanComparisonDatabase(db, baseFilters).creditRows)).toEqual(['both', 'cmd-only', 'th-only'])
+    expect(Object.values(defaultPlanSelection()).every(Boolean)).toBe(true)
+  })
+
+  it('drops a model only an unchecked plan funds', () => {
+    const result = normalizePlanComparisonDatabase(db, baseFilters, { ...defaultPlanSelection(), th: false })
+    expect(ids(result.creditRows)).toEqual(['both', 'cmd-only'])
+  })
+
+  it('keeps a model another checked plan still funds', () => {
+    const result = normalizePlanComparisonDatabase(db, baseFilters, { ...defaultPlanSelection(), cmd: false })
+    expect(ids(result.creditRows)).toEqual(['both', 'th-only'])
+  })
+
+  it('empties both charts when no plan is checked', () => {
+    const result = normalizePlanComparisonDatabase(db, baseFilters, {
+      cmd: false, goat: false, go: false, od: false, th: false
+    })
+    expect(result.creditRows).toEqual([])
+    expect(result.dotRows).toEqual([])
+  })
+
+  it('reports a model a checked plan funds but publishes no requests for', () => {
+    const noRequests = makeDatabase(
+      [makeModel({ id: 'quiet', slug: 'quiet', name: 'Quiet' })],
+      [{ plan_id: 'cmd-go', model_id: 'quiet', monthly_credits_usd: 10, estimates: null }]
+    )
+    const result = normalizePlanComparisonDatabase(noRequests, baseFilters, { ...defaultPlanSelection(), th: false })
+    expect(ids(result.creditRows)).toEqual(['quiet'])
+    expect(result.dotRows).toEqual([])
+    expect(result.noRequestModelNames).toEqual(['Quiet'])
+  })
+
+  it('keeps the "no plan funds it" list independent of the selection', () => {
+    // skippedModelNames answers "does any plan fund this model at all", so
+    // unchecking cards must not move a model into that list.
+    const orphanDb = makeDatabase([makeModel({ id: 'orphan', slug: 'orphan', name: 'Orphan' })], [])
+    const result = normalizePlanComparisonDatabase(orphanDb, baseFilters, { ...defaultPlanSelection(), th: false })
+    expect(result.skippedModelNames).toEqual(['Orphan'])
   })
 })

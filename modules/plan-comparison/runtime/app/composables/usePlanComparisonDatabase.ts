@@ -33,6 +33,8 @@ export interface EnrichedModelRow extends SortableModelRow, PlanFundingByPlan {
 
 export interface PlanCard {
   id: string
+  /** Registry series key, so the card can toggle the plan's models. */
+  key: PlanComparisonPlanKey
   name: string
   /** Registry label (`Cmd Go`), unique across cards and shared with the charts. */
   label: string
@@ -76,6 +78,18 @@ export interface PlanComparisonFilters {
   intelThreshold: number
 }
 
+/**
+ * Which plans feed the charts, keyed by registry series key. Every plan starts
+ * selected, so the charts show the full comparison until the reader narrows it
+ * down from a plan card.
+ */
+export type PlanSelection = Record<PlanComparisonPlanKey, boolean>
+
+/** All plans selected: the default ("full") chart. */
+export function defaultPlanSelection(): PlanSelection {
+  return Object.fromEntries(PLAN_COMPARISON_PLANS.map(plan => [plan.key, true])) as PlanSelection
+}
+
 // The intelligence score used to ride along in the axis label (`Model (42)`);
 // the hover/tap popover now carries it, so labels stay plain names.
 function labelFor(model: Model): string {
@@ -92,7 +106,7 @@ function isOld(model: Model, oldBefore: string): boolean {
   return model.launchedAt == null || model.launchedAt < oldBefore
 }
 
-export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filters: PlanComparisonFilters): NormalizedPlanComparisonData {
+export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filters: PlanComparisonFilters, selection: PlanSelection = defaultPlanSelection()): NormalizedPlanComparisonData {
   const planModelIndex = new Map<string, PlanModelEstimate>()
   for (const row of db.plan_models) {
     planModelIndex.set(`${row.plan_id}:${row.model_id}`, row)
@@ -121,6 +135,14 @@ export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filt
     PLAN_COMPARISON_PLANS.some(plan => row[plan.key].credit != null)
   const requestedByAny = (row: EnrichedModelRow): boolean =>
     PLAN_COMPARISON_PLANS.some(plan => row[plan.key].request != null)
+  // Charts follow the cards' checkboxes: a row is listed while at least one
+  // SELECTED plan funds it (deselecting every plan leaves the charts empty
+  // rather than silently showing everything again).
+  const selectedPlans = PLAN_COMPARISON_PLANS.filter(plan => selection[plan.key] !== false)
+  const fundedBySelected = (row: EnrichedModelRow): boolean =>
+    selectedPlans.some(plan => row[plan.key].credit != null)
+  const requestedBySelected = (row: EnrichedModelRow): boolean =>
+    selectedPlans.some(plan => row[plan.key].request != null)
 
   const pricingIndex = buildPricingIndex(db.pricing)
 
@@ -143,8 +165,8 @@ export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filt
     ...fundingOf(model.id)
   }))
 
-  const creditRows = enrichedRows.filter(fundedByAny)
-  const dotRows = creditRows.filter(requestedByAny)
+  const creditRows = enrichedRows.filter(fundedBySelected)
+  const dotRows = creditRows.filter(requestedBySelected)
 
   const skippedModelNames = enrichedRows
     .filter(row => !fundedByAny(row))
@@ -181,6 +203,7 @@ export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filt
     if (!data) return null
     return {
       id: data.id,
+      key: plan.key,
       name: data.name,
       label: plan.label,
       monthlyCredit: data.monthly_credit_usd,
@@ -245,6 +268,17 @@ export function usePlanComparisonDatabase() {
   const hideLowIntel = ref(false)
   const intelThreshold = ref(DEFAULT_INTEL_THRESHOLD)
   const sortOption = ref<SortOptionId>('newest')
+  // Every plan starts checked ("full"): the charts show the whole comparison
+  // until the reader unchecks a card to take that plan's models out.
+  const planSelection = ref<PlanSelection>(defaultPlanSelection())
+
+  function setPlanSelected(key: PlanComparisonPlanKey, selected: boolean): void {
+    planSelection.value = { ...planSelection.value, [key]: selected }
+  }
+
+  function togglePlan(key: PlanComparisonPlanKey): void {
+    setPlanSelected(key, planSelection.value[key] === false)
+  }
 
   const normalized = computed<NormalizedPlanComparisonData | null>(() => {
     if (!data.value) return null
@@ -253,7 +287,7 @@ export function usePlanComparisonDatabase() {
       oldBefore: oldBefore.value,
       hideLowIntel: hideLowIntel.value,
       intelThreshold: intelThreshold.value
-    })
+    }, planSelection.value)
   })
 
   return {
@@ -268,10 +302,14 @@ export function usePlanComparisonDatabase() {
     hideLowIntel,
     intelThreshold,
     sortOption,
+    planSelection,
+    setPlanSelected,
+    togglePlan,
     planCards: computed(() => normalized.value?.planCards ?? []),
     poolPlanKeys: computed(() => normalized.value?.poolPlanKeys ?? []),
     creditRows: computed(() => normalized.value ? sortRows(normalized.value.creditRows, sortOption.value) : []),
     dotRows: computed(() => normalized.value ? sortRows(normalized.value.dotRows, sortOption.value) : []),
+    selectedModelCount: computed(() => normalized.value?.creditRows.length ?? 0),
     skippedModelNames: computed(() => normalized.value?.skippedModelNames ?? []),
     noRequestModelNames: computed(() => normalized.value?.noRequestModelNames ?? [])
   }

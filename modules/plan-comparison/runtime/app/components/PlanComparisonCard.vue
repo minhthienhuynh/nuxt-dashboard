@@ -18,6 +18,9 @@ const {
   poolPlanKeys,
   creditRows,
   dotRows,
+  planSelection,
+  selectedModelCount,
+  togglePlan,
   skippedModelNames,
   noRequestModelNames
 } = usePlanComparisonDatabase()
@@ -74,6 +77,9 @@ const isOldData = computed(() => {
           variant="subtle"
           label="Data is stale"
         />
+        <span class="text-muted">
+          {{ selectedModelCount }} model{{ selectedModelCount === 1 ? '' : 's' }} in the charts
+        </span>
         <UButton
           size="xs"
           variant="ghost"
@@ -83,7 +89,11 @@ const isOldData = computed(() => {
         />
       </div>
 
-      <PlanComparisonPlanCards :plan-cards="planCards" />
+      <PlanComparisonPlanCards
+        :plan-cards="planCards"
+        :selection="planSelection"
+        @toggle="togglePlan"
+      />
 
       <PlanComparisonFilterBar
         v-model:sort-option="sortOption"
