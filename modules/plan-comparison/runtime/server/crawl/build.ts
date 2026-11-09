@@ -542,34 +542,34 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
   // "estimated requests" widget.
   const thBoostByName = new Map(input.tokenHarborBoosts.map(row => [matchName(row.name), row]))
   const thPasses = [
-    { planId: 'th-agent', label: 'Agent Pass', caps: TOKEN_HARBOR_AGENT_CAPS, isPassModel: isAgentPassModel },
-    { planId: 'th-office', label: 'Office Pass', caps: TOKEN_HARBOR_OFFICE_CAPS, isPassModel: isOfficePassModel }
+    { planId: 'th-agent', passName: 'Agent Pass', caps: TOKEN_HARBOR_AGENT_CAPS, isPassModel: isAgentPassModel },
+    { planId: 'th-office', passName: 'Office Pass', caps: TOKEN_HARBOR_OFFICE_CAPS, isPassModel: isOfficePassModel }
   ] as const
   for (const pass of thPasses) {
-    const thPlan = planById(pass.planId)
-    const thWeeklyFraction = thPlan.limits.weekly == null ? null : thPlan.limits.weekly / thPlan.limits.monthly
-    for (const th of input.tokenHarborModels) {
-      if (!pass.isPassModel(th)) continue
-      const boost = thBoostByName.get(matchName(th.label))
+    const passPlan = planById(pass.planId)
+    const weeklyFraction = passPlan.limits.weekly == null ? null : passPlan.limits.weekly / passPlan.limits.monthly
+    for (const gatewayModel of input.tokenHarborModels) {
+      if (!pass.isPassModel(gatewayModel)) continue
+      const boost = thBoostByName.get(matchName(gatewayModel.label))
       // A badge whose title calls it a promo is already priced into the
       // published rate (the promo *is* the price difference), so only a standing
       // Model Boost stretches the pool.
       const multiple = boost && !boost.promo ? boost.multiple : 1
       // TokenHarbor's own id can be a dated pin of a catalog model (`-1017`) —
       // resolve through the alias so the row joins that model, not a duplicate.
-      const lookupId = TOKEN_HARBOR_MODEL_ALIASES[th.id] ?? th.id
+      const lookupId = TOKEN_HARBOR_MODEL_ALIASES[gatewayModel.id] ?? gatewayModel.id
       const catalogModel = models.find(m => sameSlug(m.id.split('/').pop() ?? '', lookupId) || sameSlug(m.slug, lookupId))
         ?? input.goatModels.find(m => m.id === lookupId || sameSlug(m.slug, lookupId))
       // Same model as a CMD row (in or outside the Go/GOAT scope) → reuse that id
       // so pricing/metadata join instead of splitting into a duplicate model.
-      const modelId = resolveCatalogModelId(models, lookupId, th.label)
-        ?? resolveCatalogModelId(input.goatModels, lookupId, th.label)
+      const modelId = resolveCatalogModelId(models, lookupId, gatewayModel.label)
+        ?? resolveCatalogModelId(input.goatModels, lookupId, gatewayModel.label)
         ?? `tokenharbor/${slugifyModelName(lookupId)}`
       if (!catalogModel && !seenIds.has(modelId)) {
         seenIds.add(modelId)
-        models.push(tokenHarborCatalogEntry(modelId, th))
+        models.push(tokenHarborCatalogEntry(modelId, gatewayModel))
       }
-      const vendor = catalogModel?.vendor ?? tokenHarborVendor(th.family)
+      const vendor = catalogModel?.vendor ?? tokenHarborVendor(gatewayModel.family)
       pricing.push({
         provider_id: 'tokenharbor',
         model_id: modelId,
@@ -577,42 +577,42 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
         // tier and TokenHarbor publishes no peak/off-peak split.
         tier: 'standard',
         peak_utc_hours: null,
-        input: th.priceIn ?? 0,
-        output: th.priceOut ?? 0,
-        cache_read: th.cacheRead ?? 0,
-        cache_write: th.cacheWrite
+        input: gatewayModel.priceIn ?? 0,
+        output: gatewayModel.priceOut ?? 0,
+        cache_read: gatewayModel.cacheRead ?? 0,
+        cache_write: gatewayModel.cacheWrite
       })
       // "A boosted model is billed against the same Pass allowance at a reduced
       // rate, which lets that allowance go further on it" — so the pool buys
       // `pool × boost` dollars of that model's usage, which is exactly the
       // "$10 included usage / up to $20 of usage value" the pass advertises.
-      const credits = thPlan.monthly_credit_usd * multiple
-      const computed = computeRowEstimates(credits, {
-        rates: { inputCost: th.priceIn, outputCost: th.priceOut, cacheReadCost: th.cacheRead },
+      const credits = passPlan.monthly_credit_usd * multiple
+      const rowEstimates = computeRowEstimates(credits, {
+        rates: { inputCost: gatewayModel.priceIn, outputCost: gatewayModel.priceOut, cacheReadCost: gatewayModel.cacheRead },
         shape: { ...TOKEN_HARBOR_REQUEST_SHAPE },
         timeOfDay: null
-      }, vendor, { fiveHour: null, weekly: thWeeklyFraction })
+      }, vendor, { fiveHour: null, weekly: weeklyFraction })
       planModels.push({
         plan_id: pass.planId,
         model_id: modelId,
         monthly_credits_usd: credits,
-        estimates: computed ? { per_5h: computed.per5h, per_week: computed.perWeek, per_month: computed.perMonth } : null,
+        estimates: rowEstimates ? { per_5h: rowEstimates.per5h, per_week: rowEstimates.perWeek, per_month: rowEstimates.perMonth } : null,
         sourceUrl: input.sourceUrls.tokenHarborPricing,
         fetchedAt: input.fetchedAt,
-        note: `${pass.label} rule (≤ $${pass.caps.input} in / $${pass.caps.output} out per 1M, plus by-name${pass.planId === 'th-office' ? ', including everything the Agent Pass funds' : ''}) from https://tokenharbor.ai/docs/billing/subscription; rates from ${input.sourceUrls.tokenHarborModels}; request profile 10K in (8K cache) + 1K out = $${(tokenHarborRequestCost(th) ?? 0).toFixed(6)}/req${multiple > 1 ? `; Model Boost ${multiple}×` : ''}${boost?.promo ? '; promo multiplier not applied (promo is in the published rate)' : ''}`
+        note: `${pass.passName} rule (≤ $${pass.caps.input} in / $${pass.caps.output} out per 1M, plus by-name${pass.planId === 'th-office' ? ', including everything the Agent Pass funds' : ''}) from https://tokenharbor.ai/docs/billing/subscription; rates from ${input.sourceUrls.tokenHarborModels}; request profile 10K in (8K cache) + 1K out = $${(tokenHarborRequestCost(gatewayModel) ?? 0).toFixed(6)}/req${multiple > 1 ? `; Model Boost ${multiple}×` : ''}${boost?.promo ? '; promo multiplier not applied (promo is in the published rate)' : ''}`
       })
     }
   }
 
   // models.dev fallback: dates CC's payload leaves unset, for the models the
   // vendor's own pages show `—` for (see release-dates.ts for the audit).
-  const withDates = models.map((model) => {
+  const withReleaseDates = models.map((model) => {
     const fallback = RELEASE_DATE_FALLBACKS[model.id]
     return fallback && model.releaseDate == null ? { ...model, releaseDate: fallback } : model
   })
 
   return {
-    models: dedupeBy(withDates, m => m.slug),
+    models: dedupeBy(withReleaseDates, m => m.slug),
     pricing: dedupeBy(pricing, p => `${p.provider_id}:${p.model_id}:${p.tier}`),
     plan_models: dedupeBy(planModels, p => `${p.plan_id}:${p.model_id}`)
   }
