@@ -287,6 +287,11 @@ describe('normalizePlanComparisonDatabase - plan selection (card checkboxes)', (
     expect(Object.values(defaultPlanSelection()).every(Boolean)).toBe(true)
   })
 
+  it('reports the checked plans so the charts draw only those series', () => {
+    const result = normalizePlanComparisonDatabase(db, baseFilters, { ...defaultPlanSelection(), th: false })
+    expect(result.selectedPlans.map(plan => plan.key)).toEqual(['cmd', 'goat', 'go', 'od'])
+  })
+
   it('drops a model only an unchecked plan funds', () => {
     const result = normalizePlanComparisonDatabase(db, baseFilters, { ...defaultPlanSelection(), th: false })
     expect(ids(result.creditRows)).toEqual(['both', 'cmd-only'])

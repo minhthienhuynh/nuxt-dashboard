@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { VisAxis, VisBulletLegend, VisGroupedBar, VisPlotband, VisXYContainer } from '@unovis/vue'
 import type { EnrichedModelRow } from '../composables/usePlanComparisonDatabase'
-import { PLAN_COMPARISON_PLANS, planLegendItems } from '../plan-colors'
-import type { PlanComparisonPlanKey } from '../plan-colors'
+import type { PlanComparisonPlanKey, PlanComparisonPlanMeta } from '../plan-colors'
+import { usePlanSeries } from '../usePlanSeries'
 import { AXIS_TICK_SEPARATOR } from '../plan-chart-axis'
 import { usePlanComparisonChartFrame } from '../usePlanComparisonChartFrame'
 import { usePlanChartHover } from '../usePlanChartHover'
@@ -11,6 +11,8 @@ import '../plan-chart.css'
 const props = defineProps<{
   rows: EnrichedModelRow[]
   skipped: string[]
+  /** Checked plans, in registry order: one bar per entry. */
+  plans: PlanComparisonPlanMeta[]
   /** Plans funded from one shared pool: their bar is the pool, not a per-model grant. */
   poolPlanKeys: PlanComparisonPlanKey[]
 }>()
@@ -19,8 +21,7 @@ const props = defineProps<{
 // ("if this model used all of it"), which is the same number the dot chart sizes
 // its markers with. The legend names the pot so the equal-length bars are not
 // read as per-model grants.
-const poolPlans = computed(() => PLAN_COMPARISON_PLANS.filter(plan => props.poolPlanKeys.includes(plan.key)))
-const chartLegend = computed(() => planLegendItems(props.poolPlanKeys))
+const { sharedPoolPlans, sharedPoolNote, legend } = usePlanSeries(() => props.plans, () => props.poolPlanKeys)
 
 const {
   cardRef,
@@ -38,7 +39,7 @@ const {
 const BAR_H = 16
 // One bar per plan defines the visual band; a taller label (name wrapped onto
 // two lines) grows the row band instead of overlapping the next.
-const bandHeight = computed(() => Math.max(PLAN_COMPARISON_PLANS.length * BAR_H, rowBandHeight.value))
+const bandHeight = computed(() => Math.max(props.plans.length * BAR_H, rowBandHeight.value))
 const chartHeight = computed(() => props.rows.length * bandHeight.value + 60)
 
 // Hover (or tap on touch) a model — its y-axis label or any of its bars — for
@@ -51,10 +52,13 @@ const { hovered, onPointerMove, onPointerLeave, onPointerUp, onTooltipPointerEnt
 
 const xIndex = (_d: EnrichedModelRow, i: number) => i
 
-const yAccessors = PLAN_COMPARISON_PLANS.map(plan => (d: EnrichedModelRow) => d[plan.key].credit ?? 0)
+// Computed, not captured: the accessor list IS the series list, so it has to
+// follow the checked plans — a stale array here keeps drawing the bars of a plan
+// the reader unchecked.
+const yAccessors = computed(() => props.plans.map(plan => (d: EnrichedModelRow) => d[plan.key].credit ?? 0))
 
 const barColor = (_d: EnrichedModelRow, accessorIndex: number) =>
-  PLAN_COMPARISON_PLANS[accessorIndex]?.color ?? 'var(--ui-border-accented)'
+  props.plans[accessorIndex]?.color ?? 'var(--ui-border-accented)'
 
 const xTickFormat = (value: number) => `$${value}`
 </script>
@@ -69,18 +73,18 @@ const xTickFormat = (value: number) => `$${value}`
         <p class="text-[13px] text-muted">
           Bar length = the monthly credit a plan funds that model with, scaled to
           the largest bar. Hover a bar or a model name for its specs
-          (intelligence, pricing, caps) and what every plan funds it with.
-          <template v-if="poolPlans.length">
-            {{ poolPlans.map(plan => plan.label).join(' and ') }} sell one shared
-            pool rather than a per-model grant, so their bars show that pool
-            divided by the model's credit multiplier — the most the model could
-            use on its own.
+          (intelligence, pricing, caps) and what each checked plan funds it with.
+          <template v-if="sharedPoolPlans.length">
+            {{ sharedPoolNote.names }} {{ sharedPoolNote.verb }} one shared pool
+            rather than a per-model grant, so {{ sharedPoolNote.pronoun }} bars
+            show that pool divided by the model's credit multiplier — the most
+            the model could use on its own.
           </template>
           <template v-if="skipped.length">
             No plan funds: {{ skipped.join(', ') }}.
           </template>
         </p>
-        <VisBulletLegend :items="chartLegend" class="justify-center" />
+        <VisBulletLegend :items="legend" class="justify-center" />
       </div>
     </template>
 
@@ -141,6 +145,7 @@ const xTickFormat = (value: number) => `$${value}`
       <PlanComparisonModelInfo
         v-if="hovered"
         :row="hovered.row"
+        :plans="plans"
         :x="hovered.x"
         :y="hovered.y"
         @close="close"
