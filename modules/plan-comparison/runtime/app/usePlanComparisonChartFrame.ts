@@ -7,7 +7,7 @@
 import { computed, useTemplateRef } from 'vue'
 import { useElementSize } from '@vueuse/core'
 import type { EnrichedModelRow } from './composables/usePlanComparisonDatabase'
-import { PLAN_COMPARISON_PLANS } from './plan-colors'
+import { planLegendItems } from './plan-colors'
 import {
   chartAxisLayout,
   rowHeightForLabels,
@@ -30,7 +30,7 @@ export function usePlanComparisonChartFrame(rows: () => EnrichedModelRow[]) {
   const tickValues = computed(() => rows().map((_, i) => i))
   const yTickFormat = (value: number) => tickLabels.value[Math.round(value)] ?? ''
 
-  const legendItems = PLAN_COMPARISON_PLANS.map(plan => ({ name: plan.label, color: plan.color }))
+  const legendItems = planLegendItems()
 
   return {
     cardRef,

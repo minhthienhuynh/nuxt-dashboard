@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { VisAxis, VisBulletLegend, VisGroupedBar, VisPlotband, VisXYContainer } from '@unovis/vue'
 import type { EnrichedModelRow } from '../composables/usePlanComparisonDatabase'
-import { PLAN_COMPARISON_PLANS } from '../plan-colors'
+import { PLAN_COMPARISON_PLANS, planLegendItems } from '../plan-colors'
 import type { PlanComparisonPlanKey } from '../plan-colors'
 import { AXIS_TICK_SEPARATOR } from '../plan-chart-axis'
 import { usePlanComparisonChartFrame } from '../usePlanComparisonChartFrame'
@@ -20,10 +20,7 @@ const props = defineProps<{
 // its markers with. The legend names the pot so the equal-length bars are not
 // read as per-model grants.
 const poolPlans = computed(() => PLAN_COMPARISON_PLANS.filter(plan => props.poolPlanKeys.includes(plan.key)))
-const chartLegend = computed(() => PLAN_COMPARISON_PLANS.map(plan => ({
-  name: props.poolPlanKeys.includes(plan.key) ? `${plan.label} (shared pool)` : plan.label,
-  color: plan.color
-})))
+const chartLegend = computed(() => planLegendItems(props.poolPlanKeys))
 
 const {
   cardRef,

@@ -17,6 +17,18 @@ export const PLAN_COMPARISON_PLANS: PlanComparisonPlanMeta[] = [
   { key: 'th', planId: 'th-agent', label: 'Token Harbor Agent', color: '#0f766e' }
 ]
 
+/**
+ * Legend items for both charts. A pool plan's bar and dots are the whole shared
+ * pool rather than a per-model grant, so the legend names the pot; every other
+ * chart legend reads straight from the registry.
+ */
+export function planLegendItems(sharedPoolKeys: PlanComparisonPlanKey[] = []): { name: string, color: string }[] {
+  return PLAN_COMPARISON_PLANS.map(plan => ({
+    name: sharedPoolKeys.includes(plan.key) ? `${plan.label} (shared pool)` : plan.label,
+    color: plan.color
+  }))
+}
+
 export function planColor(planId: string): string {
   return PLAN_COMPARISON_PLANS.find(plan => plan.planId === planId)?.color ?? 'var(--ui-border-accented)'
 }

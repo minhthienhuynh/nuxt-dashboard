@@ -7,6 +7,7 @@
 
 import type { EnrichedModelRow } from './composables/usePlanComparisonDatabase'
 import { PLAN_COMPARISON_PLANS, type PlanComparisonPlanMeta } from './plan-colors'
+import { formatUsd } from './format-usd'
 import type { Model, ModelDeal, PricingEntry } from './types'
 
 export interface ModelInfoField {
@@ -131,27 +132,20 @@ export function modelInfoFields(model: Model, pricing: PricingEntry | null): Mod
 
 const FUNDING_DASH = '—'
 
+/** Credit as money: `displayNumber` first, so `1.2 × 3` noise is not "$3.60". */
+function fundingUsd(value: number): string {
+  return formatUsd(Number(displayNumber(value)))
+}
+
 function fundingValue(funding: EnrichedModelRow['cmd']): string {
   if (funding.credit == null) return FUNDING_DASH
   // Pool plans report the whole shared pool on every row: label it as such so
   // the tooltip does not read like a per-model grant.
   const credit = funding.pool
-    ? `$${displayNumber(funding.credit)} shared pool`
-    : `$${displayNumber(funding.credit)} credit`
+    ? `${fundingUsd(funding.credit)} shared pool`
+    : `${fundingUsd(funding.credit)} credit`
   if (funding.request == null) return `${credit} · ${FUNDING_DASH} req/mo`
   return `${credit} · ${funding.request.toLocaleString('en-US')} req/mo`
-}
-
-/**
- * Per-plan funding rows for the tooltip: one entry per plan in registry order,
- * `$X credit · Y req/mo` (`$X shared pool` for pool plans), with a dash for
- * values the data does not publish.
- */
-export function fundingFields(row: EnrichedModelRow): ModelInfoField[] {
-  return PLAN_COMPARISON_PLANS.map(plan => ({
-    label: plan.label,
-    value: fundingValue(row[plan.key])
-  }))
 }
 
 export interface PlanFundingField extends ModelInfoField {
@@ -159,14 +153,15 @@ export interface PlanFundingField extends ModelInfoField {
 }
 
 /**
- * Funding rows joined to their plan meta by registry label, so the template
- * tints each plan name without positional coupling to the fields array.
+ * Per-plan funding rows for the tooltip: one entry per plan in registry order,
+ * `$X credit · Y req/mo` (`$X shared pool` for pool plans), with a dash for
+ * values the data does not publish. The plan meta rides along so the template
+ * tints each name without positional coupling to the array.
  */
 export function fundingWithPlans(row: EnrichedModelRow): PlanFundingField[] {
-  const byLabel = new Map(fundingFields(row).map(field => [field.label, field]))
   return PLAN_COMPARISON_PLANS.map(plan => ({
     label: plan.label,
-    value: byLabel.get(plan.label)?.value ?? FUNDING_DASH,
+    value: fundingValue(row[plan.key]),
     plan
   }))
 }
