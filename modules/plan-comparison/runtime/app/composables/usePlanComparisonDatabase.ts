@@ -36,7 +36,7 @@ export interface PlanCard {
   /** Registry series key, so the card can toggle the plan's models. */
   key: PlanComparisonPlanKey
   name: string
-  /** Registry label (`Cmd Go`), unique across cards and shared with the charts. */
+  /** Registry label (`Command Code Go`), unique across cards and shared with the charts. */
   label: string
   monthlyCredit: number
   price: number

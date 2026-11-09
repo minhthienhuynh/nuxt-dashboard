@@ -15,6 +15,6 @@ export const providers: Provider[] = [
   },
   {
     id: 'tokenharbor',
-    name: 'TokenHarbor'
+    name: 'Token Harbor'
   }
 ]

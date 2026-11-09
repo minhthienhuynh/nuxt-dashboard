@@ -53,16 +53,34 @@ function showMonthlyCap(plan: PlanCard): boolean {
 }
 
 /**
- * Vendors name their plans after ours ("Cmd GOAT Plan" for "Cmd GOAT"), which
- * reads like a duplicate label. Drop the generic words before comparing, and
- * only surface the vendor's name when it still says something new.
+ * Vendors name their plans after ours ("Go Plan" for "Command Code Go", "Cmd
+ * GOAT Plan" for "Command Code GOAT"), which reads like a duplicate label — and
+ * printed a *short* vendor name there, which is where a stray "Cmd" came from.
+ * Compare word sets, expanding the vendor's own abbreviations, and only surface
+ * the vendor's name when it carries a word the label does not.
  */
-function planNameKey(value: string): string {
-  return value.toLowerCase().replace(/\b(plan|agent|pass)\b/g, '').replace(/[^a-z0-9]/g, '')
+const GENERIC_PLAN_WORDS = new Set(['plan', 'agent', 'pass', 'subscription', 'tier'])
+const PLAN_WORD_ALIASES: Record<string, string[]> = {
+  cmd: ['command', 'code'],
+  commandcode: ['command', 'code']
+}
+
+function planWords(value: string, dropGenerics: boolean): Set<string> {
+  const words = new Set<string>()
+  for (const word of value.toLowerCase().split(/[^a-z0-9]+/)) {
+    if (!word || (dropGenerics && GENERIC_PLAN_WORDS.has(word))) continue
+    for (const expanded of PLAN_WORD_ALIASES[word] ?? [word]) words.add(expanded)
+  }
+  return words
 }
 
 function vendorPlanName(plan: PlanCard): string {
-  return planNameKey(plan.name) === planNameKey(plan.label) ? '' : plan.name
+  const name = planWords(plan.name, true)
+  // "Agent Pass" is nothing but generic words: it names the tier, so it is all
+  // new information next to "TokenHarbor Agent".
+  if (!name.size) return plan.name
+  const label = planWords(plan.label, true)
+  return [...name].some(word => !label.has(word)) ? plan.name : ''
 }
 
 const ROWS: Array<{ label: string, value: (plan: PlanCard) => string, show?: (plan: PlanCard) => boolean }> = [
