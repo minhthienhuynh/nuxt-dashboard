@@ -77,8 +77,9 @@ const xTickFormat = (value: number) => `$${value}`
           <template v-if="sharedPoolPlans.length">
             {{ sharedPoolNote.names }} {{ sharedPoolNote.verb }} one shared pool
             rather than a per-model grant, so {{ sharedPoolNote.pronoun }} bars
-            show that pool divided by the model's credit multiplier — the most
-            the model could use on its own.
+            show the usage value that pool funds at the model's own rate — the
+            vendor's published monthly-usage figure where there is one, else the
+            pool divided by the model's credit multiplier.
           </template>
           <template v-if="skipped.length">
             No plan funds: {{ skipped.join(', ') }}.

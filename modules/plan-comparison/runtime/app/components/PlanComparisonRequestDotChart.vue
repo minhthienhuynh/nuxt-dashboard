@@ -138,8 +138,9 @@ const DURATION = 200
           specs and what each checked plan funds it with.
           <template v-if="sharedPoolPlans.length">
             {{ sharedPoolNote.names }} {{ sharedPoolNote.verb }} one shared pool,
-            so {{ sharedPoolNote.pronoun }} dots show that pool divided by the
-            model's credit multiplier.
+            so {{ sharedPoolNote.pronoun }} dots show the usage value that pool
+            funds at the model's own rate (the vendor's published figure where
+            there is one, else the pool divided by its credit multiplier).
           </template>
           <template v-if="noRequest.length">
             Left out of this chart because no request count is published:

@@ -221,9 +221,9 @@ describe('funding values', () => {
     ])
   })
 
-  it('labels a pool plan as a shared pool instead of a per-model credit', () => {
+  it('labels a pool plan as usage, not as a per-model credit', () => {
     const row = makeRow('Alpha', { od: { credit: 220, request: 12345, pool: true } })
-    expect(fundingValues(row)[3]).toEqual({ label: 'OpenDesign Go', value: '$220 shared pool · 12,345 req/mo' })
+    expect(fundingValues(row)[3]).toEqual({ label: 'OpenDesign Go', value: '$220 usage · 12,345 req/mo' })
   })
 
   it('dashes an unpublished request count', () => {

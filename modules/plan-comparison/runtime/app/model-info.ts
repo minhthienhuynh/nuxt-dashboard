@@ -139,10 +139,12 @@ function fundingUsd(value: number): string {
 
 function fundingValue(funding: EnrichedModelRow['cmd']): string {
   if (funding.credit == null) return FUNDING_DASH
-  // Pool plans report the whole shared pool on every row: label it as such so
-  // the tooltip does not read like a per-model grant.
+  // A pool plan's row value is the usage value that plan's shared pool funds on
+  // this model (vendor-published where the vendor publishes it, else the pool
+  // scaled by the model's multiplier/boost) — not a per-model grant, and not the
+  // pool itself, so it is labelled "usage".
   const credit = funding.pool
-    ? `${fundingUsd(funding.credit)} shared pool`
+    ? `${fundingUsd(funding.credit)} usage`
     : `${fundingUsd(funding.credit)} credit`
   if (funding.request == null) return `${credit} · ${FUNDING_DASH} req/mo`
   return `${credit} · ${funding.request.toLocaleString('en-US')} req/mo`

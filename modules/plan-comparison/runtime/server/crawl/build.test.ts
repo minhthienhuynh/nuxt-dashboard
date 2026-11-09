@@ -408,6 +408,28 @@ describe('buildDatabase - OpenDesign Go pool plan', () => {
     expect(rows[2]?.note).toBe('Pool 220/mo at 0.27× from odc; no published rates')
   })
 
+  it('shows the vendor monthly usage value, not pool ÷ multiplier', () => {
+    // The vendor's table prints $220 for Eco (its usage at the $60 baseline);
+    // `pool ÷ multiplier` would print $814.81, a number they never publish.
+    const db = buildDatabase({
+      ...baseInput,
+      openDesignAllowances: odAllowancesFixture,
+      openDesignModels: [odModel()],
+      openDesignMultipliers: [
+        { name: 'Widget', multiplier: 1 },
+        { name: 'DeepSeek V4.1 Flash Eco', multiplier: 0.27 }
+      ],
+      openDesignUsage: [
+        { name: 'Widget', requestsPerWeek: 18000, monthlyUsageUsd: 60 },
+        { name: 'DeepSeek V4.1 Flash Eco', requestsPerWeek: 266933, monthlyUsageUsd: 220 }
+      ]
+    })
+    const rows = db.plan_models.filter(p => p.plan_id === 'od-go')
+    expect(rows.map(r => r.monthly_credits_usd).sort((a, b) => a - b)).toEqual([60, 220])
+    // The quoted row says where both numbers came from.
+    expect(rows[1]?.note).toContain('monthly usage $220 and requests from the vendor')
+  })
+
   it('prefers the vendor request estimate when the usage table quotes one', () => {
     // Same shape as Command Code / OpenCode Go: the published request count wins
     // over the repo's derivation, and it reaches a model with no published rates
@@ -421,8 +443,8 @@ describe('buildDatabase - OpenDesign Go pool plan', () => {
         { name: 'DeepSeek V4.1 Flash Eco', multiplier: 0.27 }
       ],
       openDesignUsage: [
-        { name: 'Widget', requestsPerWeek: 266933 },
-        { name: 'DeepSeek V4.1 Flash Eco', requestsPerWeek: 3000 }
+        { name: 'Widget', requestsPerWeek: 266933, monthlyUsageUsd: null },
+        { name: 'DeepSeek V4.1 Flash Eco', requestsPerWeek: 3000, monthlyUsageUsd: null }
       ]
     })
     const rows = db.plan_models.filter(p => p.plan_id === 'od-go')
