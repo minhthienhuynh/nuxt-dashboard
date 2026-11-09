@@ -17,6 +17,12 @@
  * `mistral-large-2512` the consensus (2025-12-02, matching the `2512`
  * snapshot naming) beats Mistral's own stale 2024-11-01 entry.
  *
+ * DeepSeek variants models.dev has no entry for take their family base's
+ * date (`ultrafast`/Eco inherit V4.1 Flash's 2026-09-10, `-flash-fast`
+ * inherits V4 Flash's 2026-07-31) — per user decision 2026-11-09. Jev 1.14.0
+ * is on models.dev as a specialized model page (Release 2026-10-14) though
+ * absent from the default `api.json` payload; the base `jev` has no page.
+ *
  * Keyed by dataset model id; only applied when the payload leaves the date
  * unset, so a date CC starts publishing always wins.
  */
@@ -45,5 +51,11 @@ export const RELEASE_DATE_FALLBACKS: Record<string, string> = {
   'tokenharbor/qwen3-6-27b': '2026-04-22',
   'tokenharbor/qwen3-6-flash': '2026-04-27',
   'tokenharbor/deepseek-v3-2': '2025-12-01',
-  'tokenharbor/qwen3-5-27b': '2026-02-23'
+  'tokenharbor/qwen3-5-27b': '2026-02-23',
+  // DeepSeek variants: inherit the family base's date (no own entry).
+  'deepseek/deepseek-v4.1-flash-ultrafast': '2026-09-10',
+  'open-design/deepseek-v4-1-flash-eco': '2026-09-10',
+  'deepseek/deepseek-v4-flash-fast': '2026-07-31',
+  // Specialized models.dev page (not in the default api.json payload).
+  'typesafe/jev-1.14.0': '2026-10-14'
 }
