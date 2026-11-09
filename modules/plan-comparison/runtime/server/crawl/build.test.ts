@@ -541,3 +541,70 @@ describe('buildDatabase - TokenHarbor Agent Pass', () => {
       .toEqual(['deepseek/deepseek-v4.1-flash'])
   })
 })
+
+describe('buildDatabase - release date fallback', () => {
+  it('fills dates the CC payload leaves unset, from the audited models.dev map', () => {
+    const db = buildDatabase({
+      ...baseInput,
+      goatModels: [makeModel({ id: 'tencent/hy4-preview', slug: 'hy4-preview', name: 'Tencent Hy4 Preview', vendor: 'Tencent' })],
+      tokenHarborModels: [thModel({ id: 'gpt-6-luna-fast', label: 'GPT-6 Luna Fast', family: 'openai', priceIn: 0.2, priceOut: 1.2, cacheRead: 0.02 })]
+    })
+    expect(db.models.find(m => m.id === 'tencent/hy4-preview')?.releaseDate).toBe('2026-08-28')
+    expect(db.models.find(m => m.id === 'tokenharbor/gpt-6-luna-fast')?.releaseDate).toBe('2026-09-22')
+  })
+
+  it('keeps a date the payload publishes — the fallback never overrides', () => {
+    const db = buildDatabase({
+      ...baseInput,
+      goatModels: [makeModel({ id: 'tencent/hy4-preview', slug: 'hy4-preview', name: 'Tencent Hy4 Preview', vendor: 'Tencent', releaseDate: '2026-08-27' })]
+    })
+    expect(db.models.find(m => m.id === 'tencent/hy4-preview')?.releaseDate).toBe('2026-08-27')
+  })
+})
+
+describe('buildDatabase - TokenHarbor Office Pass', () => {
+  const officeModels = [
+    thModel({ id: 'glm-5.3-flash', label: 'GLM 5.3 Flash', family: 'z-ai', priceIn: 0.15, priceOut: 0.5, cacheRead: 0.03, contextWindow: 1000000, intelligenceIndex: 27.8 }),
+    // Office price rule: inside $1 in / $4 out, above the Agent caps.
+    thModel({ id: 'deepseek-v4.1-flash', label: 'DeepSeek V4.1 Flash', family: 'deepseek', priceIn: 0.3, priceOut: 1.2, cacheRead: 0.03 }),
+    // Office by-name: far above the caps.
+    thModel({ id: 'claude-sonnet-5', label: 'Claude Sonnet 5', family: 'anthropic', priceIn: 2, priceOut: 10, cacheRead: 0.2 }),
+    // Office-priced but neither by-name nor inside the caps → not funded.
+    thModel({ id: 'claude-opus-5.5', label: 'Claude Opus 5.5', family: 'anthropic', priceIn: 4, priceOut: 20 }),
+    thModel({ id: 'mimo-v2.5:free', label: 'MiMo V2.5', priceIn: 0, priceOut: 0, isFree: true })
+  ]
+
+  it('funds the agent rule, the office caps and the office by-name list at the $35 pool', () => {
+    const db = buildDatabase({ ...baseInput, tokenHarborModels: officeModels })
+    const rows = db.plan_models.filter(p => p.plan_id === 'th-office')
+    expect(rows.map(r => r.model_id).sort()).toEqual([
+      'tokenharbor/claude-sonnet-5',
+      'tokenharbor/deepseek-v4-1-flash',
+      'tokenharbor/glm-5-3-flash'
+    ])
+    expect(rows.map(r => r.monthly_credits_usd)).toEqual([35, 35, 35])
+    // $35 pool at the published profile ($0.00104/req for GLM) → 33654 →
+    // round3; weekly is a quarter of the four-week cycle, 5h stays null.
+    expect(rows.find(r => r.model_id === 'tokenharbor/glm-5-3-flash')?.estimates)
+      .toEqual({ per_5h: null, per_week: 8410, per_month: 33700 })
+    expect(rows.find(r => r.model_id === 'tokenharbor/glm-5-3-flash')?.note)
+      .toContain('Office Pass rule (≤ $1 in / $4 out per 1M, plus by-name, including everything the Agent Pass funds)')
+    // The Agent Pass rows are unchanged by the office pass: the agent rule
+    // funds only GLM here (the base DeepSeek sits above the agent caps).
+    const agentRows = db.plan_models.filter(p => p.plan_id === 'th-agent')
+    expect(agentRows.map(r => r.model_id)).toEqual(['tokenharbor/glm-5-3-flash'])
+    expect(agentRows[0]?.monthly_credits_usd).toBe(10)
+  })
+
+  it('stretches the office pool with a standing Model Boost, like the agent pool', () => {
+    const db = buildDatabase({
+      ...baseInput,
+      tokenHarborModels: [officeModels[0]!],
+      tokenHarborBoosts: [{ name: 'GLM 5.3 Flash', multiple: 2, promo: false }]
+    })
+    const row = db.plan_models.find(p => p.plan_id === 'th-office')
+    expect(row?.monthly_credits_usd).toBe(70)
+    expect(row?.estimates).toEqual({ per_5h: null, per_week: 16800, per_month: 67300 })
+    expect(row?.note).toContain('Model Boost 2×')
+  })
+})

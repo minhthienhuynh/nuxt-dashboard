@@ -116,5 +116,29 @@ export const plans: Plan[] = [
       'monthly': 10
     },
     weekly_window_days: 7
+  },
+  {
+    id: 'th-office',
+    provider_id: 'tokenharbor',
+    name: 'Office Pass',
+    // "Office Pass and Frontier Pass cost the same amount every month,
+    // including the first" — no promo-shaped first month to keep out.
+    monthly_price_usd: 9.99,
+    // One shared allowance: "Office Pass includes $35 of usage value" spent
+    // across every eligible model, so every row carries the pool ("if this
+    // model used all of it"). A boosted model stretches it (see the crawl:
+    // credit = pool × Model Boost, up to $70).
+    monthly_credit_usd: 35,
+    has_api_access: true,
+    funding: 'pool',
+    // Same four-week cycle as the Agent Pass: "Each Pass allowance covers a
+    // four-week cycle and is divided into four 7-day windows" → $8.75 per
+    // week of the $35; no 5-hour window is published (null renders `—`).
+    limits: {
+      '5h': null,
+      'weekly': 8.75,
+      'monthly': 35
+    },
+    weekly_window_days: 7
   }
 ]

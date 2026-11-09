@@ -121,7 +121,7 @@ export function modelInfoFields(model: Model, pricing: PricingEntry | null): Mod
     priceField('Cache write', pricing?.cache_write),
     capsValue(model),
     model.releaseDate ? { label: 'Released', value: formatDate(model.releaseDate) } : null,
-    // The page compares five vendors, so this is the catalogue date, not a
+    // The page compares several vendors, so this is the catalogue date, not a
     // Command Code-only fact.
     model.launchedAt ? { label: 'Listed since', value: formatDate(model.launchedAt) } : null,
     minPlanField(model.minPlanName),

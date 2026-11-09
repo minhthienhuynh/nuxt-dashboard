@@ -1,11 +1,13 @@
 /**
  * TokenHarbor (`tokenharbor.ai`) is an OpenAI-compatible gateway that sells
- * gateway Passes. The Agent Pass funds a **rule**, not a published model table:
- * "Every model priced at or under $0.20 per 1M input tokens and $1 per 1M
- * output tokens. Also, by name, even when priced above that: `gpt-5.6-luna`
- * and `mimo-v2.5-pro`" (tokenharbor.ai/docs/billing/subscription). The docs
- * say so themselves: "The Plans page lists every model each Pass reaches
- * today... The summary below is the rule itself".
+ * gateway Passes. Each Pass funds a **rule**, not a published model table —
+ * the Agent Pass: "Every model priced at or under $0.20 per 1M input tokens
+ * and $1 per 1M output tokens. Also, by name, even when priced above that:
+ * `gpt-5.6-luna` and `mimo-v2.5-pro`"; the Office Pass stacks a wider rule
+ * ($1 in / $4 out) plus nine more by-name models on top of everything the
+ * Agent Pass funds (tokenharbor.ai/docs/billing/subscription). The docs say
+ * so themselves: "The Plans page lists every model each Pass reaches today...
+ * The summary below is the rule itself".
  *
  * So membership is derived here (docs publish the rule, the models page
  * publishes the rates) instead of being copied off a page table:
@@ -56,6 +58,28 @@ export interface TokenHarborBoostRow {
 export const TOKEN_HARBOR_AGENT_CAPS = { input: 0.2, output: 1 } as const
 
 export const TOKEN_HARBOR_AGENT_BY_NAME = ['gpt-5.6-luna', 'mimo-v2.5-pro'] as const
+
+/**
+ * Published membership rule of the Office Pass: "Everything in Agent Pass,
+ * plus: Every model priced at or under $1 per 1M input tokens and $4 per 1M
+ * output tokens. Also, by name, even when priced above that: `muse-spark-1-3`,
+ * `claude-sonnet-5.5`, `claude-sonnet-5`, `gpt-5.6-terra`, `deepseek-v4-pro`,
+ * `qwen3.8-max`, `glm-5.3`, `grok-4.7` and `grok-4.6`"
+ * (tokenharbor.ai/docs/billing/subscription).
+ */
+export const TOKEN_HARBOR_OFFICE_CAPS = { input: 1, output: 4 } as const
+
+export const TOKEN_HARBOR_OFFICE_BY_NAME = [
+  'muse-spark-1-3',
+  'claude-sonnet-5.5',
+  'claude-sonnet-5',
+  'gpt-5.6-terra',
+  'deepseek-v4-pro',
+  'qwen3.8-max',
+  'glm-5.3',
+  'grok-4.7',
+  'grok-4.6'
+] as const
 
 /**
  * TokenHarbor pins a dated snapshot id for some models (`-1017`) while the
@@ -274,8 +298,23 @@ export function parseTokenHarborBoosts(html: string): TokenHarborBoostRow[] {
 export function isAgentPassModel(model: TokenHarborModel): boolean {
   if (model.isFree) return false
   if (TOKEN_HARBOR_AGENT_BY_NAME.includes(model.id as typeof TOKEN_HARBOR_AGENT_BY_NAME[number])) return true
+  return pricedWithin(model, TOKEN_HARBOR_AGENT_CAPS)
+}
+
+/**
+ * Paid models the Office Pass funds: everything the Agent Pass funds, plus its
+ * own price rule and by-name list ("Everything in Agent Pass, plus ...").
+ */
+export function isOfficePassModel(model: TokenHarborModel): boolean {
+  if (model.isFree) return false
+  if (isAgentPassModel(model)) return true
+  return TOKEN_HARBOR_OFFICE_BY_NAME.includes(model.id as typeof TOKEN_HARBOR_OFFICE_BY_NAME[number])
+    || pricedWithin(model, TOKEN_HARBOR_OFFICE_CAPS)
+}
+
+function pricedWithin(model: TokenHarborModel, caps: { input: number, output: number }): boolean {
   if (model.priceIn == null || model.priceOut == null) return false
-  return model.priceIn <= TOKEN_HARBOR_AGENT_CAPS.input && model.priceOut <= TOKEN_HARBOR_AGENT_CAPS.output
+  return model.priceIn <= caps.input && model.priceOut <= caps.output
 }
 
 /**

@@ -60,7 +60,7 @@ function onIntelThresholdInput(value: string | number) {
 
     <label class="flex w-fit items-center gap-2 text-sm whitespace-nowrap text-muted">
       <USwitch v-model="hideOldModels" size="sm" />
-      Hide models launched before
+      Hide models released before
       <UInput
         type="date"
         :model-value="oldBefore"

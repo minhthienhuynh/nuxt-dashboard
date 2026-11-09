@@ -57,19 +57,20 @@ function makeRow(name: string, overrides: Partial<EnrichedModelRow> = {}): Enric
     model,
     // Production labels are plain model names (labelFor); wrapped ticks use
     // `\n` line breaks, never an intel suffix.
-    label: name,
-    pricing: null,
-    release: null,
+    'label': name,
+    'pricing': null,
+    'release': null,
     name,
-    context: null,
-    intelligence: null,
-    speed: null,
-    inputPrice: null,
-    cmd: { credit: null, request: null, pool: false },
-    goat: { credit: null, request: null, pool: false },
-    go: { credit: null, request: null, pool: false },
-    od: { credit: null, request: null, pool: true },
-    th: { credit: null, request: null, pool: true },
+    'context': null,
+    'intelligence': null,
+    'speed': null,
+    'inputPrice': null,
+    'cmd': { credit: null, request: null, pool: false },
+    'goat': { credit: null, request: null, pool: false },
+    'go': { credit: null, request: null, pool: false },
+    'od': { credit: null, request: null, pool: true },
+    'th': { credit: null, request: null, pool: true },
+    'th-office': { credit: null, request: null, pool: true },
     ...overrides
   }
 }
@@ -215,7 +216,8 @@ describe('funding values', () => {
       { label: 'Command Code GOAT', value: '$200 credit · 5,000 req/mo' },
       { label: 'OpenCode Go', value: '$50 credit · 1,000 req/mo' },
       { label: 'OpenDesign Go', value: '—' },
-      { label: 'Token Harbor Agent', value: '—' }
+      { label: 'Token Harbor Agent', value: '—' },
+      { label: 'Token Harbor Office', value: '—' }
     ])
   })
 
@@ -264,7 +266,8 @@ describe('fundingWithPlans', () => {
       ['goat', 'Command Code GOAT', '$200 credit · 5,000 req/mo'],
       ['go', 'OpenCode Go', '$50 credit · 1,000 req/mo'],
       ['od', 'OpenDesign Go', '—'],
-      ['th', 'Token Harbor Agent', '—']
+      ['th', 'Token Harbor Agent', '—'],
+      ['th-office', 'Token Harbor Office', '—']
     ])
     expect(fields.map(field => field.plan)).toEqual(PLAN_COMPARISON_PLANS)
   })
