@@ -67,16 +67,20 @@ const xTickFormat = (value: number) => `$${value}`
     <template #header>
       <div class="space-y-1 px-4">
         <p class="text-lg font-semibold text-highlighted">
-          1. Monthly credit + requests per model
+          1. Monthly credit per model
         </p>
         <p class="text-[13px] text-muted">
-          Bar length = max monthly credit. Hover a model's bar or name to see its specs
-          (intelligence, pricing, caps) and per-plan funding.
+          Bar length = the monthly credit a plan funds that model with, scaled to
+          the largest bar. Hover a bar or a model name for its specs
+          (intelligence, pricing, caps) and what every plan funds it with.
           <template v-if="poolPlans.length">
-            {{ poolPlans.map(plan => plan.label).join(', ') }} bills one shared pool, so each bar is that pool after the model's own credit multiplier — what the model could use on its own, not a per-model grant.
+            {{ poolPlans.map(plan => plan.label).join(' and ') }} sell one shared
+            pool rather than a per-model grant, so their bars show that pool
+            divided by the model's credit multiplier — the most the model could
+            use on its own.
           </template>
           <template v-if="skipped.length">
-            Skipped: {{ skipped.join(', ') }} (no plan grants them credit).
+            No plan funds: {{ skipped.join(', ') }}.
           </template>
         </p>
         <VisBulletLegend :items="chartLegend" class="justify-center" />

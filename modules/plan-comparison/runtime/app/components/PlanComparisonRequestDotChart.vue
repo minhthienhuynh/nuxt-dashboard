@@ -129,16 +129,20 @@ const DURATION = 200
     <template #header>
       <div class="space-y-1 px-4">
         <p class="text-lg font-semibold text-highlighted">
-          2. Both quota types on one row
+          2. Requests per month vs credit
         </p>
         <p class="text-[13px] text-muted">
-          Horizontal position = requests/mo (log scale), dot diameter = credit/mo (area-proportional).
-          Hover a dot or model name to see its specs and per-plan funding.
+          Horizontal position = requests per month (log scale). Dot size =
+          monthly credit, area-proportional. Hover a dot or a model name for its
+          specs and what every plan funds it with.
           <template v-if="poolPlans.length">
-            {{ poolPlans.map(plan => plan.label).join(', ') }} shares one pool, so its dot diameter is that pool divided by the model's credit multiplier.
+            {{ poolPlans.map(plan => plan.label).join(' and ') }} sell one shared
+            pool, so their dots show that pool divided by the model's credit
+            multiplier.
           </template>
           <template v-if="noRequest.length">
-            {{ noRequest.length }} models without a published request count are omitted: {{ noRequest.join(', ') }}.
+            Left out of this chart because no request count is published:
+            {{ noRequest.join(', ') }}.
           </template>
         </p>
         <VisBulletLegend :items="legendItems" class="justify-center" orientation="horizontal" />

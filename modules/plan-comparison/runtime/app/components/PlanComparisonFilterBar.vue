@@ -54,13 +54,13 @@ function onIntelThresholdInput(value: string | number) {
         <USelect v-model="sortOption" :items="sortItems" class="w-44" />
       </label>
       <span class="text-[13px] text-dimmed">
-        {{ SORT_HINTS[sortOption] }} Models missing data sort last.
+        {{ SORT_HINTS[sortOption] }} Models missing that value sort last.
       </span>
     </div>
 
     <label class="flex w-fit items-center gap-2 text-sm whitespace-nowrap text-muted">
       <USwitch v-model="hideOldModels" size="sm" />
-      Hide old models (launched before
+      Hide models launched before
       <UInput
         type="date"
         :model-value="oldBefore"
@@ -68,19 +68,18 @@ function onIntelThresholdInput(value: string | number) {
         class="w-36"
         @update:model-value="onOldBeforeInput($event as string)"
       />
-      )
     </label>
 
     <label class="flex w-fit items-center gap-2 text-sm whitespace-nowrap text-muted">
       <USwitch v-model="hideLowIntel" size="sm" />
-      Hide models with Intelligence &lt;
+      Hide models with Intelligence Index below
       <UInput
         type="number"
         :model-value="intelThreshold"
         size="sm"
         class="w-20"
         min="0"
-        @update:model-value="onIntelThresholdInput"
+        @update:model-value="onIntelThresholdInput($event as string | number)"
       />
     </label>
   </UCard>
