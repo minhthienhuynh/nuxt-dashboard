@@ -8,6 +8,7 @@ import type { OpenCodeEndpointRow, OpenCodeEstimateRow, OpenCodePricingRow } fro
 import type { OpenDesignAllowanceRow, OpenDesignCatalogModel, OpenDesignMultiplierRow } from './opendesign'
 import type { TokenHarborBoostRow, TokenHarborModel } from './tokenharbor'
 import { TOKEN_HARBOR_AGENT_CAPS, TOKEN_HARBOR_MODEL_ALIASES, TOKEN_HARBOR_OFFICE_CAPS, TOKEN_HARBOR_REQUEST_SHAPE, isAgentPassModel, isOfficePassModel, tokenHarborRequestCost, tokenHarborVendor } from './tokenharbor'
+import { RELEASE_DATE_FALLBACKS } from './release-dates'
 import { plans } from '../data/plans'
 
 export interface BuildInput {
@@ -603,8 +604,15 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
     }
   }
 
+  // models.dev fallback: dates CC's payload leaves unset, for the models the
+  // vendor's own pages show `—` for (see release-dates.ts for the audit).
+  const withDates = models.map((model) => {
+    const fallback = RELEASE_DATE_FALLBACKS[model.id]
+    return fallback && model.releaseDate == null ? { ...model, releaseDate: fallback } : model
+  })
+
   return {
-    models: dedupeBy(models, m => m.slug),
+    models: dedupeBy(withDates, m => m.slug),
     pricing: dedupeBy(pricing, p => `${p.provider_id}:${p.model_id}:${p.tier}`),
     plan_models: dedupeBy(planModels, p => `${p.plan_id}:${p.model_id}`)
   }

@@ -542,6 +542,26 @@ describe('buildDatabase - TokenHarbor Agent Pass', () => {
   })
 })
 
+describe('buildDatabase - release date fallback', () => {
+  it('fills dates the CC payload leaves unset, from the audited models.dev map', () => {
+    const db = buildDatabase({
+      ...baseInput,
+      goatModels: [makeModel({ id: 'tencent/hy4-preview', slug: 'hy4-preview', name: 'Tencent Hy4 Preview', vendor: 'Tencent' })],
+      tokenHarborModels: [thModel({ id: 'gpt-6-luna-fast', label: 'GPT-6 Luna Fast', family: 'openai', priceIn: 0.2, priceOut: 1.2, cacheRead: 0.02 })]
+    })
+    expect(db.models.find(m => m.id === 'tencent/hy4-preview')?.releaseDate).toBe('2026-08-28')
+    expect(db.models.find(m => m.id === 'tokenharbor/gpt-6-luna-fast')?.releaseDate).toBe('2026-09-22')
+  })
+
+  it('keeps a date the payload publishes — the fallback never overrides', () => {
+    const db = buildDatabase({
+      ...baseInput,
+      goatModels: [makeModel({ id: 'tencent/hy4-preview', slug: 'hy4-preview', name: 'Tencent Hy4 Preview', vendor: 'Tencent', releaseDate: '2026-08-27' })]
+    })
+    expect(db.models.find(m => m.id === 'tencent/hy4-preview')?.releaseDate).toBe('2026-08-27')
+  })
+})
+
 describe('buildDatabase - TokenHarbor Office Pass', () => {
   const officeModels = [
     thModel({ id: 'glm-5.3-flash', label: 'GLM 5.3 Flash', family: 'z-ai', priceIn: 0.15, priceOut: 0.5, cacheRead: 0.03, contextWindow: 1000000, intelligenceIndex: 27.8 }),
