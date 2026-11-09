@@ -63,6 +63,12 @@ export interface PlanCard {
 
 export interface NormalizedPlanComparisonData {
   planCards: PlanCard[]
+  /**
+   * Registry meta of the checked plans, in registry order — the charts draw one
+   * series per entry, so an unchecked plan disappears from the bars, the dots
+   * and every model's tooltip instead of lingering as an empty column.
+   */
+  selectedPlans: PlanComparisonPlanMeta[]
   /** Series keys funded from one shared pool — the credit bar chart drops them. */
   poolPlanKeys: PlanComparisonPlanKey[]
   creditRows: EnrichedModelRow[]
@@ -220,6 +226,7 @@ export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filt
   const cards = PLAN_COMPARISON_PLANS.map(planCard).filter((card): card is PlanCard => card != null)
   return {
     planCards: cards,
+    selectedPlans,
     // Derived from the plan data (not from the visible rows), so a fully
     // filtered chart keeps the same series list and footnote.
     poolPlanKeys: cards
@@ -306,6 +313,7 @@ export function usePlanComparisonDatabase() {
     setPlanSelected,
     togglePlan,
     planCards: computed(() => normalized.value?.planCards ?? []),
+    selectedPlans: computed(() => normalized.value?.selectedPlans ?? []),
     poolPlanKeys: computed(() => normalized.value?.poolPlanKeys ?? []),
     creditRows: computed(() => normalized.value ? sortRows(normalized.value.creditRows, sortOption.value) : []),
     dotRows: computed(() => normalized.value ? sortRows(normalized.value.dotRows, sortOption.value) : []),

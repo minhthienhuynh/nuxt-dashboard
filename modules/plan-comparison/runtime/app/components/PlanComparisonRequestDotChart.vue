@@ -2,8 +2,8 @@
 import { VisAxis, VisBulletLegend, VisPlotband, VisScatter, VisXYContainer } from '@unovis/vue'
 import { Scale } from '@unovis/ts'
 import type { EnrichedModelRow } from '../composables/usePlanComparisonDatabase'
-import { PLAN_COMPARISON_PLANS } from '../plan-colors'
-import type { PlanComparisonPlanKey } from '../plan-colors'
+import type { PlanComparisonPlanKey, PlanComparisonPlanMeta } from '../plan-colors'
+import { usePlanSeries } from '../usePlanSeries'
 import { AXIS_TICK_SEPARATOR, thinTicks } from '../plan-chart-axis'
 import { usePlanComparisonChartFrame } from '../usePlanComparisonChartFrame'
 import { usePlanChartHover } from '../usePlanChartHover'
@@ -12,13 +12,15 @@ import '../plan-chart.css'
 const props = defineProps<{
   rows: EnrichedModelRow[]
   noRequest: string[]
+  /** Checked plans, in registry order: one dot series per entry. */
+  plans: PlanComparisonPlanMeta[]
   /** Plans funded from one shared pool: their dots all share the pool diameter. */
   poolPlanKeys: PlanComparisonPlanKey[]
 }>()
 
 // Pool plans report one shared credit on every row; their dots therefore share
 // one diameter. Saying so beats letting the reader infer a per-model grant.
-const poolPlans = computed(() => PLAN_COMPARISON_PLANS.filter(plan => props.poolPlanKeys.includes(plan.key)))
+const { sharedPoolPlans, sharedPoolNote, legend } = usePlanSeries(() => props.plans, () => props.poolPlanKeys)
 
 const {
   cardRef,
@@ -30,8 +32,7 @@ const {
   yDomain,
   zebraRows,
   tickValues,
-  yTickFormat,
-  legendItems
+  yTickFormat
 } = usePlanComparisonChartFrame(() => props.rows)
 
 const chartHeight = computed(() => props.rows.length * rowBandHeight.value + 72)
@@ -98,7 +99,7 @@ interface DotPoint {
 const points = computed<DotPoint[]>(() => {
   const result: DotPoint[] = []
   props.rows.forEach((row, rowIndex) => {
-    for (const plan of PLAN_COMPARISON_PLANS) {
+    for (const plan of props.plans) {
       const funding = row[plan.key]
       if (funding.request == null || funding.credit == null) continue
       result.push({
@@ -134,18 +135,18 @@ const DURATION = 200
         <p class="text-[13px] text-muted">
           Horizontal position = requests per month (log scale). Dot size =
           monthly credit, area-proportional. Hover a dot or a model name for its
-          specs and what every plan funds it with.
-          <template v-if="poolPlans.length">
-            {{ poolPlans.map(plan => plan.label).join(' and ') }} sell one shared
-            pool, so their dots show that pool divided by the model's credit
-            multiplier.
+          specs and what each checked plan funds it with.
+          <template v-if="sharedPoolPlans.length">
+            {{ sharedPoolNote.names }} {{ sharedPoolNote.verb }} one shared pool,
+            so {{ sharedPoolNote.pronoun }} dots show that pool divided by the
+            model's credit multiplier.
           </template>
           <template v-if="noRequest.length">
             Left out of this chart because no request count is published:
             {{ noRequest.join(', ') }}.
           </template>
         </p>
-        <VisBulletLegend :items="legendItems" class="justify-center" orientation="horizontal" />
+        <VisBulletLegend :items="legend" class="justify-center" orientation="horizontal" />
       </div>
     </template>
 
@@ -207,6 +208,7 @@ const DURATION = 200
       <PlanComparisonModelInfo
         v-if="hovered"
         :row="hovered.row"
+        :plans="plans"
         :x="hovered.x"
         :y="hovered.y"
         @close="close"
