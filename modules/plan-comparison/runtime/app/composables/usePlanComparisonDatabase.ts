@@ -164,7 +164,7 @@ export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filt
   const enrichedRows: EnrichedModelRow[] = visibleModels.map(model => ({
     model,
     label: labelFor(model),
-    release: model.launchedAt ? Date.parse(model.launchedAt) : null,
+    release: model.releaseDate ? Date.parse(model.releaseDate) : null,
     name: model.name,
     context: model.contextWindow,
     intelligence: model.intelligenceIndex,

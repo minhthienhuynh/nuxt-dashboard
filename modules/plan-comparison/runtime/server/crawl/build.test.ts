@@ -542,6 +542,43 @@ describe('buildDatabase - TokenHarbor Agent Pass', () => {
   })
 })
 
+describe('buildDatabase - TokenHarbor dated pins', () => {
+  it('joins the fast serving tier pin to the CMD catalog row too', () => {
+    // Token Harbor sells the fast tier as `deepseek-v4.1-flash-1017-fast`;
+    // Command Code lists the same model as deepseek/deepseek-v4.1-flash-fast.
+    const db = buildDatabase({
+      ...baseInput,
+      goatModels: [makeModel({
+        id: 'deepseek/deepseek-v4.1-flash-fast',
+        slug: 'deepseek-v4-1-flash-fast',
+        name: 'DeepSeek V4.1 Flash Fast (latest)',
+        vendor: 'DeepSeek',
+        inputCost: 0.6,
+        outputCost: 2.4,
+        cacheReadCost: 0.014,
+        contextWindow: 1048576
+      })],
+      tokenHarborModels: [thModel({
+        id: 'deepseek-v4.1-flash-1017-fast',
+        label: 'DeepSeek V4.1 Flash 1017 Fast',
+        family: 'deepseek',
+        priceIn: 0.6,
+        priceOut: 2.4,
+        cacheRead: 0.014,
+        contextWindow: 1048576
+      })]
+    })
+    // The CMD plan rows were already on the joined id; the Office Pass lands
+    // there too (the fast tier's rates sit above the Agent caps, so no
+    // th-agent row). No second, metadata-poor model for the pin.
+    const plans = db.plan_models.filter(p => p.model_id === 'deepseek/deepseek-v4.1-flash-fast').map(p => p.plan_id).sort()
+    expect(plans).toEqual(['cmd-go', 'cmd-goat', 'th-office'])
+    expect(db.models.filter(m => m.slug === 'deepseek-v4-1-flash-fast')).toHaveLength(1)
+    expect(db.pricing.filter(p => p.provider_id === 'tokenharbor').map(p => p.model_id))
+      .toEqual(['deepseek/deepseek-v4.1-flash-fast'])
+  })
+})
+
 describe('buildDatabase - release date fallback', () => {
   it('fills dates the CC payload leaves unset, from the audited models.dev map', () => {
     const db = buildDatabase({
