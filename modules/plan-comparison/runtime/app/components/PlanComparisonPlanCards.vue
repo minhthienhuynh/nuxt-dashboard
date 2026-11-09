@@ -38,7 +38,7 @@ function fundingShape(plan: PlanCard): string {
 }
 
 /**
- * The monthly cap repeats the headline allowance on most plans, so it is only
+ * The monthly cap repeats the monthly-credit row on most plans, so it is only
  * listed when the two differ (or when the plan expresses it as a share).
  */
 function showMonthlyCap(plan: PlanCard): boolean {
@@ -79,7 +79,9 @@ function vendorPlanName(plan: PlanCard): string {
 }
 
 const ROWS: Array<{ label: string, value: (plan: PlanCard) => string, show?: (plan: PlanCard) => boolean }> = [
-  { label: 'Price', value: plan => `${formatUsd(plan.price)}/mo` },
+  // The headline is the price; the allowance is the first detail row, with the
+  // funding shape ("one shared pool" / "per model") riding on its value.
+  { label: 'Monthly credit', value: plan => `${formatUsd(plan.monthlyCredit)} ${fundingShape(plan)}` },
   // Command Code caps most models well below the headline credit ($20 of a
   // $100 GOAT pool), so the range is the number that matters per model.
   { label: 'Per-model cap', value: plan => plan.creditRange ? `${formatUsd(plan.creditRange.min)}–${formatUsd(plan.creditRange.max)}` : '' },
@@ -127,10 +129,7 @@ const ROWS: Array<{ label: string, value: (plan: PlanCard) => string, show?: (pl
       </div>
 
       <p class="text-3xl font-bold text-highlighted">
-        {{ formatUsd(plan.monthlyCredit) }}<span class="text-sm font-normal text-muted"> credit/mo</span>
-      </p>
-      <p class="text-xs text-muted">
-        {{ fundingShape(plan) }}
+        {{ formatUsd(plan.price) }}<span class="text-sm font-normal text-muted"> /mo</span>
       </p>
 
       <dl class="mt-2 space-y-0.5 text-[13px] text-muted">
