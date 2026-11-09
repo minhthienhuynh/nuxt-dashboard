@@ -90,5 +90,31 @@ export const plans: Plan[] = [
       'monthly': 220
     },
     weekly_window_days: 7
+  },
+  {
+    id: 'th-agent',
+    provider_id: 'tokenharbor',
+    name: 'Agent Pass',
+    // Standard renewal price. The pass is also sold at $0.99 for the first
+    // month and yearly — promo-shaped numbers, not stored (same rule as
+    // OpenDesign's first-month price).
+    monthly_price_usd: 1.99,
+    // One shared allowance: "Agent Pass includes $10 of usage value" spent
+    // across every eligible model, so every row carries the pool ("if this
+    // model used all of it"). A boosted model stretches it (see the crawl:
+    // credit = pool × Model Boost, up to $20).
+    monthly_credit_usd: 10,
+    has_api_access: true,
+    funding: 'pool',
+    // "Each Pass allowance covers a four-week cycle and is divided into four
+    // 7-day windows: each 7-day window contains one quarter of the four-week
+    // allowance." So the weekly window is $2.50 of the $10; the pass publishes
+    // no 5-hour window at all (null renders `—` instead of an invented cap).
+    limits: {
+      '5h': null,
+      'weekly': 2.5,
+      'monthly': 10
+    },
+    weekly_window_days: 7
   }
 ]
