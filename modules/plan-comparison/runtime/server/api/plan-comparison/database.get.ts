@@ -7,7 +7,7 @@ import { SOURCE_URLS, extractFlightEstimates, extractFlightModels, fetchSources 
 import { parseGoatEstimates, parseGoatModels } from '../../crawl/goat'
 import { parseGoPlanLimits, parsePricingLimits } from '../../crawl/ccpricing'
 import { parseOpenCodeEndpoints, parseOpenCodeEstimates, parseOpenCodePricing } from '../../crawl/opencode'
-import { parseOpenDesignAllowances, parseOpenDesignModels, parseOpenDesignMultipliers } from '../../crawl/opendesign'
+import { parseOpenDesignAllowances, parseOpenDesignModels, parseOpenDesignMultipliers, parseOpenDesignUsage } from '../../crawl/opendesign'
 import { parseTokenHarborBoosts, parseTokenHarborCatalogue } from '../../crawl/tokenharbor'
 import { crawledDatabaseSchema } from '../../crawl/schemas'
 import { AA_MODEL_SLUGS, fetchAaScore, fetchLeaderboardIntel, resolveAaScore } from '../../crawl/aa'
@@ -79,6 +79,9 @@ async function crawlFresh(): Promise<PlanComparisonPayload> {
   const odAllowances = parseOpenDesignAllowances(sources.openDesignGoHtml)
   const odModels = parseOpenDesignModels(sources.openDesignModelsHtml)
   const odMultipliers = parseOpenDesignMultipliers(sources.openDesignCreditsHtml)
+  // The vendor's own request estimates ("Coding Plan usage", Go column) — read
+  // the same way Command Code's and OpenCode Go's published counts are.
+  const odUsage = parseOpenDesignUsage(sources.openDesignGoHtml)
   // TokenHarbor Agent Pass: the docs publish the coverage rule, the models
   // page's Flight payload the catalogue with rates. The pricing page carries
   // the Model Boost badges the rule's estimate widget shows.
@@ -98,6 +101,7 @@ async function crawlFresh(): Promise<PlanComparisonPayload> {
     openDesignAllowances: odAllowances,
     openDesignModels: odModels,
     openDesignMultipliers: odMultipliers,
+    openDesignUsage: odUsage,
     tokenHarborModels: thModels,
     tokenHarborBoosts: thBoosts,
     fetchedAt,

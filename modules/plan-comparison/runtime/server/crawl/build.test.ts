@@ -47,6 +47,7 @@ const baseInput = {
   openDesignAllowances: [],
   openDesignModels: [],
   openDesignMultipliers: [],
+  openDesignUsage: [],
   tokenHarborModels: [],
   tokenHarborBoosts: [],
   fetchedAt: '2026-09-19T00:00:00.000Z',
@@ -405,6 +406,34 @@ describe('buildDatabase - OpenDesign Go pool plan', () => {
       ['DeepSeek V4.1 Flash Eco', 814.81, null]
     ])
     expect(rows[2]?.note).toBe('Pool 220/mo at 0.27× from odc; no published rates')
+  })
+
+  it('prefers the vendor request estimate when the usage table quotes one', () => {
+    // Same shape as Command Code / OpenCode Go: the published request count wins
+    // over the repo's derivation, and it reaches a model with no published rates
+    // (Eco), which otherwise carries null estimates.
+    const db = buildDatabase({
+      ...baseInput,
+      openDesignAllowances: odAllowancesFixture,
+      openDesignModels: [odModel()],
+      openDesignMultipliers: [
+        { name: 'Widget', multiplier: 1 },
+        { name: 'DeepSeek V4.1 Flash Eco', multiplier: 0.27 }
+      ],
+      openDesignUsage: [
+        { name: 'Widget', requestsPerWeek: 266933 },
+        { name: 'DeepSeek V4.1 Flash Eco', requestsPerWeek: 3000 }
+      ]
+    })
+    const rows = db.plan_models.filter(p => p.plan_id === 'od-go')
+    const byCredit = new Map(rows.map(r => [r.monthly_credits_usd, r]))
+    // Plans split the month into four 7-day windows; 5-hour keeps its share (18/220).
+    expect(byCredit.get(220)?.estimates).toEqual({ per_5h: 87400, per_week: 267000, per_month: 1070000 })
+    expect(byCredit.get(814.81)?.estimates).toEqual({ per_5h: 982, per_week: 3000, per_month: 12000 })
+    expect(byCredit.get(814.81)?.note)
+      .toBe('Pool 220/mo at 0.27× from odc; requests from the vendor\'s Coding Plan usage table (Go column) on odp')
+    // The credit is still the pool share, never the normalised usage column.
+    expect(byCredit.get(814.81)?.monthly_credits_usd).toBe(814.81)
   })
 
   it('leaves models outside the catalog out of the dataset', () => {
