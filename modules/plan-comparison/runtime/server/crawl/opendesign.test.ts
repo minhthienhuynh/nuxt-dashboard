@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseOpenDesignAllowances, parseOpenDesignModels, parseOpenDesignMultipliers, parseOpenDesignUsage, parsePlanAccess } from './opendesign'
+import { designCreditBaseline, parseOpenDesignAllowances, parseOpenDesignModels, parseOpenDesignMultipliers, parseOpenDesignUsage, parsePlanAccess } from './opendesign'
 
 // Trimmed copy of go.open-design.ai: the pricing page embeds the plan table as
 // a JSON settings block, the models index carries one catalog card (vendor +
@@ -162,5 +162,44 @@ describe('parseOpenDesignModels', () => {
     expect(legacy).toEqual([
       { id: 'grok-4.5', slug: 'grok-4-5', name: 'Grok 4.5', vendor: null, plans: [], tiers: [] }
     ])
+  })
+})
+
+describe('designCreditBaseline', () => {
+  // The vendor's Go column: every usage value is `60 ÷ multiplier`, and the
+  // "$220" in the plan table is only the largest of them (Eco's).
+  const usage = [
+    { name: 'GPT-6 Luna', requestsPerWeek: null, monthlyUsageUsd: 15 },
+    { name: 'GLM-5.3 Flash-X', requestsPerWeek: null, monthlyUsageUsd: 30 },
+    { name: 'DeepSeek V4 Pro', requestsPerWeek: null, monthlyUsageUsd: 60 },
+    { name: 'DeepSeek V4.1 Flash', requestsPerWeek: null, monthlyUsageUsd: 120 },
+    { name: 'DeepSeek V4.1 Flash Eco', requestsPerWeek: null, monthlyUsageUsd: 220 },
+    { name: 'Claude Haiku 5.5', requestsPerWeek: null, monthlyUsageUsd: 30 }
+  ]
+  const multipliers = [
+    { name: 'GPT-6 Luna', multiplier: 4 },
+    { name: 'GLM-5.3 Flash-X', multiplier: 2 },
+    { name: 'DeepSeek V4 Pro', multiplier: 1 },
+    { name: 'DeepSeek V4.1 Flash', multiplier: 0.5 },
+    { name: 'DeepSeek V4.1 Flash Eco', multiplier: 0.27 },
+    { name: 'Claude Haiku 5.5', multiplier: 4 }
+  ]
+
+  it('derives the pool from usage × multiplier, ignoring one generous row', () => {
+    // Products: 60, 60, 60, 60, 59.4, 120 — the outlier ($120 for Haiku) cannot
+    // drag the median, which rounds to the plan's $60.
+    expect(designCreditBaseline(usage, multipliers)).toBe(60)
+  })
+
+  it('needs a few rows before trusting the baseline', () => {
+    expect(designCreditBaseline(usage.slice(0, 2), multipliers)).toBeNull()
+    expect(designCreditBaseline([], multipliers)).toBeNull()
+  })
+
+  it('returns null when the credits page lists no multiplier', () => {
+    expect(designCreditBaseline(usage, [])).toBeNull()
+    expect(
+      designCreditBaseline(usage, multipliers.map(row => ({ ...row, multiplier: 0 })))
+    ).toBeNull()
   })
 })

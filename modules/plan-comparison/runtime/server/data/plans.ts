@@ -92,18 +92,22 @@ export const plans: Plan[] = [
     // List price $10/mo. The page also shows a first-month price ($8) and a
     // yearly equivalent ($7/mo, $84/yr) — promo-shaped numbers, not stored.
     monthly_price_usd: 10,
-    // "Total monthly credits, up to $220": one shared Coding Plan pool, not a
-    // per-model grant (pricing page settings: design 220, pool 0).
-    monthly_credit_usd: 220,
+    // $60 is the real pool: every row of the pricing page's usage table is
+    // `60 ÷ multiplier` ($60 at 1×, $220 at 0.27×), so "total monthly credits, up
+    // to $220" is the largest *allocation* (Eco), the same shape as OpenCode Go's
+    // $100 column under a $60 cap. The crawl re-derives the baseline from that
+    // table (median of `usage × multiplier`), so this number is only the
+    // fallback when the page is unreadable.
+    monthly_credit_usd: 60,
     has_api_access: true,
-    // Published in the pricing page's "Plan allowances" table: coding credits
-    // $220/month with a $55 per 7-day and $18 per 5-hour window (the windows
-    // apply to Coding Plan credits only). The crawl reads the same table live
-    // and falls back to these numbers.
+    // The table publishes its windows against the $220 allocation ($18 per 5h,
+    // $55 per 7d — they apply to Coding Plan credits only), which is 8.2% and
+    // 25% of it; the crawl rescales them onto the $60 pool. These are that
+    // rescaled fallback.
     limits: {
-      '5h': 18,
-      'weekly': 55,
-      'monthly': 220
+      '5h': 4.91,
+      'weekly': 15,
+      'monthly': 60
     },
     weekly_window_days: 7
   },

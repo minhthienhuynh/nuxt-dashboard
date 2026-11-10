@@ -21,7 +21,10 @@ describe('plans - published card values', () => {
     // limit`, so the docs table's $15–$100 column is the per-model allocation,
     // not a plan price.
     expect(byId('oc-go')).toMatchObject({ monthly_price_usd: 10, monthly_credit_usd: 60 })
-    expect(byId('od-go')).toMatchObject({ monthly_price_usd: 10, monthly_credit_usd: 220 })
+    // $60 pool, not the $220 headline: every usage row on the vendor's table is
+    // `60 ÷ multiplier`, so $220 is the largest allocation (Eco at 0.27×) — the
+    // same shape as OpenCode Go's $100 column under a $60 cap.
+    expect(byId('od-go')).toMatchObject({ monthly_price_usd: 10, monthly_credit_usd: 60 })
     // Agent Pass: $1.99 standard renewal ($0.99 is the first-month promo, not
     // stored) and one shared $10 allowance every eligible model drains.
     expect(byId('th-agent')).toMatchObject({ monthly_price_usd: 1.99, monthly_credit_usd: 10 })
@@ -33,7 +36,9 @@ describe('plans - published card values', () => {
   it('carries the published rolling windows', () => {
     expect(byId('cmd-go')?.limits).toEqual({ '5h': 3, 'weekly': 6, 'monthly': 10 })
     expect(byId('cmd-goat')?.limits).toEqual({ '5h': 20, 'weekly': 50, 'monthly': 100 })
-    expect(byId('od-go')?.limits).toEqual({ '5h': 18, 'weekly': 55, 'monthly': 220 })
+    // The table's $18/5h and $55/7d are quoted against the $220 allocation —
+    // 8.2% and 25% of it — so on the $60 pool they are $4.91 and $15.
+    expect(byId('od-go')?.limits).toEqual({ '5h': 4.91, 'weekly': 15, 'monthly': 60 })
     expect(byId('od-go')?.weekly_window_days).toBe(7)
     // "divided into four 7-day windows" → $2.50 of the $10 per week; the pass
     // publishes no 5-hour window, so it stays null rather than invented.
@@ -69,7 +74,7 @@ describe('plans - one shared pool each', () => {
       'cmd-go': 10,
       'cmd-goat': 100,
       'oc-go': 60,
-      'od-go': 220,
+      'od-go': 60,
       'th-agent': 10,
       'th-office': 35
     })

@@ -300,15 +300,16 @@ describe('buildDatabase - OpenDesign Go pool plan', () => {
     })
     const row = db.plan_models.find(p => p.plan_id === 'od-go')
     expect(row?.model_id).toBe('acme/widget')
-    expect(row?.monthly_credits_usd).toBe(220)
+    expect(row?.monthly_credits_usd).toBe(60)
     // 800 in + 200 out + 50K cache at $0.3/$1.2/$0.006 = $0.00078/req
-    // → 282,051 req/mo → round3 282000; windows from the allowance table
-    // ($18 per 5h, $55 per 7d over a $220 pool) → 23100 / 70500.
-    expect(row?.estimates).toEqual({ per_5h: 23100, per_week: 70500, per_month: 282000 })
+    // → 76,923 req/mo → round3 76900; the $60 pool is what one model can draw
+    // (the vendor's $220 is its largest allocation), so the windows rescale to
+    // $4.91 per 5h and $15 per 7d → 6290 / 19200.
+    expect(row?.estimates).toEqual({ per_5h: 6290, per_week: 19200, per_month: 76900 })
     // Credit from the plan table, multiplier from the credits page, rates from
     // the catalog: all three recorded.
     expect(row?.sourceUrl).toBe('odp')
-    expect(row?.note).toBe('Pool 220/mo at 1× from odc; rates from odm')
+    expect(row?.note).toBe('Pool 60/mo at 1× from odc; rates from odm')
   })
 
   it('falls back to the static pool when the page stops listing the Go row', () => {
@@ -317,7 +318,7 @@ describe('buildDatabase - OpenDesign Go pool plan', () => {
       openDesignModels: [odModel()],
       openDesignMultipliers: [{ name: 'Widget', multiplier: 1 }]
     })
-    expect(db.plan_models.find(p => p.plan_id === 'od-go')?.monthly_credits_usd).toBe(220)
+    expect(db.plan_models.find(p => p.plan_id === 'od-go')?.monthly_credits_usd).toBe(60)
   })
 
   it('prices a plan-only model without granting it Go credit', () => {
@@ -345,10 +346,10 @@ describe('buildDatabase - OpenDesign Go pool plan', () => {
   })
 
   it('converts the pool by the model credit multiplier', () => {
-    // Credits spent = usage × multiplier, so a 0.5× model gets $440 of usage
-    // from the $220 pool, a 2× model $110 and a 4× model $55
-    // (open-design.ai/model-credits). Only one catalog model is available here,
-    // so each multiplier gets its own build.
+    // Credits spent = usage × multiplier, so a 0.5× model draws $120 of usage
+    // from the $60 pool, a 2× model $30 and a 4× model $15 — which is exactly
+    // the vendor's own usage column (open-design.ai/model-credits). Only one
+    // catalog model is available here, so each multiplier gets its own build.
     const build = (multiplier: number) => {
       const db = buildDatabase({
         ...baseInput,
@@ -359,12 +360,12 @@ describe('buildDatabase - OpenDesign Go pool plan', () => {
       const row = db.plan_models.find(p => p.plan_id === 'od-go')
       return { credits: row?.monthly_credits_usd, perMonth: row?.estimates?.per_month, note: row?.note }
     }
-    // $440 of usage at $0.00078/req = 564,102 → round3 564000.
-    expect(build(0.5)).toMatchObject({ credits: 440, perMonth: 564000 })
-    expect(build(2)).toMatchObject({ credits: 110, perMonth: 141000 })
-    expect(build(4)).toMatchObject({ credits: 55, perMonth: 70500 })
-    expect(build(1)).toMatchObject({ credits: 220, perMonth: 282000 })
-    expect(build(0.5).note).toBe('Pool 220/mo at 0.5× from odc; rates from odm')
+    // $120 of usage at $0.00078/req = 153,846 → round3 154000.
+    expect(build(0.5)).toMatchObject({ credits: 120, perMonth: 154000 })
+    expect(build(2)).toMatchObject({ credits: 30, perMonth: 38500 })
+    expect(build(4)).toMatchObject({ credits: 15, perMonth: 19200 })
+    expect(build(1)).toMatchObject({ credits: 60, perMonth: 76900 })
+    expect(build(0.5).note).toBe('Pool 60/mo at 0.5× from odc; rates from odm')
   })
 
   it('skips a legacy panel that has no catalog card at all', () => {
@@ -399,13 +400,15 @@ describe('buildDatabase - OpenDesign Go pool plan', () => {
     const byModel = new Map(db.models.map(m => [m.id, m.name]))
     const summary = rows.map(r => [byModel.get(r.model_id), r.monthly_credits_usd, r.estimates])
     expect(summary).toEqual([
-      ['Widget', 220, { per_5h: 23100, per_week: 70500, per_month: 282000 }],
+      ['Widget', 60, { per_5h: 6290, per_week: 19200, per_month: 76900 }],
       // In the catalog, but OpenDesign publishes no rates for it.
-      ['MiniMax M3.1 Flash', 220, null],
+      ['MiniMax M3.1 Flash', 60, null],
       // Not in any catalog source: gets a minimal entry so the row can exist.
-      ['DeepSeek V4.1 Flash Eco', 814.81, null]
+      // $60 ÷ 0.27 — the usage the pool would buy, not the $220 the vendor
+      // prints for Eco (its own quoted row, covered by the test below).
+      ['DeepSeek V4.1 Flash Eco', 222.22, null]
     ])
-    expect(rows[2]?.note).toBe('Pool 220/mo at 0.27× from odc; no published rates')
+    expect(rows[2]?.note).toBe('Pool 60/mo at 0.27× from odc; no published rates')
   })
 
   it('shows the vendor monthly usage value, not pool ÷ multiplier', () => {
@@ -449,13 +452,14 @@ describe('buildDatabase - OpenDesign Go pool plan', () => {
     })
     const rows = db.plan_models.filter(p => p.plan_id === 'od-go')
     const byCredit = new Map(rows.map(r => [r.monthly_credits_usd, r]))
-    // Plans split the month into four 7-day windows; 5-hour keeps its share (18/220).
-    expect(byCredit.get(220)?.estimates).toEqual({ per_5h: 87400, per_week: 267000, per_month: 1070000 })
-    expect(byCredit.get(814.81)?.estimates).toEqual({ per_5h: 982, per_week: 3000, per_month: 12000 })
-    expect(byCredit.get(814.81)?.note)
-      .toBe('Pool 220/mo at 0.27× from odc; requests from the vendor\'s Coding Plan usage table (Go column) on odp')
+    // Plans split the month into four 7-day windows; 5-hour keeps its share
+    // ($4.91 of the $60 pool).
+    expect(byCredit.get(60)?.estimates).toEqual({ per_5h: 87400, per_week: 267000, per_month: 1070000 })
+    expect(byCredit.get(222.22)?.estimates).toEqual({ per_5h: 982, per_week: 3000, per_month: 12000 })
+    expect(byCredit.get(222.22)?.note)
+      .toBe('Pool 60/mo at 0.27× from odc; requests from the vendor\'s Coding Plan usage table (Go column) on odp')
     // The credit is still the pool share, never the normalised usage column.
-    expect(byCredit.get(814.81)?.monthly_credits_usd).toBe(814.81)
+    expect(byCredit.get(222.22)?.monthly_credits_usd).toBe(222.22)
   })
 
   it('leaves models outside the catalog out of the dataset', () => {
