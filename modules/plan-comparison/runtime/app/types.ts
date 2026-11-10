@@ -4,10 +4,9 @@ export interface Provider {
 }
 
 /**
- * Rolling windows in dollars. `null` means the plan does not publish that
- * window: gateway plans (OpenDesign Go) sell one shared monthly pool and
- * publish no 5-hour or weekly cap, so the card renders `—` rather than a
- * number nobody published.
+ * Rolling windows in dollars — the numbers the estimate math divides by. `null`
+ * means the plan publishes no such window (Token Harbor sells one monthly pool),
+ * so nothing invents one.
  */
 export interface PlanLimits {
   '5h': number | null
@@ -16,22 +15,10 @@ export interface PlanLimits {
 }
 
 /**
- * Every plan in this comparison sells ONE shared pool, not a separate wallet per
- * model: Command Code ("one shared pool with a monthly usage on every model"),
- * OpenDesign ("credit allocation — shared pool"), Token Harbor (one "included
- * usage" allowance + Model Boost) and OpenCode Go (a single `{rolling, weekly,
- * monthly}` subscription limit, each request weighted by `60 / monthly limit` —
- * see plans.ts). So a plan row is never a grant: it is the usage value the pool
- * funds on that model, and there is no per-plan flag to branch on.
- */
-
-/**
- * Every plan sizes its windows as a share of its own pool, so the card reads all
- * six in one unit: Command Code Go is $3/5h on a $10 pool (30%), GOAT $20 on
- * $100 (20%), OpenCode Go states 20/50/100 outright, OpenDesign $18 against its
- * $220 allocation (8.2%) and Token Harbor's weekly $2.50 of $10 (25%). A null
- * window means the plan publishes no such cap (Token Harbor sells one monthly
- * pool). `limits` keeps the dollars the estimate math needs.
+ * The same windows as a share of the plan's own pool — the only unit that reads
+ * the same on all six cards, since $3 is 30% of Go's $10 pool but 3% of GOAT's
+ * $100. Percent, not dollars, is also what caps a request: a model's window is
+ * that share of the model's own allocation.
  */
 export interface PlanLimitsPercent {
   '5h': number | null

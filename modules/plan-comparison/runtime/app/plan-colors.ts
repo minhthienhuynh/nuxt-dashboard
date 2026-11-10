@@ -19,10 +19,9 @@ export const PLAN_COMPARISON_PLANS: PlanComparisonPlanMeta[] = [
 ]
 
 /**
- * Legend rows for the plans a chart draws. Labels stay plain: every plan here is
- * funded from one shared pool (see `Plan.funding`'s replacement note in
- * types.ts), so a suffix on most of the legend would be noise rather than a
- * distinction.
+ * Legend rows for the plans a chart draws. Labels stay plain — the plan name is
+ * the whole distinction; see `PlanLimitsPercent` in types.ts for the shared-pool
+ * note.
  */
 export function planLegendItems(plans: PlanComparisonPlanMeta[]): { name: string, color: string }[] {
   return plans.map(plan => ({ name: plan.label, color: plan.color }))

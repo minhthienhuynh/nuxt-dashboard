@@ -68,13 +68,10 @@ const xTickFormat = (value: number) => `$${value}`
           1. Monthly value per model
         </p>
         <p class="text-[13px] text-muted">
-          Bar length = what a plan funds on that model per month — a share of the plan's
-          one shared pool, at the model's own rate: the vendor's published per-model
-          allocation where there is one, else the pool divided by the model's credit
-          multiplier — scaled to the largest bar. A pool is spent in proportion, so a
-          month on one model is not what another model gets. Hover a bar or a model name
-          for its specs (intelligence, pricing, caps) and what each checked plan funds
-          it with.
+          Bar length = what a plan funds on that model per month — its share of the plan's
+          pool at the model's own rate, scaled to the largest bar. A pool is spent in
+          proportion, so a month on one model is not what another model gets. Hover a bar
+          or a model name for its specs and what each checked plan funds it with.
           <template v-if="skipped.length">
             No plan funds: {{ skipped.join(', ') }}.
           </template>

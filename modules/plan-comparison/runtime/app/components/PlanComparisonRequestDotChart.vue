@@ -132,13 +132,10 @@ const DURATION = 200
           2. Requests per month vs monthly value
         </p>
         <p class="text-[13px] text-muted">
-          Horizontal position = requests per month (log scale). Dot size = the
-          monthly value the plan funds on that model, area-proportional. Hover a dot or a model name for its
-          specs and what each checked plan funds it with.
-          Every plan here is one shared pool: a dot shows the usage that pool funds on the
-          model at its own rate (the vendor's published allocation where there is one,
-          else the pool divided by its credit multiplier), spent in proportion across
-          models.
+          Horizontal position = requests per month (log scale). Dot size = the monthly
+          value the plan funds on that model, area-proportional and spent in proportion
+          across models. Hover a dot or a model name for its specs and what each checked
+          plan funds it with.
           <template v-if="noRequest.length">
             Left out of this chart because no request count is published:
             {{ noRequest.join(', ') }}.

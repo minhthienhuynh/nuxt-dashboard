@@ -14,35 +14,15 @@ const emit = defineEmits<{
   (event: 'toggle', key: PlanComparisonPlanKey, selected: boolean): void
 }>()
 
-/**
- * Every plan sizes its windows as a share of its own pool, so the card shows
- * percentages throughout: dollars would compare $3 of Go's $10 with $20 of
- * GOAT's $100 and read as if the second buys six times the headroom. The share
- * is also what actually caps a request, because a model's window is that share
- * of the model's own allocation (a $20 GOAT model gets 20% of $20).
- *
- * A `null` window means the plan publishes no such cap at all (Token Harbor
- * Agent sells one monthly pool), so the card shows a dash rather than inventing
- * one.
- */
+/** A window is a share of the plan's own pool; `null` means it publishes none. */
 function windowValue(plan: PlanCard, window: '5h' | 'weekly' | 'monthly'): string {
-  if (plan.limitPercent) {
-    const percent = plan.limitPercent[window]
-    return percent == null ? '—' : `${percent}%`
-  }
-  const limit = plan.limits[window]
-  return limit == null ? '—' : formatUsd(limit)
+  const percent = plan.limitPercent?.[window]
+  return percent == null ? '—' : `${percent}%`
 }
 
-/**
- * 100% is the whole pool by definition, so a monthly cap at 100% says nothing the
- * other rows do not; it is only listed when a plan caps the month below — nothing
- * today does, and the row will appear if one ever does.
- */
+/** 100% is the whole pool, so a monthly cap only earns a row when it is below. */
 function showMonthlyCap(plan: PlanCard): boolean {
-  if (plan.limitPercent) return plan.limitPercent.monthly !== 100
-  const monthly = plan.limits.monthly
-  return monthly != null && monthly !== plan.monthlyCredit
+  return (plan.limitPercent?.monthly ?? 100) !== 100
 }
 
 /**
@@ -77,13 +57,10 @@ function vendorPlanName(plan: PlanCard): string {
 }
 
 const ROWS: Array<{ label: string, value: (plan: PlanCard) => string, show?: (plan: PlanCard) => boolean }> = [
-  // NO pool row: the same word means three things across these vendors — Command
-  // Code's $100 is a ceiling that a standard $20 model spends whole, OpenCode's
-  // $60 is a hard cap its $100 model allocation exceeds, OpenDesign's $60 is only
-  // a normalisation baseline under a $220 headline. Side by side they invite
-  // exactly the wrong read (GOAT "$100" looks richest, yet 43 of its 62 models
-  // fund $20 against OpenCode's $60), so the card starts from the number a reader
-  // actually gets: what the plan funds on one model.
+  // No pool row: the word covers three different things here (Command Code's
+  // $100 ceiling, OpenCode's hard $60 cap, OpenDesign's $60 baseline), and side by
+  // side GOAT's "$100" reads richer than OpenCode's $60 although 43 of its 62
+  // models fund $20. Start from what a reader gets on one model instead.
   { label: 'Per-model usage', value: plan => plan.creditRange ? `${formatUsd(plan.creditRange.min)}–${formatUsd(plan.creditRange.max)}` : '' },
   { label: '5-hour cap', value: plan => windowValue(plan, '5h') },
   { label: 'Weekly cap', value: plan => windowValue(plan, 'weekly') },

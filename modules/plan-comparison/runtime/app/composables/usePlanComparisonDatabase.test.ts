@@ -178,8 +178,6 @@ describe('normalizePlanComparisonDatabase - plan cards', () => {
     ]
     const oc = normalizePlanComparisonDatabase(db, baseFilters).planCards.find(c => c.id === 'oc-go')
     expect(oc?.limitPercent).toEqual({ '5h': 20, 'weekly': 50, 'monthly': 100 })
-    // Dollar limits stay available for the estimate math.
-    expect(oc?.limits).toEqual({ '5h': 12, 'weekly': 30, 'monthly': 60 })
   })
 
   it('derives the share for plans that publish dollars only', () => {
@@ -231,11 +229,8 @@ describe('normalizePlanComparisonDatabase - shared-pool rows', () => {
     expect(row?.od).toEqual({ credit: 220, request: 5000 })
 
     const card = result.planCards.find(c => c.id === 'od-go')
-    expect(card?.monthlyCredit).toBe(220)
+    expect(card?.limitPercent).toEqual({ '5h': 8.2, 'weekly': 25, 'monthly': 100 })
     expect(card?.modelCount).toBe(1)
-    // Published windows reach the card as dollars (a plan without one would
-    // carry null and the card would render a dash instead).
-    expect(card?.limits).toEqual({ '5h': 18, 'weekly': 55, 'monthly': 220 })
   })
 
   it('keeps rendering when the stored data predates a registry plan', () => {

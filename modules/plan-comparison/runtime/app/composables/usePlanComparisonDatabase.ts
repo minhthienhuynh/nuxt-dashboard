@@ -45,13 +45,10 @@ export interface PlanCard {
   name: string
   /** Registry label (`Command Code Go`), unique across cards and shared with the charts. */
   label: string
-  monthlyCredit: number
   price: number
-  limits: Plan['limits']
   /**
-   * Set when the plan publishes its rolling windows as a share of each model's
-   * own monthly limit rather than a flat dollar cap (OpenCode Go: 20% / 50% /
-   * 100%). The card shows the percentages; `limits` stays the pool-equivalent.
+   * The plan's windows as a share of its own pool, which is the card's unit.
+   * `undefined` only for a plan with no monthly value to take a share of.
    */
   limitPercent?: PlanLimitsPercent
   modelCount: number
@@ -98,22 +95,14 @@ export function defaultPlanSelection(): PlanSelection {
 
 // The intelligence score used to ride along in the axis label (`Model (42)`);
 // the hover/tap popover now carries it, so labels stay plain names.
-/**
- * Windows as a share of the plan's own pool.
- *
- * A dollar window is only comparable inside one plan — $3 of usage is 30% of Go's
- * $10 pool but 3% of GOAT's $100 — while the share is what a reader compares
- * across plans, and it is what actually caps a request: a $20 GOAT model gets
- * 20% of $20 ($4) in a 5-hour window, not the plan's $20. One decimal, because
- * OpenDesign's $18 over its $220 allocation is 8.2%, not a round number.
- */
+
+/** Windows as a share of the plan's own pool — see `PlanLimitsPercent`. */
 function sharesOf(limits: Plan['limits'], pool: number): PlanLimitsPercent | undefined {
   if (!(pool > 0)) return undefined
-  const share = (value: number | null | undefined): number | null => {
-    if (value == null) return null
-    return Math.round((value / pool) * 1000) / 10
-  }
-  return { '5h': share(limits['5h']), 'weekly': share(limits.weekly), 'monthly': share(limits.monthly) ?? 100 }
+  // One decimal: OpenDesign's $4.91 of $60 is 8.2%, not a round number.
+  const share = (value: number): number => Math.round((value / pool) * 1000) / 10
+  const optional = (value: number | null): number | null => value == null ? null : share(value)
+  return { '5h': optional(limits['5h']), 'weekly': optional(limits.weekly), 'monthly': share(limits.monthly) }
 }
 
 function labelFor(model: Model): string {
@@ -227,11 +216,8 @@ export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filt
       key: plan.key,
       name: data.name,
       label: plan.label,
-      monthlyCredit: data.monthly_credit_usd,
       price: data.monthly_price_usd,
-      limits: data.limits,
-      // Explicit shares when the vendor states them (OpenCode Go), else derived
-      // from the plan's own numbers so every card speaks percentages.
+      // Explicit shares when the vendor states them (OpenCode Go), else derived.
       limitPercent: data.limits_percent ?? sharesOf(data.limits, data.monthly_credit_usd),
       modelCount: db.plan_models.filter(pm => pm.plan_id === data.id).length,
       creditRange: creditRangeOf(data)

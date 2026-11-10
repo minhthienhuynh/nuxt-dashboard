@@ -139,10 +139,7 @@ function fundingUsd(value: number): string {
 
 function fundingValue(funding: EnrichedModelRow['cmd']): string {
   if (funding.credit == null) return FUNDING_DASH
-  // Every plan's row value is the usage its shared pool funds on this model
-  // (vendor-published where they publish it, else the pool scaled by the
-  // model's multiplier/boost) — not a separate wallet, and not the pool itself,
-  // so it is labelled "usage".
+  // The usage the plan funds on this model — not a separate wallet, so "usage".
   const credit = `${fundingUsd(funding.credit)} usage`
   if (funding.request == null) return `${credit} · ${FUNDING_DASH} req/mo`
   return `${credit} · ${funding.request.toLocaleString('en-US')} req/mo`
