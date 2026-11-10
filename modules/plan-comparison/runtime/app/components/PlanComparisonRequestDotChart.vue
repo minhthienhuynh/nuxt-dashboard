@@ -140,14 +140,12 @@ const DURATION = 200
         <p class="text-[13px] text-muted">
           Horizontal position = requests per month (log scale). Dot size = the monthly
           value the plan funds on that model, area-proportional and spent in proportion
-          across models. Hover a dot or a model name for its specs and what each checked
-          plan funds it with.
-          <template v-if="noRequest.length">
-            Left out of this chart because no request count is published:
-            {{ noRequest.join(', ') }}.
-          </template>
+          across models.
         </p>
         <VisBulletLegend :items="legend" class="justify-center" orientation="horizontal" />
+        <p class="text-center text-[12px] text-dimmed">
+          Hover a dot or a model name for its specs and what each checked plan funds it with.
+        </p>
       </div>
     </template>
 
@@ -223,6 +221,10 @@ const DURATION = 200
     <p v-else class="px-4 py-10 text-center text-sm text-muted">
       No model matches these filters. Widen them above — the release cutoff or the
       Intelligence Index threshold — to bring models back.
+    </p>
+    <p v-if="noRequest.length" class="px-4 pt-3 text-[13px] text-muted">
+      Left out of this chart because no request count is published:
+      {{ noRequest.join(', ') }}.
     </p>
   </UCard>
 </template>

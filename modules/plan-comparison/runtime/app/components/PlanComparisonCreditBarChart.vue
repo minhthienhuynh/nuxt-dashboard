@@ -33,7 +33,10 @@ const {
   yTickFormat
 } = usePlanComparisonChartFrame(() => props.rows)
 
-const BAR_H = 16
+// Six plans stack into one band per model, so a tall bar multiplied by 35 models:
+// 16px put the chart at 3420px (four screens), 12px keeps the bars separated
+// while cutting a quarter of the height.
+const BAR_H = 12
 // One bar per plan defines the visual band; a taller label (name wrapped onto
 // two lines) grows the row band instead of overlapping the next.
 const bandHeight = computed(() => Math.max(props.plans.length * BAR_H, rowBandHeight.value))
@@ -76,13 +79,12 @@ const xTickFormat = (value: number) => `$${value}`
         <p class="text-[13px] text-muted">
           Bar length = what a plan funds on that model per month — its share of the plan's
           pool at the model's own rate, scaled to the largest bar. A pool is spent in
-          proportion, so a month on one model is not what another model gets. Hover a bar
-          or a model name for its specs and what each checked plan funds it with.
-          <template v-if="skipped.length">
-            No plan funds: {{ skipped.join(', ') }}.
-          </template>
+          proportion, so a month on one model is not what another model gets.
         </p>
         <VisBulletLegend :items="legend" class="justify-center" />
+        <p class="text-center text-[12px] text-dimmed">
+          Hover a bar or a model name for its specs and what each checked plan funds it with.
+        </p>
       </div>
     </template>
 
@@ -157,6 +159,9 @@ const xTickFormat = (value: number) => `$${value}`
     <p v-else class="px-4 py-10 text-center text-sm text-muted">
       No model matches these filters. Widen them above — the release cutoff or the
       Intelligence Index threshold — to bring models back.
+    </p>
+    <p v-if="skipped.length" class="px-4 pt-3 text-[13px] text-muted">
+      No plan funds: {{ skipped.join(', ') }}.
     </p>
   </UCard>
 </template>
