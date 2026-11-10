@@ -104,6 +104,7 @@ async function crawlFresh(): Promise<PlanComparisonPayload> {
     openDesignUsage: odUsage,
     tokenHarborModels: thModels,
     tokenHarborBoosts: thBoosts,
+    modelsDevJson: sources.modelsDevJson,
     fetchedAt,
     sourceUrls: {
       goat: SOURCE_URLS.goat,

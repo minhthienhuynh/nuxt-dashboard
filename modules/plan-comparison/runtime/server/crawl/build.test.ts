@@ -641,6 +641,18 @@ describe('buildDatabase - release date fallback', () => {
     expect(db.models.find(m => m.id === 'tokenharbor/gpt-6-luna-fast')?.releaseDate).toBe('2026-09-22')
   })
 
+  it('falls back to models.dev for a model neither the payload nor the map dates', () => {
+    const db = buildDatabase({
+      ...baseInput,
+      goatModels: [makeModel({ id: 'meta/muse-ember', slug: 'muse-ember', name: 'Muse Ember', vendor: 'Meta' })],
+      modelsDevJson: JSON.stringify({
+        vercel: { models: { 'meta/muse-ember': { name: 'Muse Ember', release_date: '2026-11-09' } } },
+        kilo: { models: { 'meta/muse-ember': { name: 'Meta: Muse Ember', release_date: '2026-11-09' } } }
+      })
+    })
+    expect(db.models.find(m => m.id === 'meta/muse-ember')?.releaseDate).toBe('2026-11-09')
+  })
+
   it('keeps a date the payload publishes — the fallback never overrides', () => {
     const db = buildDatabase({
       ...baseInput,
