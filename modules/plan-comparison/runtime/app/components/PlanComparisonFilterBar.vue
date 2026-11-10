@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DEFAULT_INTEL_THRESHOLD } from '../composables/usePlanComparisonDatabase'
+import { DEFAULT_INTEL_THRESHOLD, DEFAULT_OLD_BEFORE } from '../composables/usePlanComparisonDatabase'
 import { SORT_OPTIONS } from '../composables/usePlanComparisonSort'
 import type { SortOptionId } from '../composables/usePlanComparisonSort'
 
@@ -37,7 +37,7 @@ const sortItems = (Object.keys(SORT_OPTIONS) as SortOptionId[])
   .map(id => ({ label: SORT_LABELS[id], value: id }))
 
 function onOldBeforeInput(value: string) {
-  oldBefore.value = value || ''
+  oldBefore.value = value || DEFAULT_OLD_BEFORE
 }
 
 function onIntelThresholdInput(value: string | number) {
