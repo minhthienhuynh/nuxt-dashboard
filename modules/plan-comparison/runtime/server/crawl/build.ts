@@ -8,7 +8,7 @@ import type { OpenCodeEndpointRow, OpenCodeEstimateRow, OpenCodePricingRow } fro
 import type { OpenDesignAllowanceRow, OpenDesignCatalogModel, OpenDesignMultiplierRow, OpenDesignUsageRow } from './opendesign'
 import type { TokenHarborBoostRow, TokenHarborModel } from './tokenharbor'
 import { TOKEN_HARBOR_AGENT_CAPS, TOKEN_HARBOR_MODEL_ALIASES, TOKEN_HARBOR_OFFICE_CAPS, TOKEN_HARBOR_REQUEST_SHAPE, isAgentPassModel, isOfficePassModel, tokenHarborRequestCost, tokenHarborVendor } from './tokenharbor'
-import { RELEASE_DATE_FALLBACKS } from './release-dates'
+import { familyReleaseDate, RELEASE_DATE_OVERRIDES } from './release-dates'
 import { indexModelsDev, modelsDevReleaseDate } from './models-dev'
 import { plans } from '../data/plans'
 
@@ -640,18 +640,27 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
     }
   }
 
-  // Release dates CC's payload leaves unset, in order of trust:
-  // 1. the audited static map (release-dates.ts — lab/official-provider dates),
-  // 2. models.dev (the same database the audit reads, queried live so a model
-  //    added between audits is not left blank until someone edits code).
-  // A published date is never replaced: both steps only fill `null`.
+  // Release dates CC's payload leaves unset, in order of trust. Every step only
+  // fills `null`, so a date CC publishes is never replaced:
+  // 1. the overrides in release-dates.ts — only the models whose live data is
+  //    wrong or missing (each entry carries its evidence),
+  // 2. models.dev queried live (models-dev.ts), so a model added between audits
+  //    is dated from its first crawl,
+  // 3. the family date: a variant models.dev does not carry (`-ultrafast`,
+  //    `-eco`) reads its base model's date from this same payload, instead of a
+  //    hand-maintained copy of that date.
   const modelsDevIndex = indexModelsDev(input.modelsDevJson ?? '')
-  const withReleaseDates = models.map((model) => {
+  const dated = models.map((model) => {
     if (model.releaseDate != null) return model
-    const audited = RELEASE_DATE_FALLBACKS[model.id]
-    if (audited) return { ...model, releaseDate: audited }
+    const override = RELEASE_DATE_OVERRIDES[model.id]
+    if (override) return { ...model, releaseDate: override }
     const fromModelsDev = modelsDevReleaseDate(modelsDevIndex, [model.slug, model.name, model.id])
     return fromModelsDev ? { ...model, releaseDate: fromModelsDev } : model
+  })
+  const withReleaseDates = dated.map((model) => {
+    if (model.releaseDate != null) return model
+    const family = familyReleaseDate(model, dated)
+    return family ? { ...model, releaseDate: family } : model
   })
 
   return {

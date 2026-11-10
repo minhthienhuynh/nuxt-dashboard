@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 // useFetch/$fetch resolve via Nuxt auto-imports (also keeps vitest green,
 // which cannot resolve the '#imports' alias outside a Nuxt build).
 import type { Model, Plan, PlanFundingKind, PlanLimitsPercent, PlanModelEstimate, PlanComparisonDatabase, PlanComparisonPayload, PricingEntry } from '../types'
@@ -8,7 +8,8 @@ import type { SortableModelRow, SortOptionId } from './usePlanComparisonSort'
 import { PLAN_COMPARISON_PLANS } from '../plan-colors'
 import type { PlanComparisonPlanKey, PlanComparisonPlanMeta } from '../plan-colors'
 
-export const DEFAULT_OLD_BEFORE = '2026-08-26'
+/** How far back the default "hide old models" cutoff reaches, in months. */
+export const OLD_WINDOW_MONTHS = 3
 export const DEFAULT_INTEL_THRESHOLD = 37
 
 export interface PlanFunding {
@@ -107,6 +108,23 @@ function isLowIntel(model: Model, intelThreshold: number): boolean {
   return model.intelligenceIndex == null || model.intelligenceIndex < intelThreshold
 }
 
+/**
+ * Default cutoff for the "hide old" filter: `OLD_WINDOW_MONTHS` before the
+ * newest date in the dataset. Derived from the payload instead of pinned to a
+ * calendar date, which went stale the moment the crawl moved on.
+ */
+export function defaultOldBefore(models: Model[]): string {
+  let newest = 0
+  for (const model of models) {
+    const date = Date.parse(model.releaseDate ?? model.launchedAt ?? '')
+    if (!Number.isNaN(date) && date > newest) newest = date
+  }
+  if (newest === 0) return ''
+  const cutoff = new Date(newest)
+  cutoff.setUTCMonth(cutoff.getUTCMonth() - OLD_WINDOW_MONTHS)
+  return cutoff.toISOString().slice(0, 10)
+}
+
 // The "hide old" filter works on the lab release date (models.dev fills what
 // CC's payload leaves unset — see the crawl's release-dates.ts), not the
 // later date Command Code listed the model. A model with no release date is
@@ -155,8 +173,12 @@ export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filt
 
   const pricingIndex = buildPricingIndex(db.pricing)
 
+  // An empty cutoff means "use the default window"; the filter bar leaves it
+  // empty until the reader picks a date.
+  const oldBefore = filters.oldBefore || defaultOldBefore(db.models)
+
   const visibleModels = db.models.filter((model) => {
-    if (filters.hideOldModels && isOld(model, filters.oldBefore)) return false
+    if (filters.hideOldModels && isOld(model, oldBefore)) return false
     if (filters.hideLowIntel && isLowIntel(model, filters.intelThreshold)) return false
     return true
   })
@@ -274,7 +296,12 @@ export function usePlanComparisonDatabase() {
   }
 
   const hideOldModels = ref(true)
-  const oldBefore = ref(DEFAULT_OLD_BEFORE)
+  // Filled from the payload on the first load (see `defaultOldBefore`), so the
+  // date input shows the window the filter is actually applying.
+  const oldBefore = ref('')
+  watch(data, (db) => {
+    if (db != null && oldBefore.value === '') oldBefore.value = defaultOldBefore(db.models)
+  }, { immediate: true })
   const hideLowIntel = ref(false)
   const intelThreshold = ref(DEFAULT_INTEL_THRESHOLD)
   const sortOption = ref<SortOptionId>('newest')

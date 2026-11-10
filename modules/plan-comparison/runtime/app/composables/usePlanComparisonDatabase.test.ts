@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { defaultPlanSelection, normalizePlanComparisonDatabase } from './usePlanComparisonDatabase'
+import { defaultOldBefore, defaultPlanSelection, normalizePlanComparisonDatabase } from './usePlanComparisonDatabase'
 import type { Model, Plan, PlanModelEstimate, PlanComparisonDatabase } from '../types'
 
 function makePlan(id: string, overrides: Partial<Plan> = {}): Plan {
@@ -91,7 +91,38 @@ function makeOdPlan(overrides: Partial<Plan> = {}): Plan {
 
 const baseFilters = { hideOldModels: false, oldBefore: '2026-06-01', hideLowIntel: false, intelThreshold: 30 }
 
+describe('defaultOldBefore', () => {
+  it('returns three months before the newest date in the payload', () => {
+    // Derived, not a pinned calendar date, so the default window does not go
+    // stale as the crawl moves on.
+    expect(defaultOldBefore([
+      makeModel({ id: 'a', releaseDate: '2026-11-09' }),
+      makeModel({ id: 'b', releaseDate: '2026-02-01' })
+    ])).toBe('2026-08-09')
+  })
+
+  it('falls back to the listing date and ignores empty datasets', () => {
+    expect(defaultOldBefore([makeModel({ id: 'a', releaseDate: null, launchedAt: '2026-11-01' })])).toBe('2026-08-01')
+    expect(defaultOldBefore([])).toBe('')
+  })
+})
+
 describe('normalizePlanComparisonDatabase - model filtering', () => {
+  it('uses the derived window when the cutoff is left empty', () => {
+    // The filter bar keeps `oldBefore` empty until the reader picks a date, so
+    // the default window must come from the payload's own newest release.
+    const models = [
+      makeModel({ id: 'fresh', releaseDate: '2026-11-09' }),
+      makeModel({ id: 'stale', releaseDate: '2026-01-05' })
+    ]
+    const db = makeDatabase(models, [
+      { plan_id: 'cmd-go', model_id: 'fresh', monthly_credits_usd: 6, estimates: null },
+      { plan_id: 'cmd-go', model_id: 'stale', monthly_credits_usd: 6, estimates: null }
+    ])
+    const result = normalizePlanComparisonDatabase(db, { ...baseFilters, hideOldModels: true, oldBefore: '' })
+    expect(result.creditRows.map(row => row.model.id)).toEqual(['fresh'])
+  })
+
   it('excludes a model with no release date when hideOldModels is on', () => {
     const model = makeModel({ id: 'no-date', releaseDate: null })
     const db = makeDatabase([model], [])
