@@ -1,62 +1,62 @@
 /**
- * Release dates the Command Code payload does not publish (its model pages
- * show `—`), filled from `models.dev` (audited 2026-11-09 against
- * https://models.dev/api.json). Precedence follows the release-date audit
- * recipe: the lab's official provider entry on models.dev wins, then the
- * cross-provider consensus; a lone entry that contradicts the model's launch
- * date is rejected as a guess (e.g. `deepseek-v4-flash-fast` 2026-04-24 from a
- * single aggregator — CC launched it 2026-08-22).
+ * Release dates where the live sources are wrong or silent — everything else is
+ * resolved at crawl time (see `buildDatabase`): the Command Code Flight payload
+ * first, then models.dev, then the family date of a variant.
  *
- * Speed/snapshot variants inherit the family date models.dev gives them
- * (`mimo-v2.6-pro-ultraspeed` is dated 2026-09-21 by Xiaomi itself), except
- * GLM-5.2 Fast, where the lab's own announcement (Jun 23, 2026) beats the
- * base-date copies most aggregators carry (audited 2026-09-01).
+ * The list is intentionally tiny. An entry means "the live data disagrees with
+ * the evidence", so each one carries that evidence:
  *
- * The Token Harbor gateway-only entries (Office Pass models the other plans
- * never list) use the consensus across the aggregators carrying them; for
- * `mistral-large-2512` the consensus (2025-12-02, matching the `2512`
- * snapshot naming) beats Mistral's own stale 2024-11-01 entry.
+ * - `zai-org/GLM-5.2-Fast` — models.dev's providers copy GLM-5.2's base date
+ *   (2026-06-13) onto the speed variant; the lab announced the variant on
+ *   2026-06-23.
+ * - `deepseek/deepseek-v4-flash-fast` — a lone aggregator date (2026-04-24)
+ *   contradicts the V4 Flash family (2026-07-31) and Command Code listing the
+ *   model on 2026-08-22.
+ * - `typesafe/jev`, `typesafe/jev-1.14.0` — models.dev has dedicated pages for
+ *   these but omits them from the `api.json` payload the crawl reads; the dates
+ *   come from those pages (2026-09-15 / 2026-10-14).
  *
- * DeepSeek variants models.dev has no entry for take their family base's
- * date (`ultrafast`/Eco inherit V4.1 Flash's 2026-09-10, `-flash-fast`
- * inherits V4 Flash's 2026-07-31) — per user decision 2026-11-09. Jev is on
- * models.dev as specialized model pages though absent from the default
- * `api.json` payload: `jev-latest` (Release 2026-09-15) and
- * `jev-1.14.0` (2026-10-14).
- *
- * Keyed by dataset model id; only applied when the payload leaves the date
- * unset, so a date CC starts publishing always wins.
+ * Keyed by dataset model id; only applied when the payload has no date of its
+ * own, so a date Command Code starts publishing always wins.
  */
-export const RELEASE_DATE_FALLBACKS: Record<string, string> = {
-  'tencent/hy4-preview': '2026-08-28',
-  'moonshotai/Kimi-K3.1-Pro': '2026-10-23',
-  'moonshotai/Kimi-K2.7-Code-Highspeed': '2026-06-12',
-  'z-ai/glm-5.3-flashx': '2026-09-18',
+export const RELEASE_DATE_OVERRIDES: Record<string, string> = {
   'zai-org/GLM-5.2-Fast': '2026-06-23',
-  'ornith/ornith-1.5-122b': '2026-10-20',
-  'deepseek/deepseek-v4.1-flash-fast': '2026-09-10',
-  'Qwen/Qwen3.8-Omni-Flash': '2026-09-17',
-  'Qwen/Qwen3.8-Max-Prime': '2026-09-23',
-  'Qwen/Qwen3.8-Flash': '2026-08-26',
-  'Qwen/Qwen3.7-Flash': '2026-07-15',
-  'inclusionai/ling-3.1-flash-1019': '2026-10-30',
-  'xiaomi/mimo-v2.6-pro-ultraspeed': '2026-09-21',
-  'meta/muse-spark-1.3-contributor': '2026-09-02',
-  'meta/muse-spark-1.2-contributor': '2026-08-05',
-  'mimo-v2.5': '2026-04-22',
-  'mimo-v2.5-pro': '2026-04-22',
-  'tokenharbor/gpt-6-luna-fast': '2026-09-22',
-  'tokenharbor/mistral-large-2512': '2025-12-02',
-  'tokenharbor/gpt-5-6-luna-fast': '2026-07-09',
-  'tokenharbor/qwen3-6-27b': '2026-04-22',
-  'tokenharbor/qwen3-6-flash': '2026-04-27',
-  'tokenharbor/deepseek-v3-2': '2025-12-01',
-  'tokenharbor/qwen3-5-27b': '2026-02-23',
-  // DeepSeek variants: inherit the family base's date (no own entry).
-  'deepseek/deepseek-v4.1-flash-ultrafast': '2026-09-10',
-  'open-design/deepseek-v4-1-flash-eco': '2026-09-10',
   'deepseek/deepseek-v4-flash-fast': '2026-07-31',
-  // Specialized models.dev pages (not in the default api.json payload).
-  'typesafe/jev-1.14.0': '2026-10-14',
-  'typesafe/jev': '2026-09-15'
+  'typesafe/jev': '2026-09-15',
+  'typesafe/jev-1.14.0': '2026-10-14'
+}
+
+/** A trailing variant word (`-ultrafast`, `-eco`, `-fast`) — never a snapshot id (`-1019`). */
+const VARIANT_SUFFIX = /^[a-z]{2,12}$/
+
+function compactSlug(slug: string): string {
+  return slug.toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+/**
+ * The date a variant inherits from its base model, for the variants neither the
+ * payload nor models.dev dates (`deepseek-v4.1-flash-ultrafast` reads the
+ * `deepseek-v4.1-flash` date). It reads the payload's own models, so the
+ * inherited date follows the base model instead of being a hand-maintained copy
+ * that goes stale.
+ *
+ * Only a letters-only suffix counts — a numeric one is a snapshot id with its
+ * own release — and the closest (longest) dated base wins. `dated` are the
+ * models whose date is already resolved.
+ */
+export function familyReleaseDate(
+  model: { slug: string },
+  dated: { slug: string, releaseDate: string | null }[]
+): string | null {
+  const self = compactSlug(model.slug)
+  let best: { date: string, length: number } | null = null
+  for (const sibling of dated) {
+    if (sibling.releaseDate == null || sibling.slug === model.slug) continue
+    const base = compactSlug(sibling.slug)
+    if (base.length >= self.length || !self.startsWith(base)) continue
+    if (!VARIANT_SUFFIX.test(self.slice(base.length))) continue
+    if (best != null && best.length >= base.length) continue
+    best = { date: sibling.releaseDate, length: base.length }
+  }
+  return best?.date ?? null
 }

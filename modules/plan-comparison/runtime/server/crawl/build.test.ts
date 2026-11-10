@@ -630,23 +630,58 @@ describe('buildDatabase - TokenHarbor dated pins', () => {
   })
 })
 
-describe('buildDatabase - release date fallback', () => {
-  it('fills dates the CC payload leaves unset, from the audited models.dev map', () => {
+describe('buildDatabase - release dates', () => {
+  it('applies an override where the live sources are wrong', () => {
     const db = buildDatabase({
       ...baseInput,
-      goatModels: [makeModel({ id: 'tencent/hy4-preview', slug: 'hy4-preview', name: 'Tencent Hy4 Preview', vendor: 'Tencent' })],
-      tokenHarborModels: [thModel({ id: 'gpt-6-luna-fast', label: 'GPT-6 Luna Fast', family: 'openai', priceIn: 0.2, priceOut: 1.2, cacheRead: 0.02 })]
+      // models.dev dates this off GLM-5.2 (2026-06-13); the lab announced the
+      // variant on 2026-06-23, which is what the override holds.
+      goatModels: [makeModel({ id: 'zai-org/GLM-5.2-Fast', slug: 'GLM-5.2-Fast', name: 'GLM-5.2 Fast', vendor: 'Z.ai' })]
     })
-    expect(db.models.find(m => m.id === 'tencent/hy4-preview')?.releaseDate).toBe('2026-08-28')
-    expect(db.models.find(m => m.id === 'tokenharbor/gpt-6-luna-fast')?.releaseDate).toBe('2026-09-22')
+    expect(db.models.find(m => m.id === 'zai-org/GLM-5.2-Fast')?.releaseDate).toBe('2026-06-23')
   })
 
-  it('keeps a date the payload publishes — the fallback never overrides', () => {
+  it('leaves a model to models.dev when no override covers it', () => {
     const db = buildDatabase({
       ...baseInput,
-      goatModels: [makeModel({ id: 'tencent/hy4-preview', slug: 'hy4-preview', name: 'Tencent Hy4 Preview', vendor: 'Tencent', releaseDate: '2026-08-27' })]
+      goatModels: [makeModel({ id: 'tencent/hy4-preview', slug: 'hy4-preview', name: 'Tencent Hy4 Preview', vendor: 'Tencent' })]
     })
-    expect(db.models.find(m => m.id === 'tencent/hy4-preview')?.releaseDate).toBe('2026-08-27')
+    // No hardcoded date of its own — filled by the live models.dev source.
+    expect(db.models.find(m => m.id === 'tencent/hy4-preview')?.releaseDate).toBeNull()
+  })
+
+  it('falls back to models.dev for a model neither the payload nor an override dates', () => {
+    const db = buildDatabase({
+      ...baseInput,
+      goatModels: [makeModel({ id: 'meta/muse-ember', slug: 'muse-ember', name: 'Muse Ember', vendor: 'Meta' })],
+      modelsDevJson: JSON.stringify({
+        vercel: { models: { 'meta/muse-ember': { name: 'Muse Ember', release_date: '2026-11-09' } } },
+        kilo: { models: { 'meta/muse-ember': { name: 'Meta: Muse Ember', release_date: '2026-11-09' } } }
+      })
+    })
+    expect(db.models.find(m => m.id === 'meta/muse-ember')?.releaseDate).toBe('2026-11-09')
+  })
+
+  it('gives a variant its base model date instead of a copied entry', () => {
+    const db = buildDatabase({
+      ...baseInput,
+      goatModels: [
+        makeModel({ id: 'deepseek/deepseek-v4.1-flash', slug: 'deepseek-v4.1-flash', name: 'DeepSeek V4.1 Flash', releaseDate: '2026-09-10' }),
+        makeModel({ id: 'deepseek/deepseek-v4.1-flash-ultrafast', slug: 'deepseek-v4.1-flash-ultrafast', name: 'DeepSeek V4.1 Flash Ultrafast' }),
+        // A snapshot id carries its own release, so it must not inherit.
+        makeModel({ id: 'inclusionai/ling-3.1-flash-1019', slug: 'ling-3.1-flash-1019', name: 'Ling 3.1 Flash 1019' })
+      ]
+    })
+    expect(db.models.find(m => m.slug === 'deepseek-v4.1-flash-ultrafast')?.releaseDate).toBe('2026-09-10')
+    expect(db.models.find(m => m.slug === 'ling-3.1-flash-1019')?.releaseDate).toBeNull()
+  })
+
+  it('keeps a date the payload publishes — the fallbacks never override', () => {
+    const db = buildDatabase({
+      ...baseInput,
+      goatModels: [makeModel({ id: 'zai-org/GLM-5.2-Fast', slug: 'GLM-5.2-Fast', name: 'GLM-5.2 Fast', vendor: 'Z.ai', releaseDate: '2026-08-27' })]
+    })
+    expect(db.models.find(m => m.id === 'zai-org/GLM-5.2-Fast')?.releaseDate).toBe('2026-08-27')
   })
 })
 

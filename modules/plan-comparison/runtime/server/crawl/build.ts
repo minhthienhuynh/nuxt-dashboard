@@ -8,7 +8,8 @@ import type { OpenCodeEndpointRow, OpenCodeEstimateRow, OpenCodePricingRow } fro
 import type { OpenDesignAllowanceRow, OpenDesignCatalogModel, OpenDesignMultiplierRow, OpenDesignUsageRow } from './opendesign'
 import type { TokenHarborBoostRow, TokenHarborModel } from './tokenharbor'
 import { TOKEN_HARBOR_AGENT_CAPS, TOKEN_HARBOR_MODEL_ALIASES, TOKEN_HARBOR_OFFICE_CAPS, TOKEN_HARBOR_REQUEST_SHAPE, isAgentPassModel, isOfficePassModel, tokenHarborRequestCost, tokenHarborVendor } from './tokenharbor'
-import { RELEASE_DATE_FALLBACKS } from './release-dates'
+import { familyReleaseDate, RELEASE_DATE_OVERRIDES } from './release-dates'
+import { indexModelsDev, modelsDevReleaseDate } from './models-dev'
 import { plans } from '../data/plans'
 
 export interface BuildInput {
@@ -27,6 +28,8 @@ export interface BuildInput {
   openDesignMultipliers: OpenDesignMultiplierRow[]
   /** Vendor's own request estimates from the "Coding Plan usage" table (Go). */
   openDesignUsage: OpenDesignUsageRow[]
+  /** models.dev catalog JSON — release-date fallback of last resort. */
+  modelsDevJson?: string
   tokenHarborModels: TokenHarborModel[]
   tokenHarborBoosts: TokenHarborBoostRow[]
   fetchedAt: string
@@ -637,11 +640,27 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
     }
   }
 
-  // models.dev fallback: dates CC's payload leaves unset, for the models the
-  // vendor's own pages show `—` for (see release-dates.ts for the audit).
-  const withReleaseDates = models.map((model) => {
-    const fallback = RELEASE_DATE_FALLBACKS[model.id]
-    return fallback && model.releaseDate == null ? { ...model, releaseDate: fallback } : model
+  // Release dates CC's payload leaves unset, in order of trust. Every step only
+  // fills `null`, so a date CC publishes is never replaced:
+  // 1. the overrides in release-dates.ts — only the models whose live data is
+  //    wrong or missing (each entry carries its evidence),
+  // 2. models.dev queried live (models-dev.ts), so a model added between audits
+  //    is dated from its first crawl,
+  // 3. the family date: a variant models.dev does not carry (`-ultrafast`,
+  //    `-eco`) reads its base model's date from this same payload, instead of a
+  //    hand-maintained copy of that date.
+  const modelsDevIndex = indexModelsDev(input.modelsDevJson ?? '')
+  const dated = models.map((model) => {
+    if (model.releaseDate != null) return model
+    const override = RELEASE_DATE_OVERRIDES[model.id]
+    if (override) return { ...model, releaseDate: override }
+    const fromModelsDev = modelsDevReleaseDate(modelsDevIndex, [model.slug, model.name, model.id])
+    return fromModelsDev ? { ...model, releaseDate: fromModelsDev } : model
+  })
+  const withReleaseDates = dated.map((model) => {
+    if (model.releaseDate != null) return model
+    const family = familyReleaseDate(model, dated)
+    return family ? { ...model, releaseDate: family } : model
   })
 
   return {

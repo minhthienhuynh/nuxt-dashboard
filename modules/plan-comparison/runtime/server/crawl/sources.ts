@@ -13,7 +13,10 @@ export const SOURCE_URLS = {
   // catalogue (rates + vendor intelligence index) as a Flight payload on the
   // models page; the pricing page renders the Agent Pass request widget.
   tokenHarborModels: 'https://tokenharbor.ai/models',
-  tokenHarborPricing: 'https://tokenharbor.ai/pricing'
+  tokenHarborPricing: 'https://tokenharbor.ai/pricing',
+  // Cross-provider model database, used only as a release-date fallback for the
+  // models Command Code ships without one (~6 MB JSON, additive source).
+  modelsDev: 'https://models.dev/api.json'
 } as const
 
 export const CRAWLER_USER_AGENT = 'Mozilla/5.0 (plan-comparison-crawler)'
@@ -152,10 +155,12 @@ export interface CrawlSources {
   openDesignCreditsHtml: string
   tokenHarborModelsHtml: string
   tokenHarborPricingHtml: string
+  /** models.dev catalog JSON; empty when the site is unreachable. */
+  modelsDevJson: string
 }
 
 export async function fetchSources(fetchImpl: FetchImpl = fetch): Promise<CrawlSources> {
-  const [goatHtml, goHtml, pricingLimitsHtml, openCodeGoHtml, openDesignGoHtml, openDesignModelsHtml, openDesignCreditsHtml, tokenHarborModelsHtml, tokenHarborPricingHtml] = await Promise.all([
+  const [goatHtml, goHtml, pricingLimitsHtml, openCodeGoHtml, openDesignGoHtml, openDesignModelsHtml, openDesignCreditsHtml, tokenHarborModelsHtml, tokenHarborPricingHtml, modelsDevJson] = await Promise.all([
     fetchText(fetchImpl, SOURCE_URLS.goat),
     fetchText(fetchImpl, SOURCE_URLS.go),
     fetchText(fetchImpl, SOURCE_URLS.pricingLimits),
@@ -164,7 +169,8 @@ export async function fetchSources(fetchImpl: FetchImpl = fetch): Promise<CrawlS
     fetchTextOptional(fetchImpl, SOURCE_URLS.openDesignModels),
     fetchTextOptional(fetchImpl, SOURCE_URLS.openDesignCredits),
     fetchTextOptional(fetchImpl, SOURCE_URLS.tokenHarborModels),
-    fetchTextOptional(fetchImpl, SOURCE_URLS.tokenHarborPricing)
+    fetchTextOptional(fetchImpl, SOURCE_URLS.tokenHarborPricing),
+    fetchTextOptional(fetchImpl, SOURCE_URLS.modelsDev)
   ])
   return {
     goatHtml,
@@ -175,6 +181,7 @@ export async function fetchSources(fetchImpl: FetchImpl = fetch): Promise<CrawlS
     openDesignModelsHtml,
     openDesignCreditsHtml,
     tokenHarborModelsHtml,
-    tokenHarborPricingHtml
+    tokenHarborPricingHtml,
+    modelsDevJson
   }
 }

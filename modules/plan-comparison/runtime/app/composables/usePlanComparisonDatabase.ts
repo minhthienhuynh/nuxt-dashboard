@@ -8,6 +8,13 @@ import type { SortableModelRow, SortOptionId } from './usePlanComparisonSort'
 import { PLAN_COMPARISON_PLANS } from '../plan-colors'
 import type { PlanComparisonPlanKey, PlanComparisonPlanMeta } from '../plan-colors'
 
+/**
+ * Default cutoff for the "hide old models" filter: GLM-5.3 Flash's release
+ * date, i.e. the wave baseline — "GLM-5.3 Flash and newer". Deliberately a
+ * fixed date and not a rolling window: a window would keep moving forward and
+ * hide models that are still funded but older than it. Bump by hand when the
+ * baseline wave changes; the filter bar lets the reader pick any other date.
+ */
 export const DEFAULT_OLD_BEFORE = '2026-08-26'
 export const DEFAULT_INTEL_THRESHOLD = 37
 
