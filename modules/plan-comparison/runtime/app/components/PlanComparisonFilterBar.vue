@@ -66,6 +66,7 @@ function onIntelThresholdInput(value: string | number) {
         :model-value="oldBefore"
         size="sm"
         class="w-36"
+        aria-label="Release cutoff date"
         @update:model-value="onOldBeforeInput($event as string)"
       />
     </label>
@@ -79,6 +80,7 @@ function onIntelThresholdInput(value: string | number) {
         size="sm"
         class="w-20"
         min="0"
+        aria-label="Lowest Intelligence Index to keep"
         @update:model-value="onIntelThresholdInput($event as string | number)"
       />
     </label>

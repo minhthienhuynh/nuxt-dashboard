@@ -39,6 +39,12 @@ const BAR_H = 16
 const bandHeight = computed(() => Math.max(props.plans.length * BAR_H, rowBandHeight.value))
 const chartHeight = computed(() => props.rows.length * bandHeight.value + 60)
 
+// Unovis marks the plot aria-hidden, so the chart needs a name of its own or a
+// screen reader gets a figure with nothing in it.
+const chartSummary = computed(() =>
+  `Bar chart: ${props.rows.length} models and ${props.plans.length} plans. Each bar is the usage value a plan funds on that model per month; open a model for exact values.`
+)
+
 // Hover (or tap on touch) a model — its y-axis label or any of its bars — for
 // the spec tooltip.
 const { hovered, onPointerMove, onPointerLeave, onPointerUp, onTooltipPointerEnter, onTooltipPointerLeave, close } = usePlanChartHover(
@@ -64,9 +70,9 @@ const xTickFormat = (value: number) => `$${value}`
   <UCard ref="cardRef" :ui="{ root: 'overflow-visible', body: 'px-0! pb-3!' }">
     <template #header>
       <div class="space-y-1 px-4">
-        <p class="text-lg font-semibold text-highlighted">
+        <h2 class="text-lg font-semibold text-highlighted">
           1. Monthly value per model
-        </p>
+        </h2>
         <p class="text-[13px] text-muted">
           Bar length = what a plan funds on that model per month — its share of the plan's
           pool at the model's own rate, scaled to the largest bar. A pool is spent in
@@ -81,8 +87,11 @@ const xTickFormat = (value: number) => `$${value}`
     </template>
 
     <div
+      v-if="rows.length"
       ref="chartRef"
       class="relative w-full"
+      role="img"
+      :aria-label="chartSummary"
       :style="{ 'height': `${chartHeight}px`, '--pc-tick-font-size': `${axis.fontSize}px` }"
       @pointermove="onPointerMove"
       @pointerleave="onPointerLeave"
@@ -145,5 +154,9 @@ const xTickFormat = (value: number) => `$${value}`
         @content-leave="onTooltipPointerLeave"
       />
     </div>
+    <p v-else class="px-4 py-10 text-center text-sm text-muted">
+      No model matches these filters. Widen them above — the release cutoff or the
+      Intelligence Index threshold — to bring models back.
+    </p>
   </UCard>
 </template>

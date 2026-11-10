@@ -36,6 +36,12 @@ const {
 
 const chartHeight = computed(() => props.rows.length * rowBandHeight.value + 72)
 
+// Unovis marks the plot aria-hidden, so the chart needs a name of its own or a
+// screen reader gets a figure with nothing in it.
+const chartSummary = computed(() =>
+  `Scatter chart: ${props.rows.length} models and ${props.plans.length} plans. Horizontal position is requests per month on a log scale, dot size is the usage value a plan funds on that model; open a model for exact values.`
+)
+
 // Hover (or tap on touch) a model — its y-axis label or any of its dots — for
 // the spec tooltip.
 const { hovered, onPointerMove, onPointerLeave, onPointerUp, onTooltipPointerEnter, onTooltipPointerLeave, close } = usePlanChartHover(
@@ -128,9 +134,9 @@ const DURATION = 200
   <UCard ref="cardRef" :ui="{ root: 'overflow-visible', body: 'px-0! pb-3!' }">
     <template #header>
       <div class="space-y-1 px-4">
-        <p class="text-lg font-semibold text-highlighted">
+        <h2 class="text-lg font-semibold text-highlighted">
           2. Requests per month vs monthly value
-        </p>
+        </h2>
         <p class="text-[13px] text-muted">
           Horizontal position = requests per month (log scale). Dot size = the monthly
           value the plan funds on that model, area-proportional and spent in proportion
@@ -146,8 +152,11 @@ const DURATION = 200
     </template>
 
     <div
+      v-if="rows.length"
       ref="chartRef"
       class="relative w-full"
+      role="img"
+      :aria-label="chartSummary"
       :style="{ 'height': `${chartHeight}px`, '--pc-tick-font-size': `${axis.fontSize}px` }"
       @pointermove="onPointerMove"
       @pointerleave="onPointerLeave"
@@ -211,5 +220,9 @@ const DURATION = 200
         @content-leave="onTooltipPointerLeave"
       />
     </div>
+    <p v-else class="px-4 py-10 text-center text-sm text-muted">
+      No model matches these filters. Widen them above — the release cutoff or the
+      Intelligence Index threshold — to bring models back.
+    </p>
   </UCard>
 </template>
