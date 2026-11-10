@@ -45,3 +45,31 @@ describe('plans - published card values', () => {
     expect(byId('oc-go')?.limits_percent).toEqual({ '5h': 20, 'weekly': 50, 'monthly': 100 })
   })
 })
+
+/**
+ * `funding` decides the legends ("… (shared pool)") and the card wording
+ * ("one shared pool" vs "max per model"), so a wrong flag makes every chart
+ * read as if each model had its own pot. Verified 2026-11-10.
+ */
+describe('plans - funding shape', () => {
+  const byId = (id: string) => plans.find(plan => plan.id === id)
+
+  it('marks the plans that spend one shared pot', () => {
+    // Command Code Go: "one shared pool with a monthly usage on every model"
+    // and "these usage limits all come out of one shared $10 pool".
+    // Command Code GOAT: the Go doc calls Go "the same structure GOAT plan
+    // subscribers get, scaled to a $10 pool" — $100 of credits, per-model
+    // allocations, boosted up to $70 on some models.
+    // OpenDesign Go: "Credit allocation — Shared pool".
+    // Token Harbor passes: one "included usage" allowance + Model Boost.
+    expect(plans.filter(plan => plan.funding === 'pool').map(plan => plan.id))
+      .toEqual(['cmd-go', 'cmd-goat', 'od-go', 'th-agent', 'th-office'])
+  })
+
+  it('keeps OpenCode Go per-model, without a plan-wide pot', () => {
+    // "Each model has the following usage limits … Each model's monthly limit
+    // determines how its usage counts toward those allowances."
+    expect(byId('oc-go')?.funding).toBeUndefined()
+    expect(byId('oc-go')?.credit_is_per_model).toBe(true)
+  })
+})

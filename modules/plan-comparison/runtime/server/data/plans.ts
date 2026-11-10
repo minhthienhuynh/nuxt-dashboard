@@ -11,6 +11,14 @@ export const plans: Plan[] = [
     // lists "$2 / $5" for the same windows. The plan page is authoritative for
     // its own plan, so these follow it (verified 2026-11-06).
     has_api_access: false,
+    // One shared pot, not a per-model grant: "Your $1 buys $10 of credits. A 10x
+    // multiplier as one shared pool with a monthly usage on every model" and
+    // "These usage limits all come out of one shared $10 pool. A model's monthly
+    // credits allocation is how much usage that pool is worth if you spend the
+    // whole month on that model" (commandcode.ai/docs/plans/go, verified
+    // 2026-11-10). The per-model rows are that allocation, i.e. the usage value
+    // this pool funds on each model — the OpenDesign shape.
+    funding: 'pool',
     limits: {
       '5h': 3,
       'weekly': 6,
@@ -26,13 +34,18 @@ export const plans: Plan[] = [
     // usage-limits block says "Monthly limit - up to $100 of usage", which the
     // pricing-limits table repeats ("GOAT | $10 | Up to $100 of usage"). The
     // per-model allowances in the same doc table run $10-$100, so $70 is one
-    // model's allowance (GLM-5.2 / Tencent Hy3 / Qwen 3.8 27B), not the plan's.
+    // model's allowance (GLM-5.2 / Tencent Hy3 / Qwen 3.8 27B), not the plan's —
+    // and those allowances are paid out of this one pot (the Go doc calls Go
+    // "the same structure GOAT plan subscribers get, scaled to a $10 pool"), so
+    // GOAT is a shared $100 pool with per-model allocations, not a per-model
+    // grant. Verified 2026-11-10.
     monthly_credit_usd: 100,
     has_api_access: true,
     // Published as dollar usage windows ("5-hour up to $20 / weekly up to $50 /
     // monthly up to $100", docs/plans/goat + pricing-limits). The ratios
     // (0.2 / 0.5) are what the estimate math consumes, so storing the published
     // dollars keeps the card truthful without moving any request count.
+    funding: 'pool',
     limits: {
       '5h': 20,
       'weekly': 50,

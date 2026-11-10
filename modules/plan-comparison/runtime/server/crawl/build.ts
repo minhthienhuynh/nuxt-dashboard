@@ -356,7 +356,9 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
     planModels.push(planModelRow('cmd-goat', model.id, goatBudget, goatComputed, input.sourceUrls.goat, input.fetchedAt))
     if (onCmdGo(model)) {
       // Script path: the Go estimates table publishes per-model budgets with
-      // its own rates/shape/fractions (Go is per-model credits since 2026-09-28).
+      // its own rates/shape/fractions. Those budgets are one shared $10 pool's
+      // per-model allocation (docs/plans/go), so they stay usage values, not
+      // separate grants.
       // Models missing from that table fall back to the legacy flat-budget math.
       // A row whose rates fail to parse keeps its budget with null estimates
       // (mirrors estimateRow: null estimates are filtered from the log chart).

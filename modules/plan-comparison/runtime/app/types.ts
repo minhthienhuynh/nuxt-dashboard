@@ -139,10 +139,11 @@ export interface PlanModelEstimate {
   model_id: string
   /**
    * What this model gets per month on this plan. `per_model` plans: the
-   * published per-model credit (Command Code `$20`, OpenCode Go `$15–$100`).
-   * `pool` plans: the usage value the shared pool funds here — OpenDesign's
-   * published "Monthly usage" cell ($60/$120/$220 …), Token Harbor's
-   * `pool × Model Boost`. Never the pool itself, and never a per-model grant.
+   * published per-model limit (OpenCode Go `$15–$100`). `pool` plans: the usage
+   * value the shared pool funds here — Command Code Go/GOAT's per-model credit
+   * allocation, OpenDesign's published "Monthly usage" cell ($60/$120/$220 …),
+   * Token Harbor's `pool × Model Boost`. Never the pool itself, and never a
+   * per-model grant.
    */
   monthly_credits_usd: number
   estimates: PlanModelEstimateValues | null
