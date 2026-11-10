@@ -107,12 +107,23 @@ function isLowIntel(model: Model, intelThreshold: number): boolean {
   return model.intelligenceIndex == null || model.intelligenceIndex < intelThreshold
 }
 
-// The "hide old" filter works on the lab release date (models.dev fills what
-// CC's payload leaves unset — see the crawl's release-dates.ts), not the
-// later date Command Code listed the model. A model with no release date is
-// treated as old whenever the filter is active.
+/**
+ * The date the filters and the release sort work on: the lab release date where
+ * one is known (the crawl's release-dates.ts fills what CC's payload leaves
+ * unset), else the date Command Code listed the model. The fallback matters —
+ * a model CC published this week has `releaseDate: null` until the next audit
+ * adds it, and reading null as "old" hid it from the default view (Muse Ember,
+ * listed 2026-11-08, was invisible while the filter was on).
+ */
+function releaseDateOf(model: Model): string | null {
+  return model.releaseDate ?? model.launchedAt
+}
+
+// Only a model with neither date counts as old; anything else is compared on
+// its date.
 function isOld(model: Model, oldBefore: string): boolean {
-  return model.releaseDate == null || model.releaseDate < oldBefore
+  const date = releaseDateOf(model)
+  return date == null || date < oldBefore
 }
 
 export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filters: PlanComparisonFilters, selection: PlanSelection = defaultPlanSelection()): NormalizedPlanComparisonData {
@@ -164,7 +175,7 @@ export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filt
   const enrichedRows: EnrichedModelRow[] = visibleModels.map(model => ({
     model,
     label: labelFor(model),
-    release: model.releaseDate ? Date.parse(model.releaseDate) : null,
+    release: releaseDateOf(model) ? Date.parse(releaseDateOf(model)!) : null,
     name: model.name,
     context: model.contextWindow,
     intelligence: model.intelligenceIndex,
