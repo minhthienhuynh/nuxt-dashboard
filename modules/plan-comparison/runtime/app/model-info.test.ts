@@ -65,12 +65,12 @@ function makeRow(name: string, overrides: Partial<EnrichedModelRow> = {}): Enric
     'intelligence': null,
     'speed': null,
     'inputPrice': null,
-    'cmd': { credit: null, request: null, pool: false },
-    'goat': { credit: null, request: null, pool: false },
-    'go': { credit: null, request: null, pool: false },
-    'od': { credit: null, request: null, pool: true },
-    'th': { credit: null, request: null, pool: true },
-    'th-office': { credit: null, request: null, pool: true },
+    'cmd': { credit: null, request: null },
+    'goat': { credit: null, request: null },
+    'go': { credit: null, request: null },
+    'od': { credit: null, request: null },
+    'th': { credit: null, request: null },
+    'th-office': { credit: null, request: null },
     ...overrides
   }
 }
@@ -205,16 +205,16 @@ describe('modelInfoFields', () => {
 })
 
 describe('funding values', () => {
-  it('lists every plan in registry order with credit and request counts', () => {
+  it('lists every plan in registry order with its usage value and request count', () => {
     const row = makeRow('Alpha', {
-      cmd: { credit: 100, request: 2500, pool: false },
-      goat: { credit: 200, request: 5000, pool: false },
-      go: { credit: 50, request: 1000, pool: false }
+      cmd: { credit: 100, request: 2500 },
+      goat: { credit: 200, request: 5000 },
+      go: { credit: 50, request: 1000 }
     })
     expect(fundingValues(row)).toEqual([
-      { label: 'Command Code Go', value: '$100 credit · 2,500 req/mo' },
-      { label: 'Command Code GOAT', value: '$200 credit · 5,000 req/mo' },
-      { label: 'OpenCode Go', value: '$50 credit · 1,000 req/mo' },
+      { label: 'Command Code Go', value: '$100 usage · 2,500 req/mo' },
+      { label: 'Command Code GOAT', value: '$200 usage · 5,000 req/mo' },
+      { label: 'OpenCode Go', value: '$50 usage · 1,000 req/mo' },
       { label: 'OpenDesign Go', value: '—' },
       { label: 'Token Harbor Agent', value: '—' },
       { label: 'Token Harbor Office', value: '—' }
@@ -222,22 +222,22 @@ describe('funding values', () => {
   })
 
   it('labels a pool plan as usage, not as a per-model credit', () => {
-    const row = makeRow('Alpha', { od: { credit: 220, request: 12345, pool: true } })
+    const row = makeRow('Alpha', { od: { credit: 220, request: 12345 } })
     expect(fundingValues(row)[3]).toEqual({ label: 'OpenDesign Go', value: '$220 usage · 12,345 req/mo' })
   })
 
   it('dashes an unpublished request count', () => {
-    const row = makeRow('Alpha', { cmd: { credit: 100, request: null, pool: false } })
-    expect(fundingValues(row)[0]).toEqual({ label: 'Command Code Go', value: '$100 credit · — req/mo' })
+    const row = makeRow('Alpha', { cmd: { credit: 100, request: null } })
+    expect(fundingValues(row)[0]).toEqual({ label: 'Command Code Go', value: '$100 usage · — req/mo' })
   })
 
-  it('cleans float artifacts in credit', () => {
-    const row = makeRow('Alpha', { cmd: { credit: 49.99999999999999, request: 100, pool: false } })
-    expect(fundingValues(row)[0]).toEqual({ label: 'Command Code Go', value: '$50 credit · 100 req/mo' })
+  it('cleans float artifacts in the usage value', () => {
+    const row = makeRow('Alpha', { cmd: { credit: 49.99999999999999, request: 100 } })
+    expect(fundingValues(row)[0]).toEqual({ label: 'Command Code Go', value: '$50 usage · 100 req/mo' })
   })
 
   it('dashes the whole row when a plan grants no credit', () => {
-    const row = makeRow('Alpha', { go: { credit: null, request: 1000, pool: false } })
+    const row = makeRow('Alpha', { go: { credit: null, request: 1000 } })
     expect(fundingValues(row)[2]).toEqual({ label: 'OpenCode Go', value: '—' })
   })
 
@@ -248,23 +248,23 @@ describe('funding values', () => {
 
 describe('fundingWithPlans', () => {
   it('lists only the plans passed in, so an unchecked plan leaves the tooltip', () => {
-    const row = makeRow('Alpha', { cmd: { credit: 100, request: 2500, pool: false } })
+    const row = makeRow('Alpha', { cmd: { credit: 100, request: 2500 } })
     const onlyCmd = PLAN_COMPARISON_PLANS.filter(plan => plan.key === 'cmd')
     expect(fundingWithPlans(row, onlyCmd).map(field => [field.plan.key, field.label, field.value]))
-      .toEqual([['cmd', 'Command Code Go', '$100 credit · 2,500 req/mo']])
+      .toEqual([['cmd', 'Command Code Go', '$100 usage · 2,500 req/mo']])
   })
 
   it('joins each funding row to its plan meta by label, not position', () => {
     const row = makeRow('Alpha', {
-      cmd: { credit: 100, request: 2500, pool: false },
-      goat: { credit: 200, request: 5000, pool: false },
-      go: { credit: 50, request: 1000, pool: false }
+      cmd: { credit: 100, request: 2500 },
+      goat: { credit: 200, request: 5000 },
+      go: { credit: 50, request: 1000 }
     })
     const fields = fundingWithPlans(row, PLAN_COMPARISON_PLANS)
     expect(fields.map(field => [field.plan.key, field.label, field.value])).toEqual([
-      ['cmd', 'Command Code Go', '$100 credit · 2,500 req/mo'],
-      ['goat', 'Command Code GOAT', '$200 credit · 5,000 req/mo'],
-      ['go', 'OpenCode Go', '$50 credit · 1,000 req/mo'],
+      ['cmd', 'Command Code Go', '$100 usage · 2,500 req/mo'],
+      ['goat', 'Command Code GOAT', '$200 usage · 5,000 req/mo'],
+      ['go', 'OpenCode Go', '$50 usage · 1,000 req/mo'],
       ['od', 'OpenDesign Go', '—'],
       ['th', 'Token Harbor Agent', '—'],
       ['th-office', 'Token Harbor Office', '—']

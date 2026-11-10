@@ -16,15 +16,14 @@ export interface PlanLimits {
 }
 
 /**
- * `per_model` = every model carries its own monthly credit (Command Code,
- * OpenCode Go). `pool` = the plan funds one shared credit pool that any
- * eligible model can drain, so a row's `monthly_credits_usd` is not a grant:
- * it is the usage value that pool funds on that model — the vendor's published
- * monthly-usage figure where they publish one (OpenDesign), else the pool
- * scaled by the model's rate (`pool × Model Boost` on Token Harbor, or
- * `pool ÷ credit multiplier` as the fallback). One pool, many per-model values.
+ * Every plan in this comparison sells ONE shared pool, not a separate wallet per
+ * model: Command Code ("one shared pool with a monthly usage on every model"),
+ * OpenDesign ("credit allocation — shared pool"), Token Harbor (one "included
+ * usage" allowance + Model Boost) and OpenCode Go (a single `{rolling, weekly,
+ * monthly}` subscription limit, each request weighted by `60 / monthly limit` —
+ * see plans.ts). So a plan row is never a grant: it is the usage value the pool
+ * funds on that model, and there is no per-plan flag to branch on.
  */
-export type PlanFundingKind = 'per_model' | 'pool'
 
 /**
  * Plans that publish rolling windows as a share of each model's own monthly
@@ -48,14 +47,6 @@ export interface Plan {
   limits: PlanLimits
   limits_percent?: PlanLimitsPercent
   weekly_window_days?: number
-  /** Defaults to `per_model` when absent. */
-  funding?: PlanFundingKind
-  /**
-   * The plan sells per-model monthly limits only (no plan-wide pool), so
-   * `monthly_credit_usd` is the largest of them and the card must say so.
-   * OpenCode Go: $15–$100 per model, no shared pool.
-   */
-  credit_is_per_model?: boolean
 }
 
 export interface ModelTierRates {
@@ -138,12 +129,12 @@ export interface PlanModelEstimate {
   plan_id: string
   model_id: string
   /**
-   * What this model gets per month on this plan. `per_model` plans: the
-   * published per-model limit (OpenCode Go `$15–$100`). `pool` plans: the usage
-   * value the shared pool funds here — Command Code Go/GOAT's per-model credit
-   * allocation, OpenDesign's published "Monthly usage" cell ($60/$120/$220 …),
-   * Token Harbor's `pool × Model Boost`. Never the pool itself, and never a
-   * per-model grant.
+   * The usage value this plan's shared pool funds on this model — its
+   * per-model allocation: Command Code's published credit allocation
+   * ($6–$10 on Go, $10–$70 on GOAT), OpenDesign's "Monthly usage" cell
+   * ($60/$120/$220 …), Token Harbor's `pool × Model Boost`, OpenCode Go's
+   * published monthly limit ($15–$100, i.e. `60 ÷ multiplier`). Never the pool
+   * itself, and never a separate per-model wallet.
    */
   monthly_credits_usd: number
   estimates: PlanModelEstimateValues | null

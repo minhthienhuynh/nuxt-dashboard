@@ -139,13 +139,11 @@ function fundingUsd(value: number): string {
 
 function fundingValue(funding: EnrichedModelRow['cmd']): string {
   if (funding.credit == null) return FUNDING_DASH
-  // A pool plan's row value is the usage value that plan's shared pool funds on
-  // this model (vendor-published where the vendor publishes it, else the pool
-  // scaled by the model's multiplier/boost) — not a per-model grant, and not the
-  // pool itself, so it is labelled "usage".
-  const credit = funding.pool
-    ? `${fundingUsd(funding.credit)} usage`
-    : `${fundingUsd(funding.credit)} credit`
+  // Every plan's row value is the usage its shared pool funds on this model
+  // (vendor-published where they publish it, else the pool scaled by the
+  // model's multiplier/boost) — not a separate wallet, and not the pool itself,
+  // so it is labelled "usage".
+  const credit = `${fundingUsd(funding.credit)} usage`
   if (funding.request == null) return `${credit} · ${FUNDING_DASH} req/mo`
   return `${credit} · ${funding.request.toLocaleString('en-US')} req/mo`
 }
@@ -156,10 +154,9 @@ export interface PlanFundingField extends ModelInfoField {
 
 /**
  * Per-plan funding rows for the tooltip: one entry per plan in `plans` (the
- * checked ones), in the order given, `$X credit · Y req/mo` (`$X shared pool`
- * for pool plans), with a dash for values the data does not publish. The plan
- * meta rides along so the template tints each name without positional coupling
- * to the array.
+ * checked ones), in the order given, `$X usage · Y req/mo`, with a dash for
+ * values the data does not publish. The plan meta rides along so the template
+ * tints each name without positional coupling to the array.
  */
 export function fundingWithPlans(row: EnrichedModelRow, plans: PlanComparisonPlanMeta[]): PlanFundingField[] {
   return plans.map(plan => ({

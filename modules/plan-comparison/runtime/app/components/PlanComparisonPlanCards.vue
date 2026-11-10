@@ -30,13 +30,6 @@ function windowValue(plan: PlanCard, window: '5h' | 'weekly' | 'monthly'): strin
   return limit == null ? '—' : formatUsd(limit)
 }
 
-/** How a plan hands out its allowance, in the card's own words. */
-function fundingShape(plan: PlanCard): string {
-  if (plan.funding === 'pool') return 'one shared pool'
-  if (plan.creditIsPerModel) return 'max per model'
-  return 'per model'
-}
-
 /**
  * The monthly cap repeats the monthly-credit row on most plans, so it is only
  * listed when the two differ (or when the plan expresses it as a share).
@@ -79,12 +72,13 @@ function vendorPlanName(plan: PlanCard): string {
 }
 
 const ROWS: Array<{ label: string, value: (plan: PlanCard) => string, show?: (plan: PlanCard) => boolean }> = [
-  // The headline is the price; the allowance is the first detail row, with the
-  // funding shape ("one shared pool" / "per model") riding on its value.
-  { label: 'Monthly credit', value: plan => `${formatUsd(plan.monthlyCredit)} ${fundingShape(plan)}` },
-  // Command Code caps most models well below the headline credit ($20 of a
-  // $100 GOAT pool), so the range is the number that matters per model.
-  { label: 'Per-model cap', value: plan => plan.creditRange ? `${formatUsd(plan.creditRange.min)}–${formatUsd(plan.creditRange.max)}` : '' },
+  // The headline is the price; the allowance is the first detail row. Every plan
+  // is one shared pool, so the row says "pool" instead of naming a funding
+  // shape per plan (see types.ts on `monthly_credits_usd`).
+  { label: 'Monthly pool', value: plan => `${formatUsd(plan.monthlyCredit)} shared pool` },
+  // How much usage that pool funds per model — the vendor's per-model allocation,
+  // which is the number a reader compares across plans.
+  { label: 'Per-model value', value: plan => plan.creditRange ? `${formatUsd(plan.creditRange.min)}–${formatUsd(plan.creditRange.max)}` : '' },
   { label: '5-hour cap', value: plan => windowValue(plan, '5h') },
   { label: 'Weekly cap', value: plan => windowValue(plan, 'weekly') },
   { label: 'Monthly cap', value: plan => windowValue(plan, 'monthly'), show: showMonthlyCap },

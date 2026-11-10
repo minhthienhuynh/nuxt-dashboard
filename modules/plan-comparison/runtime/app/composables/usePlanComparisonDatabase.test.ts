@@ -57,7 +57,6 @@ function makeDatabase(models: Model[], planModels: PlanModelEstimate[]): PlanCom
 function makeThPlan(overrides: Partial<Plan> = {}): Plan {
   return makePlan('th-agent', {
     provider_id: 'tokenharbor',
-    funding: 'pool',
     monthly_price_usd: 1.99,
     monthly_credit_usd: 10,
     limits: { '5h': null, 'weekly': 2.5, 'monthly': 10 },
@@ -69,7 +68,6 @@ function makeThPlan(overrides: Partial<Plan> = {}): Plan {
 function makeThOfficePlan(overrides: Partial<Plan> = {}): Plan {
   return makePlan('th-office', {
     provider_id: 'tokenharbor',
-    funding: 'pool',
     monthly_price_usd: 9.99,
     monthly_credit_usd: 35,
     limits: { '5h': null, 'weekly': 8.75, 'monthly': 35 },
@@ -81,7 +79,6 @@ function makeThOfficePlan(overrides: Partial<Plan> = {}): Plan {
 function makeOdPlan(overrides: Partial<Plan> = {}): Plan {
   return makePlan('od-go', {
     provider_id: 'open-design',
-    funding: 'pool',
     monthly_price_usd: 10,
     monthly_credit_usd: 220,
     limits: { '5h': 18, 'weekly': 55, 'monthly': 220 },
@@ -205,28 +202,24 @@ describe('normalizePlanComparisonDatabase - dot rows', () => {
   })
 })
 
-describe('normalizePlanComparisonDatabase - pool plan', () => {
-  it('flags its rows and card as one shared pool', () => {
+describe('normalizePlanComparisonDatabase - shared-pool rows', () => {
+  it('carries the pool allocation as a plain usage value', () => {
+    // Every plan is one shared pool, so a row holds only the usage the pool
+    // funds on that model — no funding flag to branch on anywhere downstream.
     const model = makeModel({ id: 'pooled' })
     const db = makeDatabase([model], [
       { plan_id: 'od-go', model_id: 'pooled', monthly_credits_usd: 220, estimates: { per_5h: 400, per_week: 1250, per_month: 5000 } }
     ])
     const result = normalizePlanComparisonDatabase(db, baseFilters)
     const row = result.creditRows.find(r => r.model.id === 'pooled')
-    expect(row?.od).toEqual({ credit: 220, request: 5000, pool: true })
-    expect(row?.cmd.pool).toBe(false)
+    expect(row?.od).toEqual({ credit: 220, request: 5000 })
 
     const card = result.planCards.find(c => c.id === 'od-go')
-    expect(card?.funding).toBe('pool')
+    expect(card?.monthlyCredit).toBe(220)
     expect(card?.modelCount).toBe(1)
     // Published windows reach the card as dollars (a plan without one would
     // carry null and the card would render a dash instead).
     expect(card?.limits).toEqual({ '5h': 18, 'weekly': 55, 'monthly': 220 })
-    // The bar chart filters on this list, which comes from the plan data — so it
-    // survives a filter that hides every row. All three shared-pool plans
-    // (OpenDesign Go, TokenHarbor Agent and Office Pass) are in the fixture
-    // database.
-    expect(result.poolPlanKeys).toEqual(['od', 'th', 'th-office'])
   })
 
   it('keeps rendering when the stored data predates a registry plan', () => {
@@ -237,17 +230,11 @@ describe('normalizePlanComparisonDatabase - pool plan', () => {
     db.plans = [makePlan('cmd-go'), makePlan('cmd-goat'), makePlan('oc-go')]
     const result = normalizePlanComparisonDatabase(db, baseFilters)
     expect(result.planCards.map(card => card.id)).toEqual(['cmd-go', 'cmd-goat', 'oc-go'])
-    expect(result.poolPlanKeys).toEqual([])
-  })
-
-  it('defaults a plan without a funding kind to per_model', () => {
-    const db = makeDatabase([], [])
-    expect(normalizePlanComparisonDatabase(db, baseFilters).planCards.find(c => c.id === 'cmd-go')?.funding).toBe('per_model')
   })
 })
 
 describe('normalizePlanComparisonDatabase - plan cards', () => {
-  it('reports the per-model allowance range for a per-model plan', () => {
+  it('reports the per-model allocation range', () => {
     const db = makeDatabase(
       [makeModel({ id: 'cheap' }), makeModel({ id: 'pricey' })],
       [
@@ -267,8 +254,10 @@ describe('normalizePlanComparisonDatabase - plan cards', () => {
     expect(normalizePlanComparisonDatabase(db, baseFilters).planCards.find(c => c.id === 'cmd-goat')?.creditRange).toBeNull()
   })
 
-  it('never reports a range for a pool plan', () => {
-    // OpenDesign rows differ by credit multiplier ($55-$440), which is not a cap.
+  it('reports the allocation span for every plan, pool or not', () => {
+    // OpenDesign's rows are the usage its $220 pool funds per model ($55 for a
+    // 4× model up to $440 for a 0.5× one) — the spread a reader compares, so it
+    // is shown instead of being suppressed.
     const db = makeDatabase(
       [makeModel({ id: 'luna' }), makeModel({ id: 'flash' })],
       [
@@ -276,7 +265,8 @@ describe('normalizePlanComparisonDatabase - plan cards', () => {
         { plan_id: 'od-go', model_id: 'flash', monthly_credits_usd: 440, estimates: null }
       ]
     )
-    expect(normalizePlanComparisonDatabase(db, baseFilters).planCards.find(c => c.id === 'od-go')?.creditRange).toBeNull()
+    expect(normalizePlanComparisonDatabase(db, baseFilters).planCards.find(c => c.id === 'od-go')?.creditRange)
+      .toEqual({ min: 55, max: 440 })
   })
 })
 

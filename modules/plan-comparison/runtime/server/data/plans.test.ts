@@ -17,14 +17,17 @@ describe('plans - published card values', () => {
     expect(byId('cmd-go')).toMatchObject({ monthly_price_usd: 1, monthly_credit_usd: 10 })
     // "Your $10 buys up to $100 of credits" — not the $70 allowance of one model.
     expect(byId('cmd-goat')).toMatchObject({ monthly_price_usd: 10, monthly_credit_usd: 100 })
-    expect(byId('oc-go')).toMatchObject({ monthly_price_usd: 10, monthly_credit_usd: 100, credit_is_per_model: true })
-    expect(byId('od-go')).toMatchObject({ monthly_price_usd: 10, monthly_credit_usd: 220, funding: 'pool' })
+    // One shared $60 pool: OpenCode weights each request by `60 ÷ model monthly
+    // limit`, so the docs table's $15–$100 column is the per-model allocation,
+    // not a plan price.
+    expect(byId('oc-go')).toMatchObject({ monthly_price_usd: 10, monthly_credit_usd: 60 })
+    expect(byId('od-go')).toMatchObject({ monthly_price_usd: 10, monthly_credit_usd: 220 })
     // Agent Pass: $1.99 standard renewal ($0.99 is the first-month promo, not
     // stored) and one shared $10 allowance every eligible model drains.
-    expect(byId('th-agent')).toMatchObject({ monthly_price_usd: 1.99, monthly_credit_usd: 10, funding: 'pool' })
+    expect(byId('th-agent')).toMatchObject({ monthly_price_usd: 1.99, monthly_credit_usd: 10 })
     // Office Pass: flat price ("cost the same amount every month, including
     // the first") and one shared $35 allowance.
-    expect(byId('th-office')).toMatchObject({ monthly_price_usd: 9.99, monthly_credit_usd: 35, funding: 'pool' })
+    expect(byId('th-office')).toMatchObject({ monthly_price_usd: 9.99, monthly_credit_usd: 35 })
   })
 
   it('carries the published rolling windows', () => {
@@ -47,29 +50,34 @@ describe('plans - published card values', () => {
 })
 
 /**
- * `funding` decides the legends ("… (shared pool)") and the card wording
- * ("one shared pool" vs "max per model"), so a wrong flag makes every chart
- * read as if each model had its own pot. Verified 2026-11-10.
+ * Every plan in the comparison sells ONE shared pool with per-model allocations,
+ * which is why there is no `funding` flag left to get wrong. Verified against
+ * each vendor 2026-11-10; the evidence lives next to each plan in plans.ts.
  */
-describe('plans - funding shape', () => {
+describe('plans - one shared pool each', () => {
   const byId = (id: string) => plans.find(plan => plan.id === id)
 
-  it('marks the plans that spend one shared pot', () => {
-    // Command Code Go: "one shared pool with a monthly usage on every model"
-    // and "these usage limits all come out of one shared $10 pool".
-    // Command Code GOAT: the Go doc calls Go "the same structure GOAT plan
-    // subscribers get, scaled to a $10 pool" — $100 of credits, per-model
-    // allocations, boosted up to $70 on some models.
-    // OpenDesign Go: "Credit allocation — Shared pool".
-    // Token Harbor passes: one "included usage" allowance + Model Boost.
-    expect(plans.filter(plan => plan.funding === 'pool').map(plan => plan.id))
-      .toEqual(['cmd-go', 'cmd-goat', 'od-go', 'th-agent', 'th-office'])
+  it('states the pool as the plan credit on every plan', () => {
+    // Command Code Go: "one shared pool with a monthly usage on every model".
+    // GOAT: "your $10 buys up to $100 of credits" — the Go doc calls Go "the
+    // same structure GOAT plan subscribers get, scaled to a $10 pool".
+    // OpenDesign: "credit allocation — shared pool". Token Harbor: one "included
+    // usage" allowance + Model Boost. OpenCode: one subscription-wide limit with
+    // a per-request `60 ÷ monthly limit` weight.
+    const pools = Object.fromEntries(plans.map(plan => [plan.id, plan.monthly_credit_usd]))
+    expect(pools).toEqual({
+      'cmd-go': 10,
+      'cmd-goat': 100,
+      'oc-go': 60,
+      'od-go': 220,
+      'th-agent': 10,
+      'th-office': 35
+    })
   })
 
-  it('keeps OpenCode Go per-model, without a plan-wide pot', () => {
-    // "Each model has the following usage limits … Each model's monthly limit
-    // determines how its usage counts toward those allowances."
-    expect(byId('oc-go')?.funding).toBeUndefined()
-    expect(byId('oc-go')?.credit_is_per_model).toBe(true)
+  it('expresses OpenCode windows in the shared pool dollars', () => {
+    // "5-hour — 20% of the monthly limit; weekly — 50%; monthly — 100%" of $60.
+    expect(byId('oc-go')?.limits).toEqual({ '5h': 12, 'weekly': 30, 'monthly': 60 })
+    expect(byId('oc-go')?.limits_percent).toEqual({ '5h': 20, 'weekly': 50, 'monthly': 100 })
   })
 })

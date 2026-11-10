@@ -18,7 +18,6 @@ export const plans: Plan[] = [
     // whole month on that model" (commandcode.ai/docs/plans/go, verified
     // 2026-11-10). The per-model rows are that allocation, i.e. the usage value
     // this pool funds on each model — the OpenDesign shape.
-    funding: 'pool',
     limits: {
       '5h': 3,
       'weekly': 6,
@@ -45,7 +44,6 @@ export const plans: Plan[] = [
     // monthly up to $100", docs/plans/goat + pricing-limits). The ratios
     // (0.2 / 0.5) are what the estimate math consumes, so storing the published
     // dollars keeps the card truthful without moving any request count.
-    funding: 'pool',
     limits: {
       '5h': 20,
       'weekly': 50,
@@ -58,22 +56,28 @@ export const plans: Plan[] = [
     provider_id: 'opencode',
     name: 'OpenCode Go',
     monthly_price_usd: 10,
-    // OpenCode publishes no plan-wide pool: each model carries its own monthly
-    // limit (docs table: GLM-5.3-Flash $60, Kimi K3 $15, MiniMax M3.1 $20,
-    // Qwen3.8 Flash $30, DeepSeek V4.1 Flash $100), so the headline is the
-    // largest of them and the card labels it "max per model".
-    monthly_credit_usd: 100,
+    // One shared pool, NOT a wallet per model — the docs table's "Monthly
+    // limit" column ($15–$100) is the per-model normalization, and the meter is
+    // a single counter compared against shared windows. Vendor docs only imply
+    // it ("Each model's monthly limit … determines how its usage counts toward
+    // those allowances", opencode.ai/docs/console/go); their source settles it:
+    // `LiteData.getLimits()` reads `Subscription.getLimits()["lite"]` — one
+    // `{rollingLimit, weeklyLimit, monthlyLimit}` per subscription — and every
+    // request records `costMultiplier: modelInfo.costMultiplier` into the same
+    // `fixedUsage` counter (packages/console/.../zen/util/handler.ts). The pool
+    // is the $60 model's own allowance: OpenCode weights a request by
+    // `60 ÷ model monthly limit`, so $15 of a $15 model spends the whole month
+    // and $100 of DeepSeek spends 0.6× per dollar (github.com/anomalyco/opencode
+    // issues #41391, #50457; verified 2026-11-10).
+    monthly_credit_usd: 60,
     has_api_access: true,
-    credit_is_per_model: true,
-    // Windows are shares of each model's own limit: "5-hour — 20% of the
-    // monthly limit; weekly — 50%; monthly — 100%" (opencode.ai/docs/console/
-    // go/). A $15 model therefore gets $3 / $7.50. `limits` keeps the
-    // pool-equivalent dollars (the estimate math's fallback for a model with no
-    // parsed limit); the card renders the percentages.
+    // Published as shares of the shared monthly pool: "5-hour — 20% of the
+    // monthly limit; weekly — 50%; monthly — 100%" → $12 / $30 / $60. The card
+    // renders the percentages, the estimate math consumes the dollars.
     limits: {
-      '5h': 20,
-      'weekly': 50,
-      'monthly': 100
+      '5h': 12,
+      'weekly': 30,
+      'monthly': 60
     },
     limits_percent: {
       '5h': 20,
@@ -92,7 +96,6 @@ export const plans: Plan[] = [
     // per-model grant (pricing page settings: design 220, pool 0).
     monthly_credit_usd: 220,
     has_api_access: true,
-    funding: 'pool',
     // Published in the pricing page's "Plan allowances" table: coding credits
     // $220/month with a $55 per 7-day and $18 per 5-hour window (the windows
     // apply to Coding Plan credits only). The crawl reads the same table live
@@ -118,7 +121,6 @@ export const plans: Plan[] = [
     // credit = pool × Model Boost, up to $20).
     monthly_credit_usd: 10,
     has_api_access: true,
-    funding: 'pool',
     // "Each Pass allowance covers a four-week cycle and is divided into four
     // 7-day windows: each 7-day window contains one quarter of the four-week
     // allowance." So the weekly window is $2.50 of the $10; the pass publishes
@@ -143,7 +145,6 @@ export const plans: Plan[] = [
     // credit = pool × Model Boost, up to $70).
     monthly_credit_usd: 35,
     has_api_access: true,
-    funding: 'pool',
     // Same four-week cycle as the Agent Pass: "Each Pass allowance covers a
     // four-week cycle and is divided into four 7-day windows" → $8.75 per
     // week of the $35; no 5-hour window is published (null renders `—`).

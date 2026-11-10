@@ -16,7 +16,6 @@ const {
   sortOption,
   planCards,
   selectedPlans,
-  poolPlanKeys,
   creditRows,
   dotRows,
   planSelection,
@@ -125,14 +124,12 @@ const isOldData = computed(() => {
         :rows="creditRows"
         :skipped="skippedModelNames"
         :plans="selectedPlans"
-        :pool-plan-keys="poolPlanKeys"
       />
 
       <PlanComparisonRequestDotChart
         :rows="dotRows"
         :no-request="noRequestModelNames"
         :plans="selectedPlans"
-        :pool-plan-keys="poolPlanKeys"
       />
     </template>
   </div>

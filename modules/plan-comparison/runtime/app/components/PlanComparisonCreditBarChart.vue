@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { VisAxis, VisBulletLegend, VisGroupedBar, VisPlotband, VisXYContainer } from '@unovis/vue'
 import type { EnrichedModelRow } from '../composables/usePlanComparisonDatabase'
-import type { PlanComparisonPlanKey, PlanComparisonPlanMeta } from '../plan-colors'
+import type { PlanComparisonPlanMeta } from '../plan-colors'
 import { usePlanSeries } from '../usePlanSeries'
 import { AXIS_TICK_SEPARATOR } from '../plan-chart-axis'
 import { usePlanComparisonChartFrame } from '../usePlanComparisonChartFrame'
@@ -13,15 +13,12 @@ const props = defineProps<{
   skipped: string[]
   /** Checked plans, in registry order: one bar per entry. */
   plans: PlanComparisonPlanMeta[]
-  /** Plans funded from one shared pool: their bar is the pool, not a per-model grant. */
-  poolPlanKeys: PlanComparisonPlanKey[]
 }>()
 
-// Every plan is plotted, pool plans included: their bar is the whole shared pool
-// ("if this model used all of it"), which is the same number the dot chart sizes
-// its markers with. The legend names the pot so the equal-length bars are not
-// read as per-model grants.
-const { sharedPoolPlans, sharedPoolNote, legend } = usePlanSeries(() => props.plans, () => props.poolPlanKeys)
+// Every plan here is one shared pool, so a bar is the usage that pool funds on
+// the model ("if this model used all of it") — the same number the dot chart
+// sizes its markers with. The header explains that once; the legend stays plain.
+const { legend } = usePlanSeries(() => props.plans)
 
 const {
   cardRef,
@@ -71,17 +68,13 @@ const xTickFormat = (value: number) => `$${value}`
           1. Monthly value per model
         </p>
         <p class="text-[13px] text-muted">
-          Bar length = what a plan funds on that model per month — its published
-          per-model credit, or for a shared-pool plan the usage value that pool
-          buys on it — scaled to the largest bar. Hover a bar or a model name for its specs
-          (intelligence, pricing, caps) and what each checked plan funds it with.
-          <template v-if="sharedPoolPlans.length">
-            {{ sharedPoolNote.names }} {{ sharedPoolNote.verb }} one shared pool
-            rather than a per-model grant, so {{ sharedPoolNote.pronoun }} bars
-            show the usage value that pool funds at the model's own rate — the
-            vendor's published monthly-usage figure where there is one, else the
-            pool divided by the model's credit multiplier.
-          </template>
+          Bar length = what a plan funds on that model per month — a share of the plan's
+          one shared pool, at the model's own rate: the vendor's published per-model
+          allocation where there is one, else the pool divided by the model's credit
+          multiplier — scaled to the largest bar. A pool is spent in proportion, so a
+          month on one model is not what another model gets. Hover a bar or a model name
+          for its specs (intelligence, pricing, caps) and what each checked plan funds
+          it with.
           <template v-if="skipped.length">
             No plan funds: {{ skipped.join(', ') }}.
           </template>

@@ -2,7 +2,7 @@
 import { VisAxis, VisBulletLegend, VisPlotband, VisScatter, VisXYContainer } from '@unovis/vue'
 import { Scale } from '@unovis/ts'
 import type { EnrichedModelRow } from '../composables/usePlanComparisonDatabase'
-import type { PlanComparisonPlanKey, PlanComparisonPlanMeta } from '../plan-colors'
+import type { PlanComparisonPlanMeta } from '../plan-colors'
 import { usePlanSeries } from '../usePlanSeries'
 import { AXIS_TICK_SEPARATOR, thinTicks } from '../plan-chart-axis'
 import { usePlanComparisonChartFrame } from '../usePlanComparisonChartFrame'
@@ -14,13 +14,12 @@ const props = defineProps<{
   noRequest: string[]
   /** Checked plans, in registry order: one dot series per entry. */
   plans: PlanComparisonPlanMeta[]
-  /** Plans funded from one shared pool: their dots all share the pool diameter. */
-  poolPlanKeys: PlanComparisonPlanKey[]
 }>()
 
-// Pool plans report the usage value their one pool funds on every row; dots therefore share
-// one diameter. Saying so beats letting the reader infer a per-model grant.
-const { sharedPoolPlans, sharedPoolNote, legend } = usePlanSeries(() => props.plans, () => props.poolPlanKeys)
+// Dot size is the usage the plan's pool funds on that model, so a cheaper model
+// gets a smaller dot instead of reading as a separate wallet. The header says it
+// once; the legend stays plain.
+const { legend } = usePlanSeries(() => props.plans)
 
 const {
   cardRef,
@@ -136,12 +135,10 @@ const DURATION = 200
           Horizontal position = requests per month (log scale). Dot size = the
           monthly value the plan funds on that model, area-proportional. Hover a dot or a model name for its
           specs and what each checked plan funds it with.
-          <template v-if="sharedPoolPlans.length">
-            {{ sharedPoolNote.names }} {{ sharedPoolNote.verb }} one shared pool,
-            so {{ sharedPoolNote.pronoun }} dots show the usage value that pool
-            funds at the model's own rate (the vendor's published figure where
-            there is one, else the pool divided by its credit multiplier).
-          </template>
+          Every plan here is one shared pool: a dot shows the usage that pool funds on the
+          model at its own rate (the vendor's published allocation where there is one,
+          else the pool divided by its credit multiplier), spent in proportion across
+          models.
           <template v-if="noRequest.length">
             Left out of this chart because no request count is published:
             {{ noRequest.join(', ') }}.
