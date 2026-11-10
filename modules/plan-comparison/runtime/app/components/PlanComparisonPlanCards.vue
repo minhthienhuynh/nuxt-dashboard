@@ -14,37 +14,15 @@ const emit = defineEmits<{
   (event: 'toggle', key: PlanComparisonPlanKey, selected: boolean): void
 }>()
 
-/**
- * OpenCode Go sizes its windows as a share of each model's own monthly limit
- * ("5-hour — 20% of the monthly limit; weekly — 50%; monthly — 100%"), so a
- * flat dollar figure only holds for the models whose limit matches the plan
- * pool. The plan carries the fractions; per-model dollars live in the charts.
- *
- * A `null` window means the plan publishes no such cap at all (OpenDesign Go
- * and Token Harbor Agent sell one monthly pool), so the card shows a dash
- * instead of inventing one.
- */
+/** A window is a share of the plan's own pool; `null` means it publishes none. */
 function windowValue(plan: PlanCard, window: '5h' | 'weekly' | 'monthly'): string {
-  if (plan.limitPercent) return `${plan.limitPercent[window]}%`
-  const limit = plan.limits[window]
-  return limit == null ? '—' : formatUsd(limit)
+  const percent = plan.limitPercent?.[window]
+  return percent == null ? '—' : `${percent}%`
 }
 
-/** How a plan hands out its allowance, in the card's own words. */
-function fundingShape(plan: PlanCard): string {
-  if (plan.funding === 'pool') return 'one shared pool'
-  if (plan.creditIsPerModel) return 'max per model'
-  return 'per model'
-}
-
-/**
- * The monthly cap repeats the monthly-credit row on most plans, so it is only
- * listed when the two differ (or when the plan expresses it as a share).
- */
+/** 100% is the whole pool, so a monthly cap only earns a row when it is below. */
 function showMonthlyCap(plan: PlanCard): boolean {
-  if (plan.limitPercent) return true
-  const monthly = plan.limits.monthly
-  return monthly != null && monthly !== plan.monthlyCredit
+  return (plan.limitPercent?.monthly ?? 100) !== 100
 }
 
 /**
@@ -79,12 +57,11 @@ function vendorPlanName(plan: PlanCard): string {
 }
 
 const ROWS: Array<{ label: string, value: (plan: PlanCard) => string, show?: (plan: PlanCard) => boolean }> = [
-  // The headline is the price; the allowance is the first detail row, with the
-  // funding shape ("one shared pool" / "per model") riding on its value.
-  { label: 'Monthly credit', value: plan => `${formatUsd(plan.monthlyCredit)} ${fundingShape(plan)}` },
-  // Command Code caps most models well below the headline credit ($20 of a
-  // $100 GOAT pool), so the range is the number that matters per model.
-  { label: 'Per-model cap', value: plan => plan.creditRange ? `${formatUsd(plan.creditRange.min)}–${formatUsd(plan.creditRange.max)}` : '' },
+  // No pool row: the word covers three different things here (Command Code's
+  // $100 ceiling, OpenCode's hard $60 cap, OpenDesign's $60 baseline), and side by
+  // side GOAT's "$100" reads richer than OpenCode's $60 although 43 of its 62
+  // models fund $20. Start from what a reader gets on one model instead.
+  { label: 'Per-model usage', value: plan => plan.creditRange ? `${formatUsd(plan.creditRange.min)}–${formatUsd(plan.creditRange.max)}` : '' },
   { label: '5-hour cap', value: plan => windowValue(plan, '5h') },
   { label: 'Weekly cap', value: plan => windowValue(plan, 'weekly') },
   { label: 'Monthly cap', value: plan => windowValue(plan, 'monthly'), show: showMonthlyCap },
@@ -101,31 +78,35 @@ const ROWS: Array<{ label: string, value: (plan: PlanCard) => string, show?: (pl
     >
       <div class="flex items-start justify-between gap-2">
         <div class="flex min-w-0 flex-wrap items-baseline gap-2">
-          <span class="flex items-center gap-2 font-semibold text-highlighted">
+          <span class="flex flex-wrap items-center gap-2 font-semibold text-highlighted">
             <span
               class="inline-block size-2.5 shrink-0 rounded-sm"
               :style="{ background: planColor(plan.id) }"
             />
             {{ plan.label }}
           </span>
-          <!-- Vendor's own plan name, only when it says something new. -->
+          <!-- Vendor's own plan name, in parentheses and on the same line: as a
+               line of its own reading "vendor plan: …" it showed up on exactly
+               one card and looked like a rendering mistake. -->
           <span
             v-if="vendorPlanName(plan)"
-            class="truncate text-xs text-muted"
-          >
-            vendor plan: {{ vendorPlanName(plan) }}
-          </span>
+            class="truncate text-xs font-normal text-muted"
+          >({{ vendorPlanName(plan) }})</span>
         </div>
         <!-- Checked = this plan's models are listed in the charts. Unchecking
              takes them out; the charts stay empty rather than falling back to
              the full list. -->
-        <UCheckbox
-          :model-value="selection[plan.key] !== false"
-          :aria-label="`Show ${plan.label} models in the charts`"
-          :title="`Show ${plan.label} models in the charts`"
-          class="shrink-0 pt-0.5"
-          @update:model-value="value => emit('toggle', plan.key, value === true)"
-        />
+        <!-- The box itself is 16px; the label grows the target to 24px, the
+             minimum WCAG 2.5.8 asks for, and the negative margin keeps the box
+             where it was. -->
+        <label class="-m-1 flex shrink-0 cursor-pointer items-center justify-center p-1">
+          <UCheckbox
+            :model-value="selection[plan.key] !== false"
+            :aria-label="`Show ${plan.label} models in the charts`"
+            :title="`Show ${plan.label} models in the charts`"
+            @update:model-value="value => emit('toggle', plan.key, value === true)"
+          />
+        </label>
       </div>
 
       <p class="text-3xl font-bold text-highlighted">

@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 // useFetch/$fetch resolve via Nuxt auto-imports (also keeps vitest green,
 // which cannot resolve the '#imports' alias outside a Nuxt build).
-import type { Model, Plan, PlanFundingKind, PlanLimitsPercent, PlanModelEstimate, PlanComparisonDatabase, PlanComparisonPayload, PricingEntry } from '../types'
+import type { Model, Plan, PlanLimitsPercent, PlanModelEstimate, PlanComparisonDatabase, PlanComparisonPayload, PricingEntry } from '../types'
 import { buildPricingIndex, inputPrice } from './usePlanComparisonPricing'
 import { sortRows } from './usePlanComparisonSort'
 import type { SortableModelRow, SortOptionId } from './usePlanComparisonSort'
@@ -18,14 +18,14 @@ import type { PlanComparisonPlanKey, PlanComparisonPlanMeta } from '../plan-colo
 export const DEFAULT_OLD_BEFORE = '2026-08-26'
 export const DEFAULT_INTEL_THRESHOLD = 37
 
+/**
+ * What one plan funds on one model. `credit` is the usage value the plan's
+ * shared pool funds there (its per-model allocation), `request` the request
+ * count the vendor publishes for it — see `PlanModelEstimate`.
+ */
 export interface PlanFunding {
   credit: number | null
   request: number | null
-  /**
-   * True when the plan funds one shared pool instead of a per-model grant:
-   * `credit` is then the whole pool on every row (see `PlanFundingKind`).
-   */
-  pool: boolean
 }
 
 /** One funding entry per plan in the registry, keyed by its chart series key. */
@@ -45,27 +45,19 @@ export interface PlanCard {
   name: string
   /** Registry label (`Command Code Go`), unique across cards and shared with the charts. */
   label: string
-  monthlyCredit: number
   price: number
-  limits: Plan['limits']
   /**
-   * Set when the plan publishes its rolling windows as a share of each model's
-   * own monthly limit rather than a flat dollar cap (OpenCode Go: 20% / 50% /
-   * 100%). The card shows the percentages; `limits` stays the pool-equivalent.
+   * The plan's windows as a share of its own pool, which is the card's unit.
+   * `undefined` only for a plan with no monthly value to take a share of.
    */
   limitPercent?: PlanLimitsPercent
-  /** `pool` plans show one shared credit pool instead of per-model grants. */
-  funding: PlanFundingKind
   modelCount: number
   /**
-   * Span of the per-model credits this plan grants ("Per-model allowances" on
-   * Command Code, per-model monthly limits on OpenCode). `null` for pool plans
-   * (their rows differ by credit multiplier, not by allowance) and when every
-   * model gets the same credit, so the card only shows a range that is real.
+   * Span of the per-model allocations this plan publishes — how much usage its
+   * pool funds on the cheapest and the priciest model. `null` when every model
+   * gets the same allocation, so the card only shows a range that is real.
    */
   creditRange: { min: number, max: number } | null
-  /** `monthlyCredit` is the largest per-model limit, not a plan-wide pool. */
-  creditIsPerModel: boolean
 }
 
 export interface NormalizedPlanComparisonData {
@@ -76,8 +68,6 @@ export interface NormalizedPlanComparisonData {
    * and every model's tooltip instead of lingering as an empty column.
    */
   selectedPlans: PlanComparisonPlanMeta[]
-  /** Series keys funded from one shared pool — the credit bar chart drops them. */
-  poolPlanKeys: PlanComparisonPlanKey[]
   creditRows: EnrichedModelRow[]
   dotRows: EnrichedModelRow[]
   skippedModelNames: string[]
@@ -105,6 +95,16 @@ export function defaultPlanSelection(): PlanSelection {
 
 // The intelligence score used to ride along in the axis label (`Model (42)`);
 // the hover/tap popover now carries it, so labels stay plain names.
+
+/** Windows as a share of the plan's own pool — see `PlanLimitsPercent`. */
+function sharesOf(limits: Plan['limits'], pool: number): PlanLimitsPercent | undefined {
+  if (!(pool > 0)) return undefined
+  // One decimal: OpenDesign's $4.91 of $60 is 8.2%, not a round number.
+  const share = (value: number): number => Math.round((value / pool) * 1000) / 10
+  const optional = (value: number | null): number | null => value == null ? null : share(value)
+  return { '5h': optional(limits['5h']), 'weekly': optional(limits.weekly), 'monthly': share(limits.monthly) }
+}
+
 function labelFor(model: Model): string {
   return model.name
 }
@@ -128,7 +128,7 @@ export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filt
     planModelIndex.set(`${row.plan_id}:${row.model_id}`, row)
   }
 
-  // Plan data (funding kind, limits) is looked up by registry id, so a new plan
+  // Plan data (limits, price, pool) is looked up by registry id, so a new plan
   // reaches the cards, charts and tooltips through plan-colors.ts alone.
   const planDataById = new Map(db.plans.map(plan => [plan.id, plan]))
 
@@ -136,8 +136,7 @@ export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filt
     const planModel = planModelIndex.get(`${plan.planId}:${modelId}`) ?? null
     return {
       credit: planModel?.monthly_credits_usd ?? null,
-      request: planModel?.estimates?.per_month ?? null,
-      pool: planDataById.get(plan.planId)?.funding === 'pool'
+      request: planModel?.estimates?.per_month ?? null
     }
   }
 
@@ -197,13 +196,8 @@ export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filt
   // skipping the card keeps Old data rendering instead of 500ing with
   // "Unknown plan id", which used to hide the very "Refresh data" button that
   // fixes it.
-  /**
-   * Per-model allowances, not the plan pool: a pool plan's rows differ only by
-   * the model's credit multiplier, so its range would read as a cap that does
-   * not exist.
-   */
-  const perModelCreditRange = (plan: Plan): { min: number, max: number } | null => {
-    if ((plan.funding ?? 'per_model') === 'pool') return null
+  /** Span of the per-model allocations the vendor publishes for this plan. */
+  const creditRangeOf = (plan: Plan): { min: number, max: number } | null => {
     const credits = db.plan_models
       .filter(pm => pm.plan_id === plan.id)
       .map(pm => pm.monthly_credits_usd)
@@ -222,14 +216,11 @@ export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filt
       key: plan.key,
       name: data.name,
       label: plan.label,
-      monthlyCredit: data.monthly_credit_usd,
       price: data.monthly_price_usd,
-      limits: data.limits,
-      limitPercent: data.limits_percent,
-      funding: data.funding ?? 'per_model',
+      // Explicit shares when the vendor states them (OpenCode Go), else derived.
+      limitPercent: data.limits_percent ?? sharesOf(data.limits, data.monthly_credit_usd),
       modelCount: db.plan_models.filter(pm => pm.plan_id === data.id).length,
-      creditRange: perModelCreditRange(data),
-      creditIsPerModel: data.credit_is_per_model ?? false
+      creditRange: creditRangeOf(data)
     }
   }
 
@@ -237,12 +228,6 @@ export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filt
   return {
     planCards: cards,
     selectedPlans,
-    // Derived from the plan data (not from the visible rows), so a fully
-    // filtered chart keeps the same series list and footnote.
-    poolPlanKeys: cards
-      .filter(card => card.funding === 'pool')
-      .map(card => PLAN_COMPARISON_PLANS.find(plan => plan.planId === card.id)?.key)
-      .filter((key): key is PlanComparisonPlanKey => key != null),
     creditRows,
     dotRows,
     skippedModelNames,
@@ -324,7 +309,6 @@ export function usePlanComparisonDatabase() {
     togglePlan,
     planCards: computed(() => normalized.value?.planCards ?? []),
     selectedPlans: computed(() => normalized.value?.selectedPlans ?? []),
-    poolPlanKeys: computed(() => normalized.value?.poolPlanKeys ?? []),
     creditRows: computed(() => normalized.value ? sortRows(normalized.value.creditRows, sortOption.value) : []),
     dotRows: computed(() => normalized.value ? sortRows(normalized.value.dotRows, sortOption.value) : []),
     selectedModelCount: computed(() => normalized.value?.creditRows.length ?? 0),

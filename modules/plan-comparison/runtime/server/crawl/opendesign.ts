@@ -1,5 +1,6 @@
 import { parse as parseHtml } from 'node-html-parser'
 
+import { matchName } from './opencode'
 import { toNumber } from './parse'
 
 /**
@@ -132,6 +133,36 @@ export interface OpenDesignUsageRow {
    * never prints (Eco: $814.81 vs the $220 on their table).
    */
   monthlyUsageUsd: number | null
+}
+
+/**
+ * The plan's real credit pool, read off the vendor's own table.
+ *
+ * Every published "Monthly usage" is `baseline ÷ multiplier` (Eco $220 at
+ * 0.27×, Luna $15 at 4×, a 1× model $60 — thirteen of fourteen live rows land on
+ * exactly $60), so the baseline is what one model can draw while the headline
+ * "total monthly credits, up to $220" is only the largest *allocation*, the
+ * same shape as OpenCode Go, whose $100 column sat under a $60 shared cap.
+ * The median keeps one generous row (Claude Haiku 5.5 is quoted $30 at 4× =
+ * $120) from skewing it; rounded because a baseline is a whole-dollar figure.
+ */
+export function designCreditBaseline(
+  usage: readonly OpenDesignUsageRow[],
+  multipliers: readonly OpenDesignMultiplierRow[]
+): number | null {
+  const rate = new Map(multipliers.map(row => [matchName(row.name), row.multiplier]))
+  const products: number[] = []
+  for (const row of usage) {
+    const multiplier = rate.get(matchName(row.name))
+    if (row.monthlyUsageUsd == null || row.monthlyUsageUsd <= 0 || multiplier == null || multiplier <= 0) continue
+    products.push(row.monthlyUsageUsd * multiplier)
+  }
+  // One or two rows cannot outvote a bad parse.
+  if (products.length < 3) return null
+  products.sort((a, b) => a - b)
+  const mid = Math.floor(products.length / 2)
+  const median = products.length % 2 === 0 ? (products[mid - 1]! + products[mid]!) / 2 : products[mid]!
+  return Math.round(median)
 }
 
 /**

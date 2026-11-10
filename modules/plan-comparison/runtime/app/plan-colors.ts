@@ -19,15 +19,12 @@ export const PLAN_COMPARISON_PLANS: PlanComparisonPlanMeta[] = [
 ]
 
 /**
- * Legend rows for the plans a chart draws. Pool plans are funded from one
- * shared pool rather than a per-model grant, so the legend names the pot; a
- * caller that passes no pool keys gets plain labels.
+ * Legend rows for the plans a chart draws. Labels stay plain — the plan name is
+ * the whole distinction; see `PlanLimitsPercent` in types.ts for the shared-pool
+ * note.
  */
-export function planLegendItems(plans: PlanComparisonPlanMeta[], sharedPoolKeys: PlanComparisonPlanKey[]): { name: string, color: string }[] {
-  return plans.map(plan => ({
-    name: sharedPoolKeys.includes(plan.key) ? `${plan.label} (shared pool)` : plan.label,
-    color: plan.color
-  }))
+export function planLegendItems(plans: PlanComparisonPlanMeta[]): { name: string, color: string }[] {
+  return plans.map(plan => ({ name: plan.label, color: plan.color }))
 }
 
 export function planColor(planId: string): string {

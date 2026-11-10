@@ -8,6 +8,7 @@ import type { OpenCodeEndpointRow, OpenCodeEstimateRow, OpenCodePricingRow } fro
 import type { OpenDesignAllowanceRow, OpenDesignCatalogModel, OpenDesignMultiplierRow, OpenDesignUsageRow } from './opendesign'
 import type { TokenHarborBoostRow, TokenHarborModel } from './tokenharbor'
 import { TOKEN_HARBOR_AGENT_CAPS, TOKEN_HARBOR_MODEL_ALIASES, TOKEN_HARBOR_OFFICE_CAPS, TOKEN_HARBOR_REQUEST_SHAPE, isAgentPassModel, isOfficePassModel, tokenHarborRequestCost, tokenHarborVendor } from './tokenharbor'
+import { designCreditBaseline } from './opendesign'
 import { familyReleaseDate, RELEASE_DATE_OVERRIDES } from './release-dates'
 import { indexModelsDev, modelsDevReleaseDate } from './models-dev'
 import { plans } from '../data/plans'
@@ -122,6 +123,17 @@ function pricingEntriesForModel(
     })
   }
   return entries
+}
+
+/**
+ * Rescales a published dollar window onto the plan's own credit baseline.
+ * OpenDesign quotes its windows against the largest allocation ($18/5h and
+ * $55/7d over $220), so a $60 pool makes them $4.91 and $15. `null` (no window
+ * published) stays `null` — the card renders a dash rather than a fake dollar.
+ */
+function toCredit(value: number | null | undefined, scale: number): number | null {
+  if (value == null) return null
+  return Math.round(value * scale * 100) / 100
 }
 
 /** Minimal catalog entry for a model a plan funds but no catalog source lists. */
@@ -356,7 +368,9 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
     planModels.push(planModelRow('cmd-goat', model.id, goatBudget, goatComputed, input.sourceUrls.goat, input.fetchedAt))
     if (onCmdGo(model)) {
       // Script path: the Go estimates table publishes per-model budgets with
-      // its own rates/shape/fractions (Go is per-model credits since 2026-09-28).
+      // its own rates/shape/fractions. Those budgets are one shared $10 pool's
+      // per-model allocation (docs/plans/go), so they stay usage values, not
+      // separate grants.
       // Models missing from that table fall back to the legacy flat-budget math.
       // A row whose rates fail to parse keeps its budget with null estimates
       // (mirrors estimateRow: null estimates are filtered from the log chart).
@@ -465,12 +479,19 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
   // used all of it") and requests are derived from OpenDesign's own rates for
   // that model. Credits and windows come from the live allowance table, with the
   // static plan as fallback (same pattern as cmd-go's `goCreditsUsd`).
+  // The allowance table's "$220" is the largest per-model allocation, not the
+  // pool: every published usage row is `baseline ÷ multiplier`, and that
+  // baseline ($60 live) is the credit one model can draw. Take it from the
+  // vendor's own numbers, else the static plan, and read the published windows
+  // on the same scale ($55/7d and $18/5h are quoted on the $220 allocation).
   const odAllowance = allowanceFor(input.openDesignAllowances, 'Go')
-  const odCredits = odAllowance?.codingCredits ?? odPlan.monthly_credit_usd
+  const odCredits = designCreditBaseline(input.openDesignUsage, input.openDesignMultipliers)
+    ?? odPlan.monthly_credit_usd
+  const odScale = odAllowance?.codingCredits ? odCredits / odAllowance.codingCredits : 1
   const odLimits: PlanLimits = {
-    '5h': odAllowance?.fiveHourWindow ?? odPlan.limits['5h'],
-    'weekly': odAllowance?.weeklyWindow ?? odPlan.limits.weekly,
-    'monthly': odAllowance?.codingCredits ?? odPlan.limits.monthly
+    '5h': toCredit(odAllowance?.fiveHourWindow ?? odPlan.limits['5h'], odScale),
+    'weekly': toCredit(odAllowance?.weeklyWindow ?? odPlan.limits.weekly, odScale),
+    'monthly': odCredits
   }
   // Credits spent = model usage × multiplier, so the pool buys `pool / multiplier`
   // dollars of that model's usage, comparable to the per-model credits the other

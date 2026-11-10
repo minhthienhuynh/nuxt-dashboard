@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { VisAxis, VisBulletLegend, VisGroupedBar, VisPlotband, VisXYContainer } from '@unovis/vue'
 import type { EnrichedModelRow } from '../composables/usePlanComparisonDatabase'
-import type { PlanComparisonPlanKey, PlanComparisonPlanMeta } from '../plan-colors'
+import type { PlanComparisonPlanMeta } from '../plan-colors'
 import { usePlanSeries } from '../usePlanSeries'
 import { AXIS_TICK_SEPARATOR } from '../plan-chart-axis'
 import { usePlanComparisonChartFrame } from '../usePlanComparisonChartFrame'
@@ -13,15 +13,12 @@ const props = defineProps<{
   skipped: string[]
   /** Checked plans, in registry order: one bar per entry. */
   plans: PlanComparisonPlanMeta[]
-  /** Plans funded from one shared pool: their bar is the pool, not a per-model grant. */
-  poolPlanKeys: PlanComparisonPlanKey[]
 }>()
 
-// Every plan is plotted, pool plans included: their bar is the whole shared pool
-// ("if this model used all of it"), which is the same number the dot chart sizes
-// its markers with. The legend names the pot so the equal-length bars are not
-// read as per-model grants.
-const { sharedPoolPlans, sharedPoolNote, legend } = usePlanSeries(() => props.plans, () => props.poolPlanKeys)
+// Every plan here is one shared pool, so a bar is the usage that pool funds on
+// the model ("if this model used all of it") — the same number the dot chart
+// sizes its markers with. The header explains that once; the legend stays plain.
+const { legend } = usePlanSeries(() => props.plans)
 
 const {
   cardRef,
@@ -36,11 +33,20 @@ const {
   yTickFormat
 } = usePlanComparisonChartFrame(() => props.rows)
 
-const BAR_H = 16
+// Six plans stack into one band per model, so a tall bar multiplied by 35 models:
+// 16px put the chart at 3420px (four screens), 12px keeps the bars separated
+// while cutting a quarter of the height.
+const BAR_H = 12
 // One bar per plan defines the visual band; a taller label (name wrapped onto
 // two lines) grows the row band instead of overlapping the next.
 const bandHeight = computed(() => Math.max(props.plans.length * BAR_H, rowBandHeight.value))
 const chartHeight = computed(() => props.rows.length * bandHeight.value + 60)
+
+// Unovis marks the plot aria-hidden, so the chart needs a name of its own or a
+// screen reader gets a figure with nothing in it.
+const chartSummary = computed(() =>
+  `Bar chart: ${props.rows.length} models and ${props.plans.length} plans. Each bar is the usage value a plan funds on that model per month; open a model for exact values.`
+)
 
 // Hover (or tap on touch) a model — its y-axis label or any of its bars — for
 // the spec tooltip.
@@ -67,32 +73,27 @@ const xTickFormat = (value: number) => `$${value}`
   <UCard ref="cardRef" :ui="{ root: 'overflow-visible', body: 'px-0! pb-3!' }">
     <template #header>
       <div class="space-y-1 px-4">
-        <p class="text-lg font-semibold text-highlighted">
+        <h2 class="text-lg font-semibold text-highlighted">
           1. Monthly value per model
-        </p>
+        </h2>
         <p class="text-[13px] text-muted">
-          Bar length = what a plan funds on that model per month — its published
-          per-model credit, or for a shared-pool plan the usage value that pool
-          buys on it — scaled to the largest bar. Hover a bar or a model name for its specs
-          (intelligence, pricing, caps) and what each checked plan funds it with.
-          <template v-if="sharedPoolPlans.length">
-            {{ sharedPoolNote.names }} {{ sharedPoolNote.verb }} one shared pool
-            rather than a per-model grant, so {{ sharedPoolNote.pronoun }} bars
-            show the usage value that pool funds at the model's own rate — the
-            vendor's published monthly-usage figure where there is one, else the
-            pool divided by the model's credit multiplier.
-          </template>
-          <template v-if="skipped.length">
-            No plan funds: {{ skipped.join(', ') }}.
-          </template>
+          Bar length = what a plan funds on that model per month — its share of the plan's
+          pool at the model's own rate, scaled to the largest bar. A pool is spent in
+          proportion, so a month on one model is not what another model gets.
         </p>
         <VisBulletLegend :items="legend" class="justify-center" />
+        <p class="text-center text-[12px] text-dimmed">
+          Hover a bar or a model name for its specs and what each checked plan funds it with.
+        </p>
       </div>
     </template>
 
     <div
+      v-if="rows.length"
       ref="chartRef"
       class="relative w-full"
+      role="img"
+      :aria-label="chartSummary"
       :style="{ 'height': `${chartHeight}px`, '--pc-tick-font-size': `${axis.fontSize}px` }"
       @pointermove="onPointerMove"
       @pointerleave="onPointerLeave"
@@ -155,5 +156,12 @@ const xTickFormat = (value: number) => `$${value}`
         @content-leave="onTooltipPointerLeave"
       />
     </div>
+    <p v-else class="px-4 py-10 text-center text-sm text-muted">
+      No model matches these filters. Widen them above — the release cutoff or the
+      Intelligence Index threshold — to bring models back.
+    </p>
+    <p v-if="skipped.length" class="px-4 pt-3 text-[13px] text-muted">
+      No plan funds: {{ skipped.join(', ') }}.
+    </p>
   </UCard>
 </template>

@@ -61,11 +61,16 @@ function onIntelThresholdInput(value: string | number) {
     <label class="flex w-fit items-center gap-2 text-sm whitespace-nowrap text-muted">
       <USwitch v-model="hideOldModels" size="sm" />
       Hide models released before
+      <!-- Widths are inline: the utility classes on UInput's root lost to its own
+           `w-full`, so both fields sized to their content instead (the number one
+           rendered 169px against the intended 80px). -->
       <UInput
         type="date"
         :model-value="oldBefore"
         size="sm"
-        class="w-36"
+        class="shrink-0"
+        :style="{ width: '9rem', minWidth: 0 }"
+        aria-label="Release cutoff date"
         @update:model-value="onOldBeforeInput($event as string)"
       />
     </label>
@@ -77,8 +82,10 @@ function onIntelThresholdInput(value: string | number) {
         type="number"
         :model-value="intelThreshold"
         size="sm"
-        class="w-20"
+        class="shrink-0"
+        :style="{ width: '5rem', minWidth: 0 }"
         min="0"
+        aria-label="Lowest Intelligence Index to keep"
         @update:model-value="onIntelThresholdInput($event as string | number)"
       />
     </label>

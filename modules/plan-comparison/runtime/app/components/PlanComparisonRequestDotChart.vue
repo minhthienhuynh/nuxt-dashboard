@@ -2,7 +2,7 @@
 import { VisAxis, VisBulletLegend, VisPlotband, VisScatter, VisXYContainer } from '@unovis/vue'
 import { Scale } from '@unovis/ts'
 import type { EnrichedModelRow } from '../composables/usePlanComparisonDatabase'
-import type { PlanComparisonPlanKey, PlanComparisonPlanMeta } from '../plan-colors'
+import type { PlanComparisonPlanMeta } from '../plan-colors'
 import { usePlanSeries } from '../usePlanSeries'
 import { AXIS_TICK_SEPARATOR, thinTicks } from '../plan-chart-axis'
 import { usePlanComparisonChartFrame } from '../usePlanComparisonChartFrame'
@@ -14,13 +14,12 @@ const props = defineProps<{
   noRequest: string[]
   /** Checked plans, in registry order: one dot series per entry. */
   plans: PlanComparisonPlanMeta[]
-  /** Plans funded from one shared pool: their dots all share the pool diameter. */
-  poolPlanKeys: PlanComparisonPlanKey[]
 }>()
 
-// Pool plans report the usage value their one pool funds on every row; dots therefore share
-// one diameter. Saying so beats letting the reader infer a per-model grant.
-const { sharedPoolPlans, sharedPoolNote, legend } = usePlanSeries(() => props.plans, () => props.poolPlanKeys)
+// Dot size is the usage the plan's pool funds on that model, so a cheaper model
+// gets a smaller dot instead of reading as a separate wallet. The header says it
+// once; the legend stays plain.
+const { legend } = usePlanSeries(() => props.plans)
 
 const {
   cardRef,
@@ -36,6 +35,12 @@ const {
 } = usePlanComparisonChartFrame(() => props.rows)
 
 const chartHeight = computed(() => props.rows.length * rowBandHeight.value + 72)
+
+// Unovis marks the plot aria-hidden, so the chart needs a name of its own or a
+// screen reader gets a figure with nothing in it.
+const chartSummary = computed(() =>
+  `Scatter chart: ${props.rows.length} models and ${props.plans.length} plans. Horizontal position is requests per month on a log scale, dot size is the usage value a plan funds on that model; open a model for exact values.`
+)
 
 // Hover (or tap on touch) a model — its y-axis label or any of its dots — for
 // the spec tooltip.
@@ -129,31 +134,27 @@ const DURATION = 200
   <UCard ref="cardRef" :ui="{ root: 'overflow-visible', body: 'px-0! pb-3!' }">
     <template #header>
       <div class="space-y-1 px-4">
-        <p class="text-lg font-semibold text-highlighted">
+        <h2 class="text-lg font-semibold text-highlighted">
           2. Requests per month vs monthly value
-        </p>
+        </h2>
         <p class="text-[13px] text-muted">
-          Horizontal position = requests per month (log scale). Dot size = the
-          monthly value the plan funds on that model, area-proportional. Hover a dot or a model name for its
-          specs and what each checked plan funds it with.
-          <template v-if="sharedPoolPlans.length">
-            {{ sharedPoolNote.names }} {{ sharedPoolNote.verb }} one shared pool,
-            so {{ sharedPoolNote.pronoun }} dots show the usage value that pool
-            funds at the model's own rate (the vendor's published figure where
-            there is one, else the pool divided by its credit multiplier).
-          </template>
-          <template v-if="noRequest.length">
-            Left out of this chart because no request count is published:
-            {{ noRequest.join(', ') }}.
-          </template>
+          Horizontal position = requests per month (log scale). Dot size = the monthly
+          value the plan funds on that model, area-proportional and spent in proportion
+          across models.
         </p>
         <VisBulletLegend :items="legend" class="justify-center" orientation="horizontal" />
+        <p class="text-center text-[12px] text-dimmed">
+          Hover a dot or a model name for its specs and what each checked plan funds it with.
+        </p>
       </div>
     </template>
 
     <div
+      v-if="rows.length"
       ref="chartRef"
       class="relative w-full"
+      role="img"
+      :aria-label="chartSummary"
       :style="{ 'height': `${chartHeight}px`, '--pc-tick-font-size': `${axis.fontSize}px` }"
       @pointermove="onPointerMove"
       @pointerleave="onPointerLeave"
@@ -217,5 +218,13 @@ const DURATION = 200
         @content-leave="onTooltipPointerLeave"
       />
     </div>
+    <p v-else class="px-4 py-10 text-center text-sm text-muted">
+      No model matches these filters. Widen them above — the release cutoff or the
+      Intelligence Index threshold — to bring models back.
+    </p>
+    <p v-if="noRequest.length" class="px-4 pt-3 text-[13px] text-muted">
+      Left out of this chart because no request count is published:
+      {{ noRequest.join(', ') }}.
+    </p>
   </UCard>
 </template>
