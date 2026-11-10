@@ -35,9 +35,9 @@ function windowValue(plan: PlanCard, window: '5h' | 'weekly' | 'monthly'): strin
 }
 
 /**
- * The monthly cap repeats the "Monthly pool" row whenever it is the whole pool
- * (100% is the pool by definition), so it is only listed when the plan caps the
- * month below — nothing today does, and the row will appear if one ever does.
+ * 100% is the whole pool by definition, so a monthly cap at 100% says nothing the
+ * other rows do not; it is only listed when a plan caps the month below — nothing
+ * today does, and the row will appear if one ever does.
  */
 function showMonthlyCap(plan: PlanCard): boolean {
   if (plan.limitPercent) return plan.limitPercent.monthly !== 100
@@ -77,13 +77,14 @@ function vendorPlanName(plan: PlanCard): string {
 }
 
 const ROWS: Array<{ label: string, value: (plan: PlanCard) => string, show?: (plan: PlanCard) => boolean }> = [
-  // The headline is the price; the allowance is the first detail row. Every plan
-  // is one shared pool, so the row says "pool" instead of naming a funding
-  // shape per plan (see types.ts on `monthly_credits_usd`).
-  { label: 'Monthly pool', value: plan => `${formatUsd(plan.monthlyCredit)} shared pool` },
-  // How much usage that pool funds per model — the vendor's per-model allocation,
-  // which is the number a reader compares across plans.
-  { label: 'Per-model value', value: plan => plan.creditRange ? `${formatUsd(plan.creditRange.min)}–${formatUsd(plan.creditRange.max)}` : '' },
+  // NO pool row: the same word means three things across these vendors — Command
+  // Code's $100 is a ceiling that a standard $20 model spends whole, OpenCode's
+  // $60 is a hard cap its $100 model allocation exceeds, OpenDesign's $60 is only
+  // a normalisation baseline under a $220 headline. Side by side they invite
+  // exactly the wrong read (GOAT "$100" looks richest, yet 43 of its 62 models
+  // fund $20 against OpenCode's $60), so the card starts from the number a reader
+  // actually gets: what the plan funds on one model.
+  { label: 'Per-model usage', value: plan => plan.creditRange ? `${formatUsd(plan.creditRange.min)}–${formatUsd(plan.creditRange.max)}` : '' },
   { label: '5-hour cap', value: plan => windowValue(plan, '5h') },
   { label: 'Weekly cap', value: plan => windowValue(plan, 'weekly') },
   { label: 'Monthly cap', value: plan => windowValue(plan, 'monthly'), show: showMonthlyCap },
