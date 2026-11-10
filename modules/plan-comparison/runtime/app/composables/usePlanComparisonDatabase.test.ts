@@ -92,12 +92,24 @@ function makeOdPlan(overrides: Partial<Plan> = {}): Plan {
 const baseFilters = { hideOldModels: false, oldBefore: '2026-06-01', hideLowIntel: false, intelThreshold: 30 }
 
 describe('normalizePlanComparisonDatabase - model filtering', () => {
-  it('excludes a model with no release date when hideOldModels is on', () => {
-    const model = makeModel({ id: 'no-date', releaseDate: null })
+  it('excludes a model with no date at all when hideOldModels is on', () => {
+    const model = makeModel({ id: 'no-date', releaseDate: null, launchedAt: null })
     const db = makeDatabase([model], [])
     const result = normalizePlanComparisonDatabase(db, { ...baseFilters, hideOldModels: true })
     expect(result.creditRows.find(r => r.model.id === 'no-date')).toBeUndefined()
     expect(result.skippedModelNames).not.toContain(model.name)
+  })
+
+  it('keeps a model with no release date but a recent listing date', () => {
+    // Production case 2026-11-10: Muse Ember shipped with `releaseDate: null`
+    // (CC publishes no lab date) and `launchedAt: 2026-11-08`; reading the null
+    // as "old" hid a brand-new model from the default view.
+    const model = makeModel({ id: 'fresh', releaseDate: null, launchedAt: '2026-11-08' })
+    const db = makeDatabase([model], [{ plan_id: 'cmd-go', model_id: 'fresh', monthly_credits_usd: 6, estimates: null }])
+    const result = normalizePlanComparisonDatabase(db, { ...baseFilters, hideOldModels: true, oldBefore: '2026-08-26' })
+    expect(result.creditRows.map(row => row.model.id)).toEqual(['fresh'])
+    // …and it sorts by that date too, instead of landing in the "no date" tail.
+    expect(result.creditRows[0]?.release).toBe(Date.parse('2026-11-08'))
   })
 
   it('excludes a model released before the cutoff when hideOldModels is on — launch date no longer counts', () => {
