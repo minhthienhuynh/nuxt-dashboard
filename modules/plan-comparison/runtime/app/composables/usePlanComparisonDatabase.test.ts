@@ -182,10 +182,26 @@ describe('normalizePlanComparisonDatabase - plan cards', () => {
     expect(oc?.limits).toEqual({ '5h': 12, 'weekly': 30, 'monthly': 60 })
   })
 
-  it('leaves flat-dollar plans without window fractions', () => {
+  it('derives the share for plans that publish dollars only', () => {
+    // A dollar window means nothing across plans: $3 of usage is 30% of Go's $10
+    // pool but 3% of GOAT's $100. The card normalises every plan to its own pool.
     const db = makeDatabase([], [])
     const cards = normalizePlanComparisonDatabase(db, baseFilters).planCards
-    expect(cards.find(c => c.id === 'cmd-goat')?.limitPercent).toBeUndefined()
+    // Fixture: $10 pool with a $1 / $2 / $3 window.
+    expect(cards.find(c => c.id === 'cmd-goat')?.limitPercent)
+      .toEqual({ '5h': 10, 'weekly': 20, 'monthly': 30 })
+    // OpenDesign publishes $18/5h and $55/7d against its $220 allocation.
+    expect(cards.find(c => c.id === 'od-go')?.limitPercent)
+      .toEqual({ '5h': 8.2, 'weekly': 25, 'monthly': 100 })
+  })
+
+  it('keeps a missing window missing instead of calling it 0%', () => {
+    // Token Harbor sells one monthly pool: no 5-hour cap exists, so the card
+    // must render a dash rather than "0%".
+    const db = makeDatabase([], [])
+    db.plans = [makePlan('th-agent', { limits: { '5h': null, 'weekly': 2.5, 'monthly': 10 } })]
+    expect(normalizePlanComparisonDatabase(db, baseFilters).planCards.find(c => c.id === 'th-agent')?.limitPercent)
+      .toEqual({ '5h': null, 'weekly': 25, 'monthly': 100 })
   })
 })
 

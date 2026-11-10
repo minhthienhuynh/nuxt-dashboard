@@ -98,6 +98,24 @@ export function defaultPlanSelection(): PlanSelection {
 
 // The intelligence score used to ride along in the axis label (`Model (42)`);
 // the hover/tap popover now carries it, so labels stay plain names.
+/**
+ * Windows as a share of the plan's own pool.
+ *
+ * A dollar window is only comparable inside one plan — $3 of usage is 30% of Go's
+ * $10 pool but 3% of GOAT's $100 — while the share is what a reader compares
+ * across plans, and it is what actually caps a request: a $20 GOAT model gets
+ * 20% of $20 ($4) in a 5-hour window, not the plan's $20. One decimal, because
+ * OpenDesign's $18 over its $220 allocation is 8.2%, not a round number.
+ */
+function sharesOf(limits: Plan['limits'], pool: number): PlanLimitsPercent | undefined {
+  if (!(pool > 0)) return undefined
+  const share = (value: number | null | undefined): number | null => {
+    if (value == null) return null
+    return Math.round((value / pool) * 1000) / 10
+  }
+  return { '5h': share(limits['5h']), 'weekly': share(limits.weekly), 'monthly': share(limits.monthly) ?? 100 }
+}
+
 function labelFor(model: Model): string {
   return model.name
 }
@@ -212,7 +230,9 @@ export function normalizePlanComparisonDatabase(db: PlanComparisonDatabase, filt
       monthlyCredit: data.monthly_credit_usd,
       price: data.monthly_price_usd,
       limits: data.limits,
-      limitPercent: data.limits_percent,
+      // Explicit shares when the vendor states them (OpenCode Go), else derived
+      // from the plan's own numbers so every card speaks percentages.
+      limitPercent: data.limits_percent ?? sharesOf(data.limits, data.monthly_credit_usd),
       modelCount: db.plan_models.filter(pm => pm.plan_id === data.id).length,
       creditRange: creditRangeOf(data)
     }

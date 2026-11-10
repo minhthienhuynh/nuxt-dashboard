@@ -15,27 +15,32 @@ const emit = defineEmits<{
 }>()
 
 /**
- * OpenCode Go sizes its windows as a share of each model's own monthly limit
- * ("5-hour — 20% of the monthly limit; weekly — 50%; monthly — 100%"), so a
- * flat dollar figure only holds for the models whose limit matches the plan
- * pool. The plan carries the fractions; per-model dollars live in the charts.
+ * Every plan sizes its windows as a share of its own pool, so the card shows
+ * percentages throughout: dollars would compare $3 of Go's $10 with $20 of
+ * GOAT's $100 and read as if the second buys six times the headroom. The share
+ * is also what actually caps a request, because a model's window is that share
+ * of the model's own allocation (a $20 GOAT model gets 20% of $20).
  *
- * A `null` window means the plan publishes no such cap at all (OpenDesign Go
- * and Token Harbor Agent sell one monthly pool), so the card shows a dash
- * instead of inventing one.
+ * A `null` window means the plan publishes no such cap at all (Token Harbor
+ * Agent sells one monthly pool), so the card shows a dash rather than inventing
+ * one.
  */
 function windowValue(plan: PlanCard, window: '5h' | 'weekly' | 'monthly'): string {
-  if (plan.limitPercent) return `${plan.limitPercent[window]}%`
+  if (plan.limitPercent) {
+    const percent = plan.limitPercent[window]
+    return percent == null ? '—' : `${percent}%`
+  }
   const limit = plan.limits[window]
   return limit == null ? '—' : formatUsd(limit)
 }
 
 /**
- * The monthly cap repeats the monthly-credit row on most plans, so it is only
- * listed when the two differ (or when the plan expresses it as a share).
+ * The monthly cap repeats the "Monthly pool" row whenever it is the whole pool
+ * (100% is the pool by definition), so it is only listed when the plan caps the
+ * month below — nothing today does, and the row will appear if one ever does.
  */
 function showMonthlyCap(plan: PlanCard): boolean {
-  if (plan.limitPercent) return true
+  if (plan.limitPercent) return plan.limitPercent.monthly !== 100
   const monthly = plan.limits.monthly
   return monthly != null && monthly !== plan.monthlyCredit
 }

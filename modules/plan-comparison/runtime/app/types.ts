@@ -26,14 +26,16 @@ export interface PlanLimits {
  */
 
 /**
- * Plans that publish rolling windows as a share of each model's own monthly
- * limit (OpenCode Go: "5-hour — 20% of the monthly limit; weekly — 50%;
- * monthly — 100%") carry the fractions here. `limits` then holds the
- * pool-equivalent dollars the estimate math derives from those fractions.
+ * Every plan sizes its windows as a share of its own pool, so the card reads all
+ * six in one unit: Command Code Go is $3/5h on a $10 pool (30%), GOAT $20 on
+ * $100 (20%), OpenCode Go states 20/50/100 outright, OpenDesign $18 against its
+ * $220 allocation (8.2%) and Token Harbor's weekly $2.50 of $10 (25%). A null
+ * window means the plan publishes no such cap (Token Harbor sells one monthly
+ * pool). `limits` keeps the dollars the estimate math needs.
  */
 export interface PlanLimitsPercent {
-  '5h': number
-  'weekly': number
+  '5h': number | null
+  'weekly': number | null
   'monthly': number
 }
 
