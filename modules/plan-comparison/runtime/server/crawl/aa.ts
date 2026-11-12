@@ -15,7 +15,11 @@ export interface AaScoreEntry {
  */
 export const AA_MODEL_SLUGS: Record<string, { slug: string, label: string }> = {
   'Qwen/Qwen3.8-Max-0902': { slug: 'qwen3-8-max', label: 'Qwen3.8 Max (0902)' },
-  'Qwen/Qwen3.8-Flash': { slug: 'qwen3-8-flash-next', label: 'Qwen3.8-Flash-Next' }
+  'Qwen/Qwen3.8-Flash': { slug: 'qwen3-8-flash-next', label: 'Qwen3.8-Flash-Next' },
+  // User-mandated join (2026-11-12): CC 'DeepSeek V4 Pro (latest)' (launchedAt
+  // 2026-08-13) IS the AA '0813' snapshot — board entry labels both variants,
+  // (Max) headlines it.
+  'deepseek/deepseek-v4-pro': { slug: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro 0813 (Max)' }
 }
 
 export function round1(n: number): number {
@@ -273,43 +277,98 @@ export async function resolveAaScoreForTest(
 
 /**
  * Parses intelligence scores from the AA leaderboard page
- * (`/leaderboards/models`). The page embeds model records in Next.js flight
- * chunks (`self.__next_f`) — each record carries its own slug, score and
- * estimated flag:
- * `{"slug":"mimo-v2-6-flash",...,"intelligenceIndex":37.88,"intelligenceIndexIsEstimated":false}`.
- * Only exact scores are kept: null or estimated entries are dropped, and the
- * survivors are rounded with `round1` like every other AA score in this
- * module. Keys are lowercased slugs for exact whole-string joins.
- * Assumes the served records keep `slug` ahead of the score fields (true of
- * the observed flight payload; a reorder degrades gracefully to an empty
- * map and the per-model probes take over).
+ * (`/leaderboards/models`). Intelligence Index v5 (v5.0.1, 2026-10-27) embeds
+ * an `initialModels` array inside a flight chunk — one record per model with
+ * slug/name/intelligenceIndex (null when AA has not measured it) and
+ * intelligenceIndexIsEstimated. The chunk keeps every inner quote escaped,
+ * so the array is sliced out by bracket balancing and unescaped before a
+ * plain JSON parse. Only exact scores are kept (null and estimated entries
+ * are dropped), rounded with `round1`. Duplicate slugs keep the first record.
  */
-export function parseLeaderboardIntel(html: string): Map<string, number> {
-  const scores = new Map<string, number>()
-  const unescaped = html.replace(/\\"/g, '"')
-  // Split on the record opener so the first array element (`[{"slug":…`)
-  // parses the same as the rest (`},{"slug":…`).
-  for (const record of unescaped.split('{"slug":').slice(1)) {
-    const slug = record.match(/^"([^"]+)"/)?.[1]?.toLowerCase()
-    if (!slug || scores.has(slug)) continue
-    if (!/"intelligenceIndexIsEstimated":\s*false/.test(record)) continue
-    const raw = record.match(/"intelligenceIndex":(-?\d+(?:\.\d+)?)/)?.[1]
-    const score = raw == null ? null : Number(raw)
-    if (score == null || !Number.isFinite(score)) continue
-    scores.set(slug, round1(score))
+export function parseLeaderboardIntel(html: string): AaIntelEntry[] {
+  const key = html.indexOf('initialModels')
+  if (key < 0) return []
+  const start = html.indexOf('[', key)
+  if (start < 0) return []
+  let depth = 0
+  let end = -1
+  let inString = false
+  for (let i = start; i < html.length; i++) {
+    const ch = html[i]
+    // Escape handling is global, not string-scoped: the initialModels
+    // payload escapes every inner quote, so no real string ever opens inside
+    // it — a backslash always escapes the next char wherever it appears.
+    if (ch === '\\') {
+      i++
+      continue
+    }
+    if (inString) {
+      if (ch === '"') inString = false
+      continue
+    }
+    if (ch === '"') {
+      inString = true
+      continue
+    }
+    if (ch === '[') depth++
+    else if (ch === ']') {
+      depth--
+      if (depth === 0) {
+        end = i
+        break
+      }
+    }
   }
-  return scores
+  if (end < 0) return []
+  let values: unknown
+  try {
+    values = JSON.parse(html.slice(start, end + 1).replace(/\\"/g, '"'))
+  } catch {
+    return []
+  }
+  if (!Array.isArray(values)) return []
+  const entries: AaIntelEntry[] = []
+  const seen = new Set<string>()
+  for (const item of values) {
+    if (item == null || typeof item !== 'object') continue
+    const row = item as Record<string, unknown>
+    const slug = typeof row.slug === 'string' ? row.slug.toLowerCase() : null
+    const name = typeof row.name === 'string' ? row.name : null
+    if (!slug || !name || seen.has(slug)) continue
+    if (row.intelligenceIndexIsEstimated === true) continue
+    const score = row.intelligenceIndex
+    if (typeof score !== 'number' || !Number.isFinite(score)) continue
+    seen.add(slug)
+    entries.push({ label: name, score: round1(score), slug })
+  }
+  return entries
 }
 
-/** Fetches the leaderboard once; failures yield an empty map (callers fall back to per-model probes). */
-export async function fetchLeaderboardIntel(fetchImpl: FetchImpl = fetch): Promise<Map<string, number>> {
+/**
+ * Variant-aware leaderboard join: every entry whose label denotes the same
+ * model (effort and speed variants included, per `labelMatchesModel`)
+ * contributes; the highest score wins — AA convention for picking a model's
+ * headline score (highest reasoning effort). `null` = no v5 measurement of
+ * this model on the board.
+ */
+export function scoreFromLeaderboard(entries: AaIntelEntry[], modelName: string): number | null {
+  let best: number | null = null
+  for (const entry of entries) {
+    if (!labelMatchesModel(modelName, entry.label)) continue
+    if (best == null || entry.score > best) best = entry.score
+  }
+  return best == null ? null : round1(best)
+}
+
+/** Fetches the leaderboard once; failures yield [] (callers fall back to per-model probes). */
+export async function fetchLeaderboardIntel(fetchImpl: FetchImpl = fetch): Promise<AaIntelEntry[]> {
   try {
     const response = await fetchImpl('https://artificialanalysis.ai/leaderboards/models', {
       headers: { 'User-Agent': CRAWLER_USER_AGENT }
     })
-    if (!response.ok) return new Map()
+    if (!response.ok) return []
     return parseLeaderboardIntel(await response.text())
   } catch {
-    return new Map()
+    return []
   }
 }
