@@ -19,7 +19,10 @@ export const AA_MODEL_SLUGS: Record<string, { slug: string, label: string }> = {
   // User-mandated join (2026-11-12): CC 'DeepSeek V4 Pro (latest)' (launchedAt
   // 2026-08-13) IS the AA '0813' snapshot — board entry labels both variants,
   // (Max) headlines it.
-  'deepseek/deepseek-v4-pro': { slug: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro 0813 (Max)' }
+  'deepseek/deepseek-v4-pro': { slug: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro 0813 (Max)' },
+  // User-mandated join (2026-11-12): CC 'DeepSeek V4.1 Flash (latest)' IS the
+  // AA '1017' snapshot (releaseDate 2026-10-17) — board headline is (Max).
+  'deepseek/deepseek-v4.1-flash': { slug: 'deepseek-v4-1-flash-1017', label: 'DeepSeek V4.1 Flash 1017 (Max)' }
 }
 
 export function round1(n: number): number {
