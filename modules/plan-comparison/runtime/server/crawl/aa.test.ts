@@ -244,6 +244,15 @@ describe('scoreFromLeaderboard', () => {
     expect(scoreFromLeaderboard(snapshotEntries, 'DeepSeek V4 Pro 0813 (Max)')).toBe(23.1)
   })
 
+  it('joins the AA 1017 snapshot label via the curated override', () => {
+    const snapshotEntries = [
+      { slug: 'deepseek-v4-1-flash-1017', label: 'DeepSeek V4.1 Flash 1017 (Max)', score: 32.6 },
+      { slug: 'deepseek-v4-1-flash-1017-high', label: 'DeepSeek V4.1 Flash 1017 (High)', score: 28.6 },
+      { slug: 'deepseek-v4-1-flash-1017-non-reasoning', label: 'DeepSeek V4.1 Flash 1017 (Non-reasoning)', score: 18.5 }
+    ]
+    expect(scoreFromLeaderboard(snapshotEntries, 'DeepSeek V4.1 Flash 1017 (Max)')).toBe(32.6)
+  })
+
   it('never leaks a variant score to a different model', () => {
     expect(scoreFromLeaderboard(entries, 'GLM-5.3 FlashX')).toBeNull()
     expect(scoreFromLeaderboard(entries, 'Kimi K3')).toBeNull()
