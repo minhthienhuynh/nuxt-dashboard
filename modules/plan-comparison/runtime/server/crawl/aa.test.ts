@@ -236,6 +236,14 @@ describe('scoreFromLeaderboard', () => {
     expect(scoreFromLeaderboard(entries, 'Qwen3.8 Max 0902')).toBeNull()
   })
 
+  it('joins an AA snapshot label via the curated override', () => {
+    const snapshotEntries = [
+      { slug: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro 0813 (Max)', score: 23.1 },
+      { slug: 'deepseek-v4-pro-non-reasoning', label: 'DeepSeek V4 Pro 0813 (Non-reasoning)', score: 12.6 }
+    ]
+    expect(scoreFromLeaderboard(snapshotEntries, 'DeepSeek V4 Pro 0813 (Max)')).toBe(23.1)
+  })
+
   it('never leaks a variant score to a different model', () => {
     expect(scoreFromLeaderboard(entries, 'GLM-5.3 FlashX')).toBeNull()
     expect(scoreFromLeaderboard(entries, 'Kimi K3')).toBeNull()

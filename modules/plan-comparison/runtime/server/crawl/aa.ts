@@ -15,7 +15,11 @@ export interface AaScoreEntry {
  */
 export const AA_MODEL_SLUGS: Record<string, { slug: string, label: string }> = {
   'Qwen/Qwen3.8-Max-0902': { slug: 'qwen3-8-max', label: 'Qwen3.8 Max (0902)' },
-  'Qwen/Qwen3.8-Flash': { slug: 'qwen3-8-flash-next', label: 'Qwen3.8-Flash-Next' }
+  'Qwen/Qwen3.8-Flash': { slug: 'qwen3-8-flash-next', label: 'Qwen3.8-Flash-Next' },
+  // User-mandated join (2026-11-12): CC 'DeepSeek V4 Pro (latest)' (launchedAt
+  // 2026-08-13) IS the AA '0813' snapshot — board entry labels both variants,
+  // (Max) headlines it.
+  'deepseek/deepseek-v4-pro': { slug: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro 0813 (Max)' }
 }
 
 export function round1(n: number): number {
