@@ -8,6 +8,7 @@ import {
   findAaScore,
   labelMatchesModel,
   parseLeaderboardIntel,
+  scoreFromLeaderboard,
   resolveAaScoreForTest,
   round1
 } from './aa'
@@ -176,65 +177,93 @@ describe('resolveAaScore', () => {
 })
 
 describe('parseLeaderboardIntel', () => {
-  // Trimmed flight-chunk excerpt from the live leaderboard page (2026-09-29),
-  // quotes kept escaped as served so the test covers the unescape step.
-  const flightHtml = `<html><body><script>self.__next_f.push([1,"[{\\"slug\\":\\"mimo-v2-6-flash\\",\\"name\\":\\"MiMo-V2.6-Flash\\",\\"intelligenceIndex\\":37.8843590141754,\\"intelligenceIndexIsEstimated\\":false},{\\"slug\\":\\"mimo-v2-6-pro\\",\\"name\\":\\"MiMo-V2.6-Pro\\",\\"intelligenceIndex\\":46.3242065310383,\\"intelligenceIndexIsEstimated\\":false},{\\"slug\\":\\"guess-model\\",\\"name\\":\\"Guess Model\\",\\"intelligenceIndex\\":12.5,\\"intelligenceIndexIsEstimated\\":true},{\\"slug\\":\\"unscored-model\\",\\"name\\":\\"Unscored Model\\",\\"intelligenceIndex\\":null,\\"intelligenceIndexIsEstimated\\":false}]"])</script></body></html>`
+  const BS = String.fromCharCode(92)
+  const q = `${BS}"`
+  // Trimmed from the live leaderboard page (v5.0.1, 2026-11-12): the
+  // initialModels array is embedded in a flight chunk, quotes escaped as
+  // served so the test covers the unescape step.
+  const flightHtml = `<html><body><script>self.__next_f.push([1,"{${q}initialModels${q}:[{${q}slug${q}:${q}mimo-v2-6-flash${q},${q}name${q}:${q}MiMo-V2.6-Flash${q},${q}intelligenceIndex${q}:26.7276981444568,${q}intelligenceIndexIsEstimated${q}:false},{${q}slug${q}:${q}mimo-v2-6-pro${q},${q}name${q}:${q}MiMo-V2.6-Pro${q},${q}intelligenceIndex${q}:29.9,${q}intelligenceIndexIsEstimated${q}:false},{${q}slug${q}:${q}guess-model${q},${q}name${q}:${q}Guess Model${q},${q}intelligenceIndex${q}:12.5,${q}intelligenceIndexIsEstimated${q}:true},{${q}slug${q}:${q}unscored-model${q},${q}name${q}:${q}Unscored Model${q},${q}intelligenceIndex${q}:null,${q}intelligenceIndexIsEstimated${q}:false}]}"])</script></body></html>`
 
   it('keeps exact scores rounded to 1 decimal', () => {
-    const scores = parseLeaderboardIntel(flightHtml)
-    expect(scores.get('mimo-v2-6-flash')).toBe(37.9)
-    expect(scores.get('mimo-v2-6-pro')).toBe(46.3)
+    expect(parseLeaderboardIntel(flightHtml)).toEqual([
+      { slug: 'mimo-v2-6-flash', label: 'MiMo-V2.6-Flash', score: 26.7 },
+      { slug: 'mimo-v2-6-pro', label: 'MiMo-V2.6-Pro', score: 29.9 }
+    ])
   })
 
   it('drops estimated and null entries', () => {
-    const scores = parseLeaderboardIntel(flightHtml)
-    expect(scores.has('guess-model')).toBe(false)
-    expect(scores.has('unscored-model')).toBe(false)
+    const entries = parseLeaderboardIntel(flightHtml)
+    expect(entries.some(e => e.slug === 'guess-model')).toBe(false)
+    expect(entries.some(e => e.slug === 'unscored-model')).toBe(false)
   })
 
   it('keeps the first record on duplicate slugs', () => {
-    const dupHtml = `<script>[{\\"slug\\":\\"dup-model\\",\\"intelligenceIndex\\":40.0,\\"intelligenceIndexIsEstimated\\":false},{\\"slug\\":\\"dup-model\\",\\"intelligenceIndex\\":10.0,\\"intelligenceIndexIsEstimated\\":false}]</script>`
-    expect(parseLeaderboardIntel(dupHtml).get('dup-model')).toBe(40)
+    const dupHtml = `<script>[{${q}initialModels${q}:[{${q}slug${q}:${q}dup-model${q},${q}name${q}:${q}Dup Model${q},${q}intelligenceIndex${q}:40.0,${q}intelligenceIndexIsEstimated${q}:false},{${q}slug${q}:${q}dup-model${q},${q}name${q}:${q}Dup Model${q},${q}intelligenceIndex${q}:10.0,${q}intelligenceIndexIsEstimated${q}:false}]}]</script>`
+    expect(parseLeaderboardIntel(dupHtml)[0]?.score).toBe(40)
   })
 
   it('lowercases slugs for case-insensitive joins', () => {
-    const upperHtml = `<script>[{\\"slug\\":\\"MiMo-V2-6-Flash\\",\\"intelligenceIndex\\":37.884,\\"intelligenceIndexIsEstimated\\":false}]</script>`
-    expect(parseLeaderboardIntel(upperHtml).get('mimo-v2-6-flash')).toBe(37.9)
+    const upperHtml = `<script>[{${q}initialModels${q}:[{${q}slug${q}:${q}MiMo-V2-6-Flash${q},${q}name${q}:${q}MiMo-V2-6-Flash${q},${q}intelligenceIndex${q}:26.7,${q}intelligenceIndexIsEstimated${q}:false}]}]</script>`
+    expect(parseLeaderboardIntel(upperHtml)[0]?.slug).toBe('mimo-v2-6-flash')
   })
 
-  it('never leaks a variant score to a missing slug (exact whole-string join)', () => {
-    // Same payload minus the flash record: pro keeps its score, flash misses
-    // instead of borrowing it.
-    const proOnlyHtml = `<html><body><script>self.__next_f.push([1,"[{\\"slug\\":\\"mimo-v2-6-pro\\",\\"name\\":\\"MiMo-V2.6-Pro\\",\\"intelligenceIndex\\":46.3242065310383,\\"intelligenceIndexIsEstimated\\":false}]"])</script></body></html>`
-    const scores = parseLeaderboardIntel(proOnlyHtml)
-    expect(scores.get('mimo-v2-6-pro')).toBe(46.3)
-    expect(scores.has('mimo-v2-6-flash')).toBe(false)
+  it('returns empty without the initialModels array', () => {
+    expect(parseLeaderboardIntel('<html></html>')).toEqual([])
+    expect(parseLeaderboardIntel('<script>{]}</script>')).toEqual([])
+  })
+})
+
+describe('scoreFromLeaderboard', () => {
+  const entries = [
+    { slug: 'glm-5-3-low', label: 'GLM-5.3 (Low)', score: 23.1 },
+    { slug: 'glm-5-3', label: 'GLM-5.3 (Max)', score: 31.7 },
+    { slug: 'mimo-v2-6-pro', label: 'MiMo-V2.6-Pro', score: 29.9 },
+    { slug: 'qwen3-8-max', label: 'Qwen3.8 Max (0902)', score: 33.7 },
+    { slug: 'tencent-hy4', label: 'Tencent Hy4', score: 34.6 }
+  ]
+
+  it('matches effort variants and takes the highest score', () => {
+    expect(scoreFromLeaderboard(entries, 'GLM-5.3')).toBe(31.7)
   })
 
-  it('returns empty without flight records', () => {
-    expect(parseLeaderboardIntel('<html></html>').size).toBe(0)
+  it('matches a model with a trailing serving-tier word', () => {
+    expect(scoreFromLeaderboard(entries, 'MiMo V2.6 Pro UltraSpeed')).toBe(29.9)
+    expect(scoreFromLeaderboard(entries, 'Tencent Hy4 Preview')).toBe(34.6)
+  })
+
+  it('strips parentheticals as the identity (dated snapshots join the base entry, via override)', () => {
+    expect(scoreFromLeaderboard(entries, 'Qwen3.8 Max')).toBe(33.7)
+    expect(scoreFromLeaderboard(entries, 'Qwen3.8 Max 0902')).toBeNull()
+  })
+
+  it('never leaks a variant score to a different model', () => {
+    expect(scoreFromLeaderboard(entries, 'GLM-5.3 FlashX')).toBeNull()
+    expect(scoreFromLeaderboard(entries, 'Kimi K3')).toBeNull()
   })
 })
 
 describe('fetchLeaderboardIntel', () => {
+  const BS = String.fromCharCode(92)
+  const q = `${BS}"`
+
   it('fetches the leaderboard page once', async () => {
-    const body = `x{\\"slug\\":\\"mimo-v2-6-flash\\",\\"intelligenceIndex\\":37.8843590141754,\\"intelligenceIndexIsEstimated\\":false}`
+    const body = `x{${q}initialModels${q}:[{${q}slug${q}:${q}mimo-v2-6-flash${q},${q}name${q}:${q}MiMo-V2.6-Flash${q},${q}intelligenceIndex${q}:26.7276981444568,${q}intelligenceIndexIsEstimated${q}:false}]}`
     const fetchImpl = vi.fn(async (_url: string | URL | Request) => new Response(body))
-    const scores = await fetchLeaderboardIntel(fetchImpl)
-    expect(scores.get('mimo-v2-6-flash')).toBe(37.9)
+    const entries = await fetchLeaderboardIntel(fetchImpl)
+    expect(entries).toEqual([{ slug: 'mimo-v2-6-flash', label: 'MiMo-V2.6-Flash', score: 26.7 }])
     expect(fetchImpl).toHaveBeenCalledTimes(1)
     expect(String(fetchImpl.mock.calls[0]?.[0] ?? '')).toContain('/leaderboards/models')
   })
 
-  it('returns an empty map on fetch failure', async () => {
+  it('returns an empty array on fetch failure', async () => {
     const fetchImpl = vi.fn(async () => {
       throw new Error('down')
     })
-    expect((await fetchLeaderboardIntel(fetchImpl)).size).toBe(0)
+    expect(await fetchLeaderboardIntel(fetchImpl)).toEqual([])
   })
 
-  it('returns an empty map on non-ok responses', async () => {
+  it('returns an empty array on non-ok responses', async () => {
     const fetchImpl = vi.fn(async (_url: string | URL | Request) => new Response('oops', { status: 500 }))
-    expect((await fetchLeaderboardIntel(fetchImpl)).size).toBe(0)
+    expect(await fetchLeaderboardIntel(fetchImpl)).toEqual([])
   })
 })

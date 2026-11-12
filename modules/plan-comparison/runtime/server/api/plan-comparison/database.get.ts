@@ -10,57 +10,29 @@ import { parseOpenCodeEndpoints, parseOpenCodeEstimates, parseOpenCodePricing } 
 import { parseOpenDesignAllowances, parseOpenDesignModels, parseOpenDesignMultipliers, parseOpenDesignUsage } from '../../crawl/opendesign'
 import { parseTokenHarborBoosts, parseTokenHarborCatalogue } from '../../crawl/tokenharbor'
 import { crawledDatabaseSchema } from '../../crawl/schemas'
-import { AA_MODEL_SLUGS, fetchAaScore, fetchLeaderboardIntel, resolveAaScore } from '../../crawl/aa'
+import { AA_MODEL_SLUGS, fetchLeaderboardIntel, scoreFromLeaderboard } from '../../crawl/aa'
 import { plans as staticPlans } from '../../data/plans'
 import { providers as staticProviders } from '../../data/providers'
 
 let inflight: Promise<PlanComparisonPayload> | null = null
 
-/** Runs `fn` over `items` with at most `limit` concurrent workers. */
-async function mapWithConcurrency<T>(items: T[], limit: number, fn: (item: T) => Promise<void>): Promise<void> {
-  let index = 0
-  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (index < items.length) {
-      const item = items[index++]!
-      await fn(item)
-    }
-  })
-  await Promise.all(workers)
-}
-
 async function crawlFresh(): Promise<PlanComparisonPayload> {
   const fetchedAt = new Date().toISOString()
   const sources = await fetchSources()
   const goatModels = parseGoatModels(extractFlightModels(sources.goatHtml))
-  // Fill missing intel scores from AA (CC leaves serving tiers / brand-new
-  // models unscored). The leaderboard covers every model in one fetch and is
-  // consulted first; the curated AA_MODEL_SLUGS overrides apply before both,
-  // per-model page probes stay as fallback. Failures leave the score null
-  // (AA has not scored the model).
-  const unscored = goatModels.filter(model => model.intelligenceIndex == null)
-  // Curated overrides never consult the board, so skip its fetch when every
-  // unscored model is overridden.
-  const needsBoard = unscored.some(model => AA_MODEL_SLUGS[model.id] == null)
-  const leaderboard = needsBoard ? await fetchLeaderboardIntel() : new Map<string, number>()
-  await mapWithConcurrency(
-    unscored,
-    3,
-    async (model) => {
-      const override = AA_MODEL_SLUGS[model.id]
-      if (override) {
-        const score = await fetchAaScore(override.slug, override.label)
-        if (score != null) model.intelligenceIndex = score
-        return
-      }
-      const board = leaderboard.get(model.slug.toLowerCase())
-      if (board != null) {
-        model.intelligenceIndex = board
-        return
-      }
-      const score = await resolveAaScore(model)
-      if (score != null) model.intelligenceIndex = score
-    }
-  )
+  // Every model's intelligence index is AA v5 — vendor-published scores are
+  // dropped by design. The only payload that carries v5 scores is the
+  // leaderboard's embedded initialModels (v5 model pages embed nothing,
+  // verified 2026-11-12), so the fill is a single fetch + in-memory join:
+  // variant-aware (effort/speed tiers, highest wins) via labelMatchesModel.
+  // The curated AA_MODEL_SLUGS overrides remap known proxies onto board
+  // labels (e.g. Qwen3.8-Flash → qwen3-8-flash-next). No v5 score anywhere
+  // -> null (rendered as '—'). Per-model page probes are gone for good.
+  const leaderboard = await fetchLeaderboardIntel()
+  for (const model of goatModels) {
+    const label = AA_MODEL_SLUGS[model.id]?.label ?? model.name
+    model.intelligenceIndex = scoreFromLeaderboard(leaderboard, label)
+  }
   const goatEstimates = parseGoatEstimates(extractFlightEstimates(sources.goatHtml))
   // Go fallback fractions come from the static Go plan limits (3/6/10),
   // not the GOAT defaults (0.2/0.5) inside parseGoatEstimates.
