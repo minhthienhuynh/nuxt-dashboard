@@ -16,7 +16,12 @@ import type { PlanComparisonPlanKey, PlanComparisonPlanMeta } from '../plan-colo
  * baseline wave changes; the filter bar lets the reader pick any other date.
  */
 export const DEFAULT_OLD_BEFORE = '2026-08-26'
-export const DEFAULT_INTEL_THRESHOLD = 37
+/**
+ * AA v5 scale (2026-11): v4-era cutoffs (37) hide most of the dataset, so the
+ * default hide-low-intel cutoff is 26. Deliberately a fixed number, not a
+ * percentile: the filter bar lets the reader pick any other threshold.
+ */
+export const DEFAULT_INTEL_THRESHOLD = 26
 
 /**
  * What one plan funds on one model. `credit` is the usage value the plan's
