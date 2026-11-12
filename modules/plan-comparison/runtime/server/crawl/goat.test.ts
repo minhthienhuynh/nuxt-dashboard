@@ -110,6 +110,26 @@ describe('parseGoatEstimates', () => {
     expect(parsed.fiveHourFraction).toBe(0.2)
   })
 
+  it('resolves flight $-references to rows that repeat an identical object', () => {
+    const rows = [
+      {
+        name: 'Jev',
+        budgetUsd: 20,
+        rates: { inputCost: 0.042, outputCost: 0, cacheReadCost: 0 },
+        shape: { inputTokens: 800, outputTokens: 200, cacheReadTokens: 50000 }
+      },
+      {
+        name: 'Jev 1.14.0',
+        budgetUsd: 20,
+        rates: '$1c:props:rows:0:rates',
+        shape: { inputTokens: 800, outputTokens: 200, cacheReadTokens: 50000 }
+      }
+    ]
+    const parsed = parseGoatEstimates({ rows, fiveHourFraction: 0.2, weeklyFraction: 0.5 })
+    expect(parsed.rows[1]?.rates).toEqual({ inputCost: 0.042, outputCost: 0, cacheReadCost: 0 })
+    expect(parsed.rows[1]?.budgetUsd).toBe(20)
+  })
+
   it('uses custom fallback fractions when the payload omits them', () => {
     const parsed = parseGoatEstimates({ rows: [] }, { fiveHour: 0.3, weekly: 0.6 })
     expect(parsed.fiveHourFraction).toBe(0.3)

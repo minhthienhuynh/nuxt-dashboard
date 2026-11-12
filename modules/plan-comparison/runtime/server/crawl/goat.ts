@@ -177,6 +177,38 @@ function parseRowTimeOfDay(value: unknown): RowTimeOfDay | null {
   }
 }
 
+/**
+ * Next.js Flight dedups a repeated object by emitting it once and pointing
+ * later copies at it by reference (`$1c:props:rows:60:rates`), which a plain
+ * JSON parse cannot follow. The GOAT estimates table repeats an identical
+ * `rates` object across rows (Jev / Jev 1.14.0), so an unresolved ref zeroed
+ * the row's cost math and the chart drew no reqs/mo. Resolve row-local
+ * `$…:props:rows:<n>[:<field>]` references against the rows array itself.
+ */
+const FLIGHT_ROW_REF = /^\$[^:]+:props:rows:(\d+)(?::([A-Za-z0-9_]+))?$/
+
+function resolveFlightRowRefs(rows: unknown[]): unknown[] {
+  function resolveField(value: unknown, depth: number): unknown {
+    if (depth > 4 || typeof value !== 'string') return value
+    const match = FLIGHT_ROW_REF.exec(value)
+    if (!match) return value
+    const target = rows[Number(match[1])]
+    if (target == null || typeof target !== 'object') return null
+    if (match[2] == null) return resolveRow(target, depth + 1)
+    return resolveField((target as Record<string, unknown>)[match[2]], depth + 1)
+  }
+  function resolveRow(row: unknown, depth: number): unknown {
+    if (row == null || typeof row !== 'object' || depth > 4) return row
+    const input = row as Record<string, unknown>
+    const out: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(input)) {
+      out[key] = resolveField(value, depth)
+    }
+    return out
+  }
+  return rows.map(row => resolveRow(row, 0))
+}
+
 export interface GoatEstimateRow {
   name: string
   budgetUsd: number | null
@@ -195,7 +227,7 @@ export function parseGoatEstimates(
   const fallback = { rows: [] as GoatEstimateRow[], fiveHourFraction: fallbackFractions.fiveHour, weeklyFraction: fallbackFractions.weekly }
   if (payload == null || typeof payload !== 'object') return fallback
   const record = payload as Record<string, unknown>
-  const rows = Array.isArray(record.rows) ? record.rows : []
+  const rows = Array.isArray(record.rows) ? resolveFlightRowRefs(record.rows) : []
   return {
     rows: rows
       .filter(row => row != null && typeof row === 'object')
