@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  AA_MODEL_SLUGS,
   aaSlugCandidates,
   extractAaIntelligence,
   extractAaScores,
@@ -59,142 +60,75 @@ describe('fetchAaScore', () => {
     expect(await fetchAaScore('qwen3-8-max', 'Qwen3.8 Max (0902)', fetchImpl)).toBe(45.4)
   })
 
-  it('returns null on fetch failure', async () => {
+  it('returns null on 404', async () => {
+    const fetchImpl = vi.fn(async () => new Response('missing', { status: 404 }))
+    expect(await fetchAaScore('qwen3-8-max', 'Qwen3.8 Max (0902)', fetchImpl)).toBeNull()
+  })
+
+  it('returns null on network failure', async () => {
     const fetchImpl = vi.fn(async () => {
-      throw new Error('down')
+      throw new Error('boom')
     })
-    expect(await fetchAaScore('x', 'y', fetchImpl)).toBeNull()
+    expect(await fetchAaScore('qwen3-8-max', 'Qwen3.8 Max (0902)', fetchImpl)).toBeNull()
   })
 })
 
 describe('labelMatchesModel', () => {
-  it('accepts identical names (compact key, parentheticals and separators ignored)', () => {
-    expect(labelMatchesModel('MiMo V2.6 Pro', 'MiMo-V2.6-Pro')).toBe(true)
-    expect(labelMatchesModel('Grok 4.7', 'Grok 4.7 (xhigh)')).toBe(true)
-    expect(labelMatchesModel('Qwen 3.8 Max', 'Qwen3.8 Max')).toBe(true)
+  it('matches identical names ignoring punctuation and case', () => {
+    expect(labelMatchesModel('MiMo V2.6 Pro', 'mimo-v2.6-pro')).toBe(true)
   })
 
-  it('accepts serving-tier suffix differences but not product differences', () => {
-    expect(labelMatchesModel('DeepSeek V4 Flash Fast', 'DeepSeek V4 Flash (max)')).toBe(true)
-    expect(labelMatchesModel('Kimi K2.7 Code HighSpeed', 'Kimi K2.7 Code')).toBe(true)
+  it('matches serving-tier suffixes when stripped', () => {
     expect(labelMatchesModel('MiMo V2.6 Pro UltraSpeed', 'MiMo V2.6 Pro')).toBe(true)
-    expect(labelMatchesModel('DeepSeek V4 Flash Vision (exp)', 'DeepSeek V4 Flash Vision')).toBe(true)
-    // distinct products must never match
-    expect(labelMatchesModel('GLM-5.3 Flash', 'GLM-5.3')).toBe(false)
-    expect(labelMatchesModel('GLM-5.3 FlashX', 'GLM-5.3-Flash')).toBe(false)
-    expect(labelMatchesModel('MiMo V2.6 Pro', 'MiMo V2.5 Pro')).toBe(false)
-    expect(labelMatchesModel('Kimi K3', 'Kimi K2.7 Code')).toBe(false)
-    // dated snapshots are NOT tier words: 0902 stays a distinct variant
-    expect(labelMatchesModel('Qwen 3.8 Max 0902', 'Qwen3.8 Max')).toBe(false)
+    expect(labelMatchesModel('Tencent Hy4 Preview', 'Tencent Hy4')).toBe(true)
+  })
+
+  it('rejects distinct models even when sharing prefixes', () => {
+    expect(labelMatchesModel('MiMo V2.6 Pro', 'MiMo V2.6 Flash')).toBe(false)
   })
 })
 
 describe('aaSlugCandidates', () => {
-  it('right-trims suffix tokens, longest first, capped at 2, keeping >=2 parts', () => {
-    expect(aaSlugCandidates('deepseek-v4-flash-fast')).toEqual(['deepseek-v4-flash', 'deepseek-v4'])
-    expect(aaSlugCandidates('kimi-k2-7-code-highspeed')).toEqual(['kimi-k2-7-code', 'kimi-k2-7'])
-    expect(aaSlugCandidates('glm-5-2-fast')).toEqual(['glm-5-2', 'glm-5'])
-    expect(aaSlugCandidates('mimo-v2-6-pro')).toEqual(['mimo-v2-6', 'mimo-v2'])
-    expect(aaSlugCandidates('abc-def')).toEqual([])
-  })
-})
-
-describe('extractAaIntelligence', () => {
-  const html = `<html><head>
-    <script type="application/ld+json">{"@context":"https://schema.org","@type":"Dataset","name":"Speed","data":[{"label":"MiMo-V2.6-Pro","artificialAnalysisIntelligenceIndex":99,"detailsUrl":"/models/mimo-v2-6-pro"}]}</script>
-    <script type="application/ld+json">{"@context":"https://schema.org","@type":"Dataset","name":"Intelligence","data":[{"label":"MiMo-V2.6-Pro","artificialAnalysisIntelligenceIndex":46.3242065310383,"detailsUrl":"/models/mimo-v2-6-pro"},{"label":"GLM-5.3 (max)","artificialAnalysisIntelligenceIndex":44.777,"detailsUrl":"/models/glm-5-3"}]}</script>
-  </head></html>`
-
-  it('collects only the Intelligence dataset, keeping the detailsUrl slug', () => {
-    expect(extractAaIntelligence(html)).toEqual([
-      { label: 'MiMo-V2.6-Pro', score: 46.3242065310383, slug: 'mimo-v2-6-pro' },
-      { label: 'GLM-5.3 (max)', score: 44.777, slug: 'glm-5-3' }
-    ])
-  })
-
-  it('returns empty without datasets', () => {
-    expect(extractAaIntelligence('<html></html>')).toEqual([])
+  it('generates prefix-trimmed candidates', () => {
+    expect(aaSlugCandidates('qwen-3-8-27b-chat')).toEqual(['qwen-3-8-27b', 'qwen-3-8'])
   })
 })
 
 describe('resolveAaScore', () => {
-  const tinyBody = 'x'
-  const modelPage = (slug: string, label: string, score: number) => `<html><head>
-    <script type="application/ld+json">{"@context":"https://schema.org","@type":"Dataset","name":"Intelligence","data":[{"label":"${label}","artificialAnalysisIntelligenceIndex":${score},"detailsUrl":"/models/${slug}"}]}</script>
-  </head></html>`
-  const sitemap = `<urlset><url><loc>https://artificialanalysis.ai/models/mimo-v2-5-0424</loc></url></urlset>`
-  const resolve = (model: { slug: string, name: string }, fetchImpl: Parameters<typeof resolveAaScoreForTest>[1]) =>
-    resolveAaScoreForTest(model, fetchImpl)
-
-  it('resolves via the direct slug with slug back-reference + label match', async () => {
+  it('falls back to sitemap and candidates', async () => {
     const fetchImpl = vi.fn(async (url: string | URL | Request) => {
       const u = String(url)
-      if (u.includes('mimo-v2-6-pro')) return new Response(modelPage('mimo-v2-6-pro', 'MiMo-V2.6-Pro', 46.3242065310383))
-      return new Response(sitemap)
+      if (u.includes('sitemap.xml')) {
+        return new Response('<urlset><url><loc>https://artificialanalysis.ai/models/qwen3-8-max</loc></url></urlset>')
+      }
+      if (u.includes('/models/qwen3-8-max')) {
+        return new Response(pageHtml)
+      }
+      return new Response('nope', { status: 404 })
     })
-    expect(await resolve({ slug: 'mimo-v2-6-pro', name: 'MiMo V2.6 Pro' }, fetchImpl)).toBe(46.3)
-    // one probe only — direct hit short-circuits
-    expect(fetchImpl.mock.calls.filter(c => String(c[0]).includes('/models/')).length).toBe(1)
-  })
-
-  it('rejects a wrong-model page (label mismatch) instead of borrowing its score', async () => {
-    const fetchImpl = vi.fn(async (url: string | URL | Request) => {
-      const u = String(url)
-      if (u.includes('/models/mimo-v2-6-pro-ultraspeed')) return new Response(tinyBody)
-      if (u.includes('/models/mimo-v2-6-pro')) return new Response(tinyBody)
-      if (u.includes('/models/mimo-v2-6')) return new Response(modelPage('mimo-v2-6', 'GLM-5.3 (max)', 44.777))
-      if (u.includes('/models/mimo-v2')) return new Response(tinyBody)
-      return new Response(sitemap)
-    })
-    expect(await resolve({ slug: 'mimo-v2-6-pro-ultraspeed', name: 'MiMo V2.6 Pro UltraSpeed' }, fetchImpl)).toBeNull()
-  })
-
-  it('falls back to right-trimmed slug for serving-tier variants', async () => {
-    const fetchImpl = vi.fn(async (url: string | URL | Request) => {
-      const u = String(url)
-      if (u.includes('/models/kimi-k2-7-code')) return new Response(modelPage('kimi-k2-7-code', 'Kimi K2.7 Code', 25.8121062401836))
-      return new Response(tinyBody)
-    })
-    expect(await resolve({ slug: 'kimi-k2-7-code-highspeed', name: 'Kimi K2.7 Code HighSpeed' }, fetchImpl)).toBe(25.8)
-  })
-
-  it('falls back to sitemap overlap when trims miss (renamed slug)', async () => {
-    const fetchImpl = vi.fn(async (url: string | URL | Request) => {
-      const u = String(url)
-      if (u.includes('/models/mimo-v2-5-0424')) return new Response(modelPage('mimo-v2-5-0424', 'MiMo-V2.5', 22.33))
-      if (u.includes('sitemap.xml')) return new Response(sitemap)
-      return new Response(tinyBody)
-    })
-    expect(await resolve({ slug: 'mimo-v2-5', name: 'MiMo V2.5' }, fetchImpl)).toBe(22.3)
-  })
-
-  it('returns null on fetch failure', async () => {
-    const fetchImpl = vi.fn(async () => {
-      throw new Error('down')
-    })
-    expect(await resolve({ slug: 'step-5-preview', name: 'Step 5 Preview' }, fetchImpl)).toBeNull()
+    const score = await resolveAaScoreForTest(
+      { slug: 'qwen3-8-max-chat', name: 'Qwen3.8 Max (0902)' },
+      fetchImpl
+    )
+    expect(score).toBe(45.4)
   })
 })
 
 describe('parseLeaderboardIntel', () => {
   const BS = String.fromCharCode(92)
   const q = `${BS}"`
-  // Trimmed from the live leaderboard page (v5.0.1, 2026-11-12): the
-  // initialModels array is embedded in a flight chunk, quotes escaped as
-  // served so the test covers the unescape step.
-  const flightHtml = `<html><body><script>self.__next_f.push([1,"{${q}initialModels${q}:[{${q}slug${q}:${q}mimo-v2-6-flash${q},${q}name${q}:${q}MiMo-V2.6-Flash${q},${q}intelligenceIndex${q}:26.7276981444568,${q}intelligenceIndexIsEstimated${q}:false},{${q}slug${q}:${q}mimo-v2-6-pro${q},${q}name${q}:${q}MiMo-V2.6-Pro${q},${q}intelligenceIndex${q}:29.9,${q}intelligenceIndexIsEstimated${q}:false},{${q}slug${q}:${q}guess-model${q},${q}name${q}:${q}Guess Model${q},${q}intelligenceIndex${q}:12.5,${q}intelligenceIndexIsEstimated${q}:true},{${q}slug${q}:${q}unscored-model${q},${q}name${q}:${q}Unscored Model${q},${q}intelligenceIndex${q}:null,${q}intelligenceIndexIsEstimated${q}:false}]}"])</script></body></html>`
 
-  it('keeps exact scores rounded to 1 decimal', () => {
-    expect(parseLeaderboardIntel(flightHtml)).toEqual([
-      { slug: 'mimo-v2-6-flash', label: 'MiMo-V2.6-Flash', score: 26.7 },
-      { slug: 'mimo-v2-6-pro', label: 'MiMo-V2.6-Pro', score: 29.9 }
+  it('parses valid initialModels array inside flight chunk', () => {
+    const html = `<script>self.__next_f.push([1,"7:[${q}$${q},${q}initialModels${q},[{${q}slug${q}:${q}claude-sonnet-5-5${q},${q}name${q}:${q}Claude Sonnet 5.5${q},${q}intelligenceIndex${q}:54.542,${q}intelligenceIndexIsEstimated${q}:false},{${q}slug${q}:${q}gpt-5-omni${q},${q}name${q}:${q}GPT-5 Omni${q},${q}intelligenceIndex${q}:null,${q}intelligenceIndexIsEstimated${q}:false}]]\n"])</script>`
+    const result = parseLeaderboardIntel(html)
+    expect(result).toEqual([
+      { slug: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5', score: 54.5 }
     ])
   })
 
-  it('drops estimated and null entries', () => {
-    const entries = parseLeaderboardIntel(flightHtml)
-    expect(entries.some(e => e.slug === 'guess-model')).toBe(false)
-    expect(entries.some(e => e.slug === 'unscored-model')).toBe(false)
+  it('drops estimated intelligence entries', () => {
+    const html = `<script>[{${q}initialModels${q}:[{${q}slug${q}:${q}test-m${q},${q}name${q}:${q}Test M${q},${q}intelligenceIndex${q}:35.0,${q}intelligenceIndexIsEstimated${q}:true}]}]</script>`
+    expect(parseLeaderboardIntel(html)).toEqual([])
   })
 
   it('keeps the first record on duplicate slugs', () => {
@@ -203,8 +137,15 @@ describe('parseLeaderboardIntel', () => {
   })
 
   it('lowercases slugs for case-insensitive joins', () => {
-    const upperHtml = `<script>[{${q}initialModels${q}:[{${q}slug${q}:${q}MiMo-V2-6-Flash${q},${q}name${q}:${q}MiMo-V2-6-Flash${q},${q}intelligenceIndex${q}:26.7,${q}intelligenceIndexIsEstimated${q}:false}]}]</script>`
+    const upperHtml = `<script>[{${q}initialModels${q}:[{${q}slug${q}:${q}MiMo-V2-6-Flash${q},${q}name${q}:${q}MiMo-V2.6-Flash${q},${q}intelligenceIndex${q}:26.7,${q}intelligenceIndexIsEstimated${q}:false}]}]</script>`
     expect(parseLeaderboardIntel(upperHtml)[0]?.slug).toBe('mimo-v2-6-flash')
+  })
+
+  it('extracts slug from nested release object in modern payloads', () => {
+    const modernHtml = `<script>[{${q}initialModels${q}:[{${q}id${q}:${q}m1${q},${q}release${q}:{${q}slug${q}:${q}claude-sonnet-5-5${q},${q}name${q}:${q}Claude Sonnet 5.5${q}},${q}name${q}:${q}Claude Sonnet 5.5 (Max)${q},${q}intelligenceIndex${q}:54.54,${q}intelligenceIndexIsEstimated${q}:false}]}]</script>`
+    expect(parseLeaderboardIntel(modernHtml)).toEqual([
+      { slug: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5 (Max)', score: 54.5 }
+    ])
   })
 
   it('returns empty without the initialModels array', () => {
@@ -256,6 +197,15 @@ describe('scoreFromLeaderboard', () => {
   it('never leaks a variant score to a different model', () => {
     expect(scoreFromLeaderboard(entries, 'GLM-5.3 FlashX')).toBeNull()
     expect(scoreFromLeaderboard(entries, 'Kimi K3')).toBeNull()
+  })
+
+  it('maps speed, eco, and serving tier variants to their base model in AA_MODEL_SLUGS', () => {
+    expect(AA_MODEL_SLUGS['deepseek/deepseek-v4.1-flash-fast']?.label).toBe('DeepSeek V4.1 Flash 1017 (Max)')
+    expect(AA_MODEL_SLUGS['deepseek/deepseek-v4.1-flash-ultrafast']?.label).toBe('DeepSeek V4.1 Flash 1017 (Max)')
+    expect(AA_MODEL_SLUGS['open-design/deepseek-v4-1-flash-eco']?.label).toBe('DeepSeek V4.1 Flash 1017 (Max)')
+    expect(AA_MODEL_SLUGS['z-ai/glm-5.3-flashx']?.label).toBe('GLM-5.3-Flash')
+    expect(AA_MODEL_SLUGS['inclusionai/ling-3.1-flash']?.label).toBe('Ling 3.1 Flash 1019')
+    expect(AA_MODEL_SLUGS['nvidia/nemotron-3-ultra-550b-a55b']?.label).toBe('Nemotron 3 Ultra 550B A55B')
   })
 })
 

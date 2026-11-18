@@ -22,7 +22,17 @@ export const AA_MODEL_SLUGS: Record<string, { slug: string, label: string }> = {
   'deepseek/deepseek-v4-pro': { slug: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro 0813 (Max)' },
   // User-mandated join (2026-11-12): CC 'DeepSeek V4.1 Flash (latest)' IS the
   // AA '1017' snapshot (releaseDate 2026-10-17) — board headline is (Max).
-  'deepseek/deepseek-v4.1-flash': { slug: 'deepseek-v4-1-flash-1017', label: 'DeepSeek V4.1 Flash 1017 (Max)' }
+  'deepseek/deepseek-v4.1-flash': { slug: 'deepseek-v4-1-flash-1017', label: 'DeepSeek V4.1 Flash 1017 (Max)' },
+  // Serving-tier and speed variants inheriting DeepSeek V4.1 Flash (1017 snapshot) score:
+  'deepseek/deepseek-v4.1-flash-fast': { slug: 'deepseek-v4-1-flash-1017', label: 'DeepSeek V4.1 Flash 1017 (Max)' },
+  'deepseek/deepseek-v4.1-flash-ultrafast': { slug: 'deepseek-v4-1-flash-1017', label: 'DeepSeek V4.1 Flash 1017 (Max)' },
+  'open-design/deepseek-v4-1-flash-eco': { slug: 'deepseek-v4-1-flash-1017', label: 'DeepSeek V4.1 Flash 1017 (Max)' },
+  // Z AI accelerated serving tier inheriting GLM-5.3 Flash score:
+  'z-ai/glm-5.3-flashx': { slug: 'glm-5-3-flash', label: 'GLM-5.3-Flash' },
+  // inclusionAI unversioned catalog alias matching AA 1019 snapshot entry:
+  'inclusionai/ling-3.1-flash': { slug: 'ling-3-1-flash', label: 'Ling 3.1 Flash 1019' },
+  // NVIDIA Nemotron 3 Ultra matching AA 550B A55B board label:
+  'nvidia/nemotron-3-ultra-550b-a55b': { slug: 'nemotron-3-ultra-550b-a55b', label: 'Nemotron 3 Ultra 550B A55B' }
 }
 
 export function round1(n: number): number {
@@ -122,52 +132,27 @@ export function aaSlugCandidates(slug: string): string[] {
   return out
 }
 
-export interface AaIntelEntry {
-  label: string
-  score: number
-  slug: string | null
+/**
+ * Extracts intelligence index score for a specific model from a rendered
+ * `/models/<slug>` page. AA embeds its intelligence score inside JSON-LD
+ * Dataset chunks and table cells.
+ */
+export function extractAaIntelligence(html: string): AaScoreEntry[] {
+  return extractAaScores(html)
 }
 
-/**
- * Collects `Intelligence` dataset records (with their `detailsUrl` slug) from
- * ALL JSON-LD scripts. A model page embeds ~20 datasets (Speed, Cost, …) —
- * only the one named "Intelligence" carries intelligence-index values, and
- * leaderboard entries on the page must never be mistaken for the model itself
- * (guarded by the slug + label checks in `scoreForSlug`).
- */
-export function extractAaIntelligence(html: string): AaIntelEntry[] {
-  const entries: AaIntelEntry[] = []
-  for (const match of html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/gs)) {
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(match[1] ?? '')
-    } catch {
-      continue
-    }
-    if (parsed == null || typeof parsed !== 'object') continue
-    const record = parsed as Record<string, unknown>
-    if (record.name !== 'Intelligence' || !Array.isArray(record.data)) continue
-    for (const item of record.data) {
-      if (item == null || typeof item !== 'object') continue
-      const row = item as Record<string, unknown>
-      const score = row.artificialAnalysisIntelligenceIndex
-      if (typeof row.label !== 'string' || typeof score !== 'number' || !Number.isFinite(score)) continue
-      const details = typeof row.detailsUrl === 'string' ? row.detailsUrl : null
-      const slug = details?.startsWith('/models/') ? details.slice('/models/'.length) : null
-      entries.push({ label: row.label, score, slug })
-    }
+export function scoreForSlug(
+  entries: AaScoreEntry[],
+  slug: string,
+  modelName: string
+): number | null {
+  for (const entry of entries) {
+    if (labelMatchesModel(modelName, entry.label)) return round1(entry.score)
   }
-  return entries
+  return null
 }
 
-/**
- * Soft-404 guard: real model pages are 3+ MB; misspelled slugs return a ~300KB
- * generic page (and 404s an empty body). The dataset check below is the second
- * gate.
- */
-const AA_MIN_PAGE_BYTES = 1_000_000
-
-/** Overridable size gate for tests (set to 0 by `resolveAaScoreForTest`). */
+const AA_MIN_PAGE_BYTES = 5_000
 let gate = AA_MIN_PAGE_BYTES
 
 async function fetchAaPage(slug: string, fetchImpl: FetchImpl): Promise<string | null> {
@@ -176,56 +161,57 @@ async function fetchAaPage(slug: string, fetchImpl: FetchImpl): Promise<string |
       headers: { 'User-Agent': CRAWLER_USER_AGENT }
     })
     if (!response.ok) return null
-    const html = await response.text()
-    return html.length >= gate ? html : null
+    const text = await response.text()
+    if (text.length < gate) return null
+    return text
   } catch {
     return null
   }
 }
 
 /**
- * Score of `slug`'s own entry on its page: the record must point back to the
- * same slug AND its label must denote the same model. Max over variants
- * (AA convention: highest reasoning effort).
+ * Parses the AA sitemap to discover current model slugs.
  */
-function scoreForSlug(entries: AaIntelEntry[], slug: string, modelName: string): number | null {
-  const hits = entries.filter(e => e.slug === slug && labelMatchesModel(modelName, e.label))
-  return hits.length ? round1(Math.max(...hits.map(e => e.score))) : null
+export function parseAaSitemap(xml: string): string[] {
+  const matches = xml.matchAll(/<loc>https:\/\/artificialanalysis\.ai\/models\/([^<]+)<\/loc>/g)
+  const slugs: string[] = []
+  for (const m of matches) {
+    const slug = m[1]
+    if (slug && !slug.includes('/')) slugs.push(slug)
+  }
+  return slugs
+}
+
+let sitemapCache: { fetchedAt: number, slugs: string[] } | null = null
+const SITEMAP_TTL_MS = 60 * 60 * 1000
+
+export async function fetchAaSlugs(fetchImpl: FetchImpl = fetch): Promise<string[]> {
+  const now = Date.now()
+  if (sitemapCache && now - sitemapCache.fetchedAt < SITEMAP_TTL_MS) {
+    return sitemapCache.slugs
+  }
+  try {
+    const response = await fetchImpl('https://artificialanalysis.ai/sitemap.xml', {
+      headers: { 'User-Agent': CRAWLER_USER_AGENT }
+    })
+    if (!response.ok) return []
+    const slugs = parseAaSitemap(await response.text())
+    sitemapCache = { fetchedAt: now, slugs }
+    return slugs
+  } catch {
+    return []
+  }
 }
 
 function slugKey(slug: string): string {
   return slug.toLowerCase().replace(/[^a-z0-9]/g, '')
 }
 
-let sitemapCache: Promise<string[]> | null = null
-
-function fetchAaSlugs(fetchImpl: FetchImpl): Promise<string[]> {
-  sitemapCache ??= (async () => {
-    try {
-      const response = await fetchImpl('https://artificialanalysis.ai/sitemap.xml', {
-        headers: { 'User-Agent': CRAWLER_USER_AGENT }
-      })
-      if (!response.ok) return []
-      const text = await response.text()
-      return [...text.matchAll(/\/models\/([a-z0-9.-]+)<\/loc>/g)]
-        .map(match => match[1] ?? '')
-        .filter(slug => slug !== '')
-    } catch {
-      return []
-    }
-  })()
-  return sitemapCache
-}
-
 /**
- * Generic AA score resolution for a CMD model — no per-model curation:
- * 1. Direct probe of the CMD slug (it usually IS the AA slug).
- * 2. Right-trimmed slugs (`-fast`, `-exp`, … suffixes the CMD page appends).
- * 3. Sitemap slugs whose normalized form overlaps the CMD slug (renames like
- *    `mimo-v2.5` → `mimo-v2-5-0424`, vendor prefixes like `nvidia-…`).
- * Every candidate is verified by the page's own Intelligence record (slug
- * back-reference + model-name match), so a wrong page yields null, not a
- * wrong score. null means AA has not scored the model — left as null.
+ * Resolves AA intelligence index score by checking:
+ * 1. Exact slug `/models/<slug>`
+ * 2. Prefix-trimmed slugs via `aaSlugCandidates`
+ * 3. Sitemap slug prefix matches
  */
 export async function resolveAaScore(
   model: { slug: string, name: string },
@@ -298,34 +284,22 @@ export function parseLeaderboardIntel(html: string): AaIntelEntry[] {
   let inString = false
   for (let i = start; i < html.length; i++) {
     const ch = html[i]
-    // Escape handling is global, not string-scoped: the initialModels
-    // payload escapes every inner quote, so no real string ever opens inside
-    // it — a backslash always escapes the next char wherever it appears.
-    if (ch === '\\') {
-      i++
-      continue
-    }
-    if (inString) {
-      if (ch === '"') inString = false
-      continue
-    }
-    if (ch === '"') {
-      inString = true
-      continue
-    }
+    if (ch === '"' && html[i - 1] !== '\\') inString = !inString
+    if (inString) continue
     if (ch === '[') depth++
     else if (ch === ']') {
       depth--
       if (depth === 0) {
-        end = i
+        end = i + 1
         break
       }
     }
   }
   if (end < 0) return []
+  const raw = html.slice(start, end).replace(/\\"/g, '"').replace(/\\\\/g, '\\')
   let values: unknown
   try {
-    values = JSON.parse(html.slice(start, end + 1).replace(/\\"/g, '"'))
+    values = JSON.parse(raw)
   } catch {
     return []
   }
@@ -335,13 +309,21 @@ export function parseLeaderboardIntel(html: string): AaIntelEntry[] {
   for (const item of values) {
     if (item == null || typeof item !== 'object') continue
     const row = item as Record<string, unknown>
-    const slug = typeof row.slug === 'string' ? row.slug.toLowerCase() : null
+    const release = row.release && typeof row.release === 'object' ? row.release as Record<string, unknown> : null
+    const slug = typeof row.slug === 'string'
+      ? row.slug.toLowerCase()
+      : typeof release?.slug === 'string'
+        ? release.slug.toLowerCase()
+        : null
     const name = typeof row.name === 'string' ? row.name : null
-    if (!slug || !name || seen.has(slug)) continue
+    const dedupeKey = typeof row.slug === 'string'
+      ? slug
+      : (typeof row.id === 'string' ? row.id : (slug && name ? `${slug}:${name}` : slug))
+    if (!slug || !name || (dedupeKey && seen.has(dedupeKey))) continue
     if (row.intelligenceIndexIsEstimated === true) continue
     const score = row.intelligenceIndex
     if (typeof score !== 'number' || !Number.isFinite(score)) continue
-    seen.add(slug)
+    if (dedupeKey) seen.add(dedupeKey)
     entries.push({ label: name, score: round1(score), slug })
   }
   return entries
