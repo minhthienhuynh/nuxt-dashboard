@@ -96,6 +96,12 @@ async function crawlFresh(): Promise<PlanComparisonPayload> {
   })
   const validated = crawledDatabaseSchema.safeParse(built)
   if (!validated.success) throw new Error('Crawled database failed validation')
+  for (const model of validated.data.models) {
+    if (model.intelligenceIndex == null) {
+      const label = AA_MODEL_SLUGS[model.id]?.label ?? model.name
+      model.intelligenceIndex = scoreFromLeaderboard(leaderboard, label)
+    }
+  }
   const database: PlanComparisonDatabase = {
     providers: staticProviders,
     plans: staticPlans,
