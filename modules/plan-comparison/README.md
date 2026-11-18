@@ -18,7 +18,7 @@ Nguồn live → crawler (parse + merge + validate) → Nitro storage (S3, khôn
 | GOAT Flight: `"models":[...]`, `GoatEstimatesTable` (`$L45`) | Full shape model; budgets/rates/shape/fractions từng row |
 | Pricing-limits HTML (`#<slug>-...`) | Cột **Was** (giá list) |
 | Go page summary | Credits $10 cho derived rows |
-| OpenCode Go (Astro): pricing / `#estimated-requests` / endpoints | Giá hiện hành, estimates, Model ID (join key) |
+| OpenCode Go: REST API (`/inference/go/v1/models`) + Console (`/console/go`) | REST API: 28 paid models, rates, limits $15–$200, full metadata (vendor, context, releaseDate, caps); Console: `requests/5h` scaling x2.5 (tuần) & x5.0 (tháng) |
 | OpenDesign Go: bảng "Plan allowances" + `/models/` + `open-design.ai/model-credits` | Credits/cửa sổ từng gói ($220 + $55/7d + $18/5h cho Go), catalog model id/vendor/plan access + giá theo tier; **membership = danh sách Design Plan models (14)** + credit multiplier từng model |
 | AA `/models/<slug>` JSON-LD | Điểm intel exact cho model CMD thiếu điểm (map `AA_MODEL_SLUGS`, tròn 1dp) |
 

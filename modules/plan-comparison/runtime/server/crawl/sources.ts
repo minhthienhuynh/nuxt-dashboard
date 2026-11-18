@@ -2,7 +2,9 @@ export const SOURCE_URLS = {
   goat: 'https://commandcode.ai/docs/plans/goat',
   go: 'https://commandcode.ai/docs/plans/go',
   pricingLimits: 'https://commandcode.ai/docs/resources/pricing-limits',
-  openCodeGo: 'https://opencode.ai/docs/console/go/',
+  openCodeGo: 'https://opencode.ai/console/go',
+  openCodeGoApi: 'https://opencode.ai/inference/go/v1/models',
+  openCodeGoConsole: 'https://opencode.ai/console/go',
   // Astro static pages: plan table lives in the JSON settings block on either
   // page, the model catalog (API ids, vendor, plan access, tier rates) only on
   // the models index.
@@ -149,7 +151,8 @@ export interface CrawlSources {
   goatHtml: string
   goHtml: string
   pricingLimitsHtml: string
-  openCodeGoHtml: string
+  openCodeGoApiJson: string
+  openCodeGoConsoleHtml: string
   openDesignGoHtml: string
   openDesignModelsHtml: string
   openDesignCreditsHtml: string
@@ -160,11 +163,24 @@ export interface CrawlSources {
 }
 
 export async function fetchSources(fetchImpl: FetchImpl = fetch): Promise<CrawlSources> {
-  const [goatHtml, goHtml, pricingLimitsHtml, openCodeGoHtml, openDesignGoHtml, openDesignModelsHtml, openDesignCreditsHtml, tokenHarborModelsHtml, tokenHarborPricingHtml, modelsDevJson] = await Promise.all([
+  const [
+    goatHtml,
+    goHtml,
+    pricingLimitsHtml,
+    openCodeGoApiJson,
+    openCodeGoConsoleHtml,
+    openDesignGoHtml,
+    openDesignModelsHtml,
+    openDesignCreditsHtml,
+    tokenHarborModelsHtml,
+    tokenHarborPricingHtml,
+    modelsDevJson
+  ] = await Promise.all([
     fetchText(fetchImpl, SOURCE_URLS.goat),
     fetchText(fetchImpl, SOURCE_URLS.go),
     fetchText(fetchImpl, SOURCE_URLS.pricingLimits),
-    fetchText(fetchImpl, SOURCE_URLS.openCodeGo),
+    fetchText(fetchImpl, SOURCE_URLS.openCodeGoApi),
+    fetchTextOptional(fetchImpl, SOURCE_URLS.openCodeGoConsole),
     fetchTextOptional(fetchImpl, SOURCE_URLS.openDesignGo),
     fetchTextOptional(fetchImpl, SOURCE_URLS.openDesignModels),
     fetchTextOptional(fetchImpl, SOURCE_URLS.openDesignCredits),
@@ -176,7 +192,8 @@ export async function fetchSources(fetchImpl: FetchImpl = fetch): Promise<CrawlS
     goatHtml,
     goHtml,
     pricingLimitsHtml,
-    openCodeGoHtml,
+    openCodeGoApiJson,
+    openCodeGoConsoleHtml,
     openDesignGoHtml,
     openDesignModelsHtml,
     openDesignCreditsHtml,
