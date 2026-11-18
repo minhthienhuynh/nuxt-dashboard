@@ -31,11 +31,13 @@ describe('fetchSources', () => {
 
   it('keeps the core sources when an additive page fails', async () => {
     const fetchImpl = (async (url: string) => {
-      if (url.includes('open-design') || url.includes('tokenharbor')) throw new Error('down')
+      if (url.includes('open-design') || url.includes('tokenharbor') || url.includes('console/go')) throw new Error('down')
       return ok()
     }) as typeof fetch
     const sources = await fetchSources(fetchImpl)
     expect(sources.goatHtml).toBe('<html>core</html>')
+    expect(sources.openCodeGoApiJson).toBe('<html>core</html>')
+    expect(sources.openCodeGoConsoleHtml).toBe('')
     expect(sources.openDesignGoHtml).toBe('')
     expect(sources.openDesignModelsHtml).toBe('')
     expect(sources.tokenHarborModelsHtml).toBe('')

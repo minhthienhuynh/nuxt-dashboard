@@ -70,6 +70,17 @@ describe('parseTokenHarborBoosts', () => {
     ])
   })
 
+  it('parses modern markup with nested tooltips and aria-labels', () => {
+    const modernHtml = '<div><p>Agent Pass<!-- --> · estimated requests</p><ul class="space-y-2">'
+      + '<li class="flex items-center gap-3"><span class="relative flex w-[172px] shrink-0 items-center gap-1.5 sm:w-[228px]"><span class="min-w-0 break-words text-[12.5px] font-medium leading-tight text-foreground">GLM 5.3 Flash</span><span tabindex="0" aria-label="2×: Listed at standard price. Counts at 50% against your Pass allowance." class="group shrink-0 cursor-help rounded-full bg-[color:var(--accent-lime-soft)] px-1.5 py-0.5 text-[9.5px] font-bold text-[color:var(--accent-lime-ink)] outline-none focus-visible:ring-2 focus-visible:ring-foreground/30">2×<span role="tooltip" class="pointer-events-none absolute left-0 top-full z-20 mt-1.5 hidden w-[230px] rounded-lg bg-foreground px-2.5 py-1.5 text-[11px] font-medium leading-[1.45] text-background shadow-lg group-hover:block group-focus:block">Listed at standard price. Counts at 50% against your Pass allowance.</span></span></span><span class="relative h-[14px] flex-1 overflow-hidden rounded-full">19.2k+</span></li>'
+      + '<li class="flex items-center gap-3"><span class="relative flex w-[172px] shrink-0 items-center gap-1.5 sm:w-[228px]"><span class="min-w-0 break-words text-[12.5px] font-medium leading-tight text-foreground">DeepSeek V4.1 Flash 1017</span><span tabindex="0" aria-label="2x: Listed price already includes the 2x discount. Counts at that price, not discounted again." class="group shrink-0 cursor-help rounded-full bg-[color:var(--accent-lime-soft)] px-1.5 py-0.5 text-[9.5px] font-bold text-[color:var(--accent-lime-ink)] outline-none focus-visible:ring-2 focus-visible:ring-foreground/30">2x<span role="tooltip" class="pointer-events-none absolute left-0 top-full z-20 mt-1.5 hidden w-[230px] rounded-lg bg-foreground px-2.5 py-1.5 text-[11px] font-medium leading-[1.45] text-background shadow-lg group-hover:block group-focus:block">Listed price already includes the 2x discount. Counts at that price, not discounted again.</span></span></span><span class="relative h-[14px] flex-1 overflow-hidden rounded-full">10.8k+</span></li>'
+      + '</ul></div>'
+    expect(parseTokenHarborBoosts(modernHtml)).toEqual([
+      { name: 'GLM 5.3 Flash', multiple: 2, promo: false },
+      { name: 'DeepSeek V4.1 Flash 1017', multiple: 2, promo: true }
+    ])
+  })
+
   it('returns nothing when the widget is absent', () => {
     expect(parseTokenHarborBoosts('<html>no widget</html>')).toEqual([])
   })

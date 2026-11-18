@@ -270,12 +270,12 @@ export function parseTokenHarborCatalogue(html: string): TokenHarborModel[] {
 
 const WIDGET_ROW = /<li class="flex items-center gap-3">([\s\S]*?)<\/li>/g
 const WIDGET_NAME = /text-foreground">([^<]+)<\/span>/
-const WIDGET_BADGE = /<span[^>]*class="[^"]*accent-lime-soft[^"]*"([^>]*)>([^<]*)<\/span>/
+const WIDGET_BADGE = /<span\s+([^>]*class="[^"]*accent-lime-soft[^"]*"[^>]*)>\s*([0-9.]+)\s*[×x]/i
 
 /**
  * Reads the Model Boost badges of the `Agent Pass · estimated requests`
  * widget. The multiplier is a Pass feature when the badge is a bare `2×`, and
- * a promo when its `title` says so — same shape, different permanence.
+ * a promo when its `title`, `aria-label`, or tooltip marks it as a discount/promo.
  */
 export function parseTokenHarborBoosts(html: string): TokenHarborBoostRow[] {
   const text = html.replace(/\\"/g, '"')
@@ -290,11 +290,11 @@ export function parseTokenHarborBoosts(html: string): TokenHarborBoostRow[] {
     if (!name) continue
     const badge = WIDGET_BADGE.exec(body)
     if (!badge) continue
-    const attrs = badge[1] ?? ''
-    // `2×` (feature) and `2x` (promo) both parse here; the title decides.
-    const multiple = num((badge[2] ?? '').replace(/[×x]\s*$/i, ''))
+    const multiple = num(badge[2])
     if (multiple == null || multiple <= 1) continue
-    rows.push({ name, multiple, promo: /title="[^"]*promo/i.test(attrs) })
+    const badgeContext = body.slice(badge.index, badge.index + 500)
+    const promo = /promo|discount|already includes/i.test(badgeContext)
+    rows.push({ name, multiple, promo })
   }
   return rows
 }

@@ -6,7 +6,7 @@ import { buildDatabase } from '../../crawl/build'
 import { SOURCE_URLS, extractFlightEstimates, extractFlightModels, fetchSources } from '../../crawl/sources'
 import { parseGoatEstimates, parseGoatModels } from '../../crawl/goat'
 import { parseGoPlanLimits, parsePricingLimits } from '../../crawl/ccpricing'
-import { parseOpenCodeEndpoints, parseOpenCodeEstimates, parseOpenCodePricing } from '../../crawl/opencode'
+import { parseOpenCodeApi, parseOpenCodeEstimates } from '../../crawl/opencode'
 import { parseOpenDesignAllowances, parseOpenDesignModels, parseOpenDesignMultipliers, parseOpenDesignUsage } from '../../crawl/opendesign'
 import { parseTokenHarborBoosts, parseTokenHarborCatalogue } from '../../crawl/tokenharbor'
 import { crawledDatabaseSchema } from '../../crawl/schemas'
@@ -43,9 +43,12 @@ async function crawlFresh(): Promise<PlanComparisonPayload> {
   })
   const pricingSections = parsePricingLimits(sources.pricingLimitsHtml)
   const goLimits = parseGoPlanLimits(sources.goHtml)
-  const ocPricing = parseOpenCodePricing(sources.openCodeGoHtml)
-  const ocEstimates = parseOpenCodeEstimates(sources.openCodeGoHtml)
-  const ocEndpoints = parseOpenCodeEndpoints(sources.openCodeGoHtml)
+  const { pricing: ocPricing, endpoints: ocEndpoints, catalogModels: ocCatalogModels } = parseOpenCodeApi(sources.openCodeGoApiJson)
+  for (const model of ocCatalogModels) {
+    const label = AA_MODEL_SLUGS[model.id]?.label ?? model.name
+    model.intelligenceIndex = scoreFromLeaderboard(leaderboard, label)
+  }
+  const ocEstimates = parseOpenCodeEstimates(sources.openCodeGoConsoleHtml)
   // OpenDesign Go: allowance table (credits + windows) and model catalog (ids,
   // plan access, tier rates) come from two Astro pages, no Flight payload.
   const odAllowances = parseOpenDesignAllowances(sources.openDesignGoHtml)
@@ -70,6 +73,7 @@ async function crawlFresh(): Promise<PlanComparisonPayload> {
     openCodePricing: ocPricing,
     openCodeEstimates: ocEstimates,
     openCodeEndpoints: ocEndpoints,
+    openCodeCatalogModels: ocCatalogModels,
     openDesignAllowances: odAllowances,
     openDesignModels: odModels,
     openDesignMultipliers: odMultipliers,

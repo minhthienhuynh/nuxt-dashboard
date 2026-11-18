@@ -3,6 +3,48 @@ import type { HTMLElement } from 'node-html-parser'
 import type { Model } from '../../app/types'
 
 import { toNumber } from './parse'
+import { round3 } from './estimates'
+
+const VENDOR_PREFIX_MAP: Record<string, string> = {
+  deepseek: 'DeepSeek',
+  alibaba: 'Alibaba',
+  tencent: 'Tencent',
+  xiaomi: 'Xiaomi',
+  zhipuai: 'Z.ai',
+  moonshotai: 'Moonshot AI',
+  meituan: 'Meituan',
+  minimax: 'MiniMax',
+  openai: 'OpenAI',
+  google: 'Google',
+  anthropic: 'Anthropic',
+  xai: 'xAI',
+  meta: 'Meta',
+  stepfun: 'StepFun'
+}
+
+export function openCodeVendor(canonicalId: string | null | undefined, name?: string): string | null {
+  if (canonicalId && canonicalId.includes('/')) {
+    const prefix = canonicalId.split('/')[0]!.toLowerCase()
+    if (VENDOR_PREFIX_MAP[prefix]) return VENDOR_PREFIX_MAP[prefix]
+    return prefix.charAt(0).toUpperCase() + prefix.slice(1)
+  }
+  const n = (name ?? '').toLowerCase()
+  if (n.includes('deepseek')) return 'DeepSeek'
+  if (n.includes('qwen')) return 'Alibaba'
+  if (n.includes('glm')) return 'Z.ai'
+  if (n.includes('kimi')) return 'Moonshot AI'
+  if (n.includes('mimo')) return 'Xiaomi'
+  if (n.includes('minimax')) return 'MiniMax'
+  if (n.includes('hy3') || n.includes('hy4')) return 'Tencent'
+  if (n.includes('longcat')) return 'Meituan'
+  if (n.includes('grok')) return 'xAI'
+  if (n.includes('claude')) return 'Anthropic'
+  if (n.includes('gemini')) return 'Google'
+  if (n.includes('gpt')) return 'OpenAI'
+  if (n.includes('step')) return 'StepFun'
+  if (n.includes('muse')) return 'Meta'
+  return null
+}
 
 export interface OpenCodePricingRow {
   name: string
@@ -24,6 +66,117 @@ export interface OpenCodeEstimateRow {
 export interface OpenCodeEndpointRow {
   name: string
   modelId: string
+}
+
+export interface OpenCodeApiResult {
+  pricing: OpenCodePricingRow[]
+  endpoints: OpenCodeEndpointRow[]
+  catalogModels: Model[]
+}
+
+/** Parse REST API response from https://opencode.ai/inference/go/v1/models */
+export function parseOpenCodeApi(payload: string | unknown): OpenCodeApiResult {
+  const data = typeof payload === 'string'
+    ? (() => {
+        try {
+          return JSON.parse(payload)
+        } catch {
+          return null
+        }
+      })()
+    : payload
+
+  const items = Array.isArray((data as { data?: unknown })?.data)
+    ? (data as { data: Record<string, unknown>[] }).data
+    : []
+
+  const pricing: OpenCodePricingRow[] = []
+  const endpoints: OpenCodeEndpointRow[] = []
+  const catalogModels: Model[] = []
+
+  for (const item of items) {
+    if (!item || typeof item !== 'object') continue
+    const goObj = item.go as Record<string, unknown> | undefined
+    const monthlyUsage = goObj?.monthly_usage as Record<string, unknown> | undefined
+    const monthlyLimit = toNumber(monthlyUsage?.go)
+    // Only paid Go models enter the Go dataset
+    if (monthlyLimit == null || monthlyLimit <= 0) continue
+
+    const name = String(item.name ?? item.id ?? '').trim()
+    if (!name) continue
+    const modelId = String(item.id ?? '').trim()
+
+    const cost = item.cost as Record<string, unknown> | undefined
+    const costText = cost?.text as Record<string, unknown> | undefined
+    const costInput = costText?.input as Record<string, unknown> | undefined
+    const costOutput = costText?.output as Record<string, unknown> | undefined
+    const cacheObj = costInput?.cache as Record<string, unknown> | undefined
+
+    const input = toNumber(costInput?.price)
+    const output = toNumber(costOutput?.price)
+    const cacheRead = toNumber(cacheObj?.read)
+    const cacheWrite = toNumber(cacheObj?.write)
+
+    pricing.push({
+      name,
+      tier: 'standard',
+      input,
+      output,
+      cacheRead,
+      cacheWrite,
+      monthlyLimit
+    })
+
+    if (modelId) {
+      endpoints.push({
+        name,
+        modelId
+      })
+    }
+
+    const rates = {
+      input,
+      output,
+      cacheRead,
+      cacheWrite
+    }
+    const modalities = item.modalities as Record<string, unknown> | undefined
+    const vision = Array.isArray(modalities?.input) && modalities.input.some((m: unknown) => typeof m === 'string' && m.startsWith('image'))
+    const capabilities = item.capabilities as Record<string, unknown> | undefined
+    const reasoningObj = capabilities?.reasoning as Record<string, unknown> | undefined
+    const reasoning = Boolean(reasoningObj?.supported)
+    const canonicalId = typeof item.canonical_id === 'string' ? item.canonical_id : null
+    const vendor = openCodeVendor(canonicalId, name)
+    const slug = modelId.replace(/^opencode\//, '').replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase().replace(/^-|-$/g, '')
+    const limit = item.limit as Record<string, unknown> | undefined
+
+    catalogModels.push({
+      id: modelId,
+      slug,
+      name,
+      vendor,
+      category: typeof item.family === 'string' ? item.family : null,
+      contextWindow: toNumber(limit?.context),
+      reasoning,
+      vision,
+      inputCost: input,
+      outputCost: output,
+      cacheReadCost: cacheRead,
+      cacheWriteCost: cacheWrite,
+      tiers: [{ rates }],
+      minPlanName: null,
+      deal: null,
+      caps: { text: true, vision, reasoning },
+      intelligenceIndex: null,
+      codingIndex: null,
+      outputTokensPerSec: null,
+      releaseDate: item.release_date ? String(item.release_date).trim() : null,
+      launchedAt: null,
+      timeOfDay: null
+    })
+  }
+
+  return { pricing, endpoints, catalogModels }
 }
 
 /** Display names differ slightly across the three tables — normalize before joining. */
@@ -101,8 +254,48 @@ export function parseOpenCodePricing(html: string): OpenCodePricingRow[] {
   }).filter(row => row.name !== '')
 }
 
-/** Table: Model | requests per 5 hour | requests per week | requests per month */
+/**
+ * Table: Model | requests per 5 hour | requests per week | requests per month
+ * Supports both modern Console table (data-allowance-type="requests") with 5h -> week/month scaling,
+ * and legacy docs table format.
+ */
 export function parseOpenCodeEstimates(html: string): OpenCodeEstimateRow[] {
+  if (!html) return []
+  const root = parseHtml(html)
+
+  // 1. Modern console/go table
+  const table = root.querySelector('table')
+  if (table && table.querySelector('[data-allowance-type="requests"]')) {
+    const trs = table.querySelectorAll('tr')
+    const rows: OpenCodeEstimateRow[] = []
+    for (const tr of trs.slice(1)) {
+      const th = tr.querySelector('th')
+      const reqTd = tr.querySelector('td[data-allowance-type="requests"]')
+      if (!th || !reqTd) continue
+
+      const rawName = th.querySelector('span')?.text ?? th.text ?? ''
+      const name = rawName.replace(/New|Limited.*$/i, '').trim()
+      if (!name) continue
+
+      const reqText = reqTd.querySelector('[data-plan="go"] [data-layer="current-value"]')?.text
+        ?? reqTd.querySelector('[data-plan="go"]')?.text
+        ?? ''
+      const per5h = toNumber(reqText)
+      if (per5h == null) continue
+
+      const perWeek = round3(per5h * 2.5)
+      const perMonth = round3(per5h * 5.0)
+      rows.push({
+        name,
+        per5h,
+        perWeek,
+        perMonth
+      })
+    }
+    if (rows.length > 0) return rows
+  }
+
+  // 2. Legacy docs table format fallback
   const rows = findTable(allTableRows(html), 'requests per month')
   if (rows.length === 0) return []
   const header = rows[0] ?? []

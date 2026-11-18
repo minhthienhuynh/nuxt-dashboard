@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mapOpenCodeModels, normalizeName, parseOpenCodeEndpoints, parseOpenCodeEstimates, parseOpenCodePricing } from './opencode'
+import { mapOpenCodeModels, normalizeName, openCodeVendor, parseOpenCodeApi, parseOpenCodeEndpoints, parseOpenCodeEstimates, parseOpenCodePricing } from './opencode'
 
 const pricingTable = `<table><tr><th>Model</th><th>Input</th><th>Output</th><th>Cached Read</th><th>Cached Write</th><th>Monthly limit</th></tr>
 <tr><td>GLM-5.3-Flash</td><td>$0.15</td><td>$0.50</td><td>$0.03</td><td>-</td><td>$60</td></tr></table>`
@@ -60,6 +60,129 @@ describe('parseOpenCodeEstimates', () => {
     expect(parseOpenCodeEstimates(html)).toEqual([
       { name: 'DeepSeek V4.1 Flash', per5h: 26000, perWeek: 65000, perMonth: 130000 }
     ])
+  })
+
+  it('parses modern console table with 5h requests and scales to week and month', () => {
+    const modernHtml = `
+      <table>
+        <thead>
+          <tr><th>Model</th><th>Bars</th><th>Est. requests / 5 hr</th><th>Monthly limit</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row"><span>Kimi K3</span></th>
+            <td></td>
+            <td data-allowance-type="requests">
+              <span data-plan="go"><span data-layer="current-value">98</span></span>
+              <span data-plan="go-plus"><span data-layer="current-value">392</span></span>
+            </td>
+            <td data-allowance-type="usage">
+              <span data-plan="go"><span data-layer="current-value">$15</span></span>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row"><span>Qwen4 MaxNew</span></th>
+            <td></td>
+            <td data-allowance-type="requests">
+              <span data-plan="go"><span data-layer="current-value">463</span></span>
+            </td>
+            <td data-allowance-type="usage"></td>
+          </tr>
+        </tbody>
+      </table>
+    `
+    const rows = parseOpenCodeEstimates(modernHtml)
+    expect(rows).toEqual([
+      { name: 'Kimi K3', per5h: 98, perWeek: 245, perMonth: 490 },
+      { name: 'Qwen4 Max', per5h: 463, perWeek: 1160, perMonth: 2320 }
+    ])
+  })
+})
+
+describe('openCodeVendor', () => {
+  it('maps canonical id prefixes to standardized vendor names', () => {
+    expect(openCodeVendor('deepseek/deepseek-v4.1-flash')).toBe('DeepSeek')
+    expect(openCodeVendor('alibaba/qwen4-max')).toBe('Alibaba')
+    expect(openCodeVendor('tencent/hy4')).toBe('Tencent')
+    expect(openCodeVendor('xiaomi/mimo-v2.6-flash')).toBe('Xiaomi')
+    expect(openCodeVendor('zhipuai/glm-5.3')).toBe('Z.ai')
+    expect(openCodeVendor('moonshotai/kimi-k3')).toBe('Moonshot AI')
+    expect(openCodeVendor('google/gemini-4-argon')).toBe('Google')
+  })
+
+  it('falls back to name inspection when canonical id has no slash', () => {
+    expect(openCodeVendor(null, 'DeepSeek V4.1 Flash')).toBe('DeepSeek')
+    expect(openCodeVendor(null, 'Qwen3.8 Max')).toBe('Alibaba')
+  })
+})
+
+describe('parseOpenCodeApi', () => {
+  const sampleApiJson = JSON.stringify({
+    object: 'list',
+    data: [
+      {
+        id: 'qwen4-max',
+        name: 'Qwen4 Max',
+        canonical_id: 'alibaba/qwen4-max',
+        family: 'qwen4-max',
+        release_date: '2026-11-16',
+        modalities: { input: ['text', 'image/jpeg'], output: ['text'] },
+        capabilities: { reasoning: { supported: true } },
+        limit: { context: 1000000, output: 262144 },
+        cost: {
+          text: {
+            input: { price: 1.5, cache: { read: 0.075 } },
+            output: { price: 4.5 }
+          }
+        },
+        go: { monthly_usage: { 'go': 15, 'go-plus': 60 } }
+      },
+      {
+        id: 'beam-free',
+        name: 'Beam Free',
+        canonical_id: 'beam/beam-free',
+        cost: { text: { input: { price: 0 }, output: { price: 0 } } },
+        go: { monthly_usage: null }
+      }
+    ]
+  })
+
+  it('extracts pricing, endpoints, and full model metadata from API response', () => {
+    const { pricing, endpoints, catalogModels } = parseOpenCodeApi(sampleApiJson)
+
+    // Beam Free has monthly_usage.go = null, so only Qwen4 Max is included
+    expect(pricing).toEqual([{
+      name: 'Qwen4 Max',
+      tier: 'standard',
+      input: 1.5,
+      output: 4.5,
+      cacheRead: 0.075,
+      cacheWrite: null,
+      monthlyLimit: 15
+    }])
+
+    expect(endpoints).toEqual([{
+      name: 'Qwen4 Max',
+      modelId: 'qwen4-max'
+    }])
+
+    expect(catalogModels).toHaveLength(1)
+    const qwen = catalogModels[0]!
+    expect(qwen).toMatchObject({
+      id: 'qwen4-max',
+      slug: 'qwen4-max',
+      name: 'Qwen4 Max',
+      vendor: 'Alibaba',
+      category: 'qwen4-max',
+      contextWindow: 1000000,
+      reasoning: true,
+      vision: true,
+      inputCost: 1.5,
+      outputCost: 4.5,
+      cacheReadCost: 0.075,
+      releaseDate: '2026-11-16'
+    })
+    expect(qwen.caps).toEqual({ text: true, vision: true, reasoning: true })
   })
 })
 

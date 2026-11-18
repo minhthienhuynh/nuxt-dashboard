@@ -24,6 +24,8 @@ export interface BuildInput {
   openCodePricing: OpenCodePricingRow[]
   openCodeEstimates: OpenCodeEstimateRow[]
   openCodeEndpoints: OpenCodeEndpointRow[]
+  /** Enriched model catalog from OpenCode REST API with full metadata. */
+  openCodeCatalogModels?: Model[]
   openDesignAllowances: OpenDesignAllowanceRow[]
   openDesignModels: OpenDesignCatalogModel[]
   openDesignMultipliers: OpenDesignMultiplierRow[]
@@ -448,11 +450,14 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
         fetchedAt: input.fetchedAt
       })
     } else {
+      const rowVendor = models.find(m => m.id === modelId)?.vendor
+        ?? input.openCodeCatalogModels?.find(m => m.id === modelId || matchName(m.name) === key)?.vendor
+        ?? null
       planModels.push(estimateRow('oc-go', modelId, budget, {
         input: price?.input ?? null,
         output: price?.output ?? null,
         cacheRead: price?.cacheRead ?? null,
-        vendor: null
+        vendor: rowVendor
       }, ocPlan.limits, input.sourceUrls.openCodeGo, input.fetchedAt))
     }
     if (!seenIds.has(modelId)) {
@@ -463,13 +468,24 @@ export function buildDatabase(input: BuildInput): BuiltDatabase {
         // metadata instead of degrading it to an OC-only shell.
         models.push(catalogModel)
       } else {
-        const [ocModel] = mapOpenCodeModelRows({
-          pricing: price ? [price] : [],
-          endpoints: [],
-          idFor: () => modelId,
-          nameFor: () => displayName
-        })
-        if (ocModel) models.push(ocModel)
+        const ocCatalogEntry = input.openCodeCatalogModels?.find(m =>
+          m.id === modelId || matchName(m.name) === key || (endpointId && m.id === endpointId)
+        )
+        if (ocCatalogEntry) {
+          models.push({
+            ...ocCatalogEntry,
+            id: modelId,
+            name: displayName
+          })
+        } else {
+          const [ocModel] = mapOpenCodeModelRows({
+            pricing: price ? [price] : [],
+            endpoints: [],
+            idFor: () => modelId,
+            nameFor: () => displayName
+          })
+          if (ocModel) models.push(ocModel)
+        }
       }
     }
   }

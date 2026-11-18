@@ -239,6 +239,35 @@ describe('buildDatabase', () => {
     expect(db.models.some(m => m.id === 'opencode/solo')).toBe(true)
   })
 
+  it('keeps openCodeCatalogModels metadata when an OC model is absent from CMD catalog', () => {
+    const db = buildDatabase({
+      ...baseInput,
+      openCodePricing: [{ name: 'Qwen4 Max', tier: 'standard', input: 1.5, output: 4.5, cacheRead: 0.075, cacheWrite: null, monthlyLimit: 15 }],
+      openCodeEstimates: [{ name: 'Qwen4 Max', per5h: 463, perWeek: 1157.5, perMonth: 2315 }],
+      openCodeEndpoints: [{ name: 'Qwen4 Max', modelId: 'qwen4-max' }],
+      openCodeCatalogModels: [makeModel({
+        id: 'qwen4-max',
+        slug: 'qwen4-max',
+        name: 'Qwen4 Max',
+        vendor: 'Alibaba',
+        contextWindow: 1000000,
+        releaseDate: '2026-11-16',
+        vision: true,
+        reasoning: true
+      })]
+    })
+    const oc = db.plan_models.filter(p => p.plan_id === 'oc-go')
+    expect(oc).toHaveLength(1)
+    expect(oc[0]?.model_id).toBe('qwen4-max')
+    const qwen = db.models.find(m => m.id === 'qwen4-max')
+    expect(qwen).toBeDefined()
+    expect(qwen?.vendor).toBe('Alibaba')
+    expect(qwen?.contextWindow).toBe(1000000)
+    expect(qwen?.releaseDate).toBe('2026-11-16')
+    expect(qwen?.vision).toBe(true)
+    expect(qwen?.reasoning).toBe(true)
+  })
+
   it('drops free OC promo rows entirely, like goat free models', () => {
     // Live OC page: "Space Bunny Free | Free | Free | Free | - | Unlimited"
     // parses to null rates + null estimates, then borrows the $60 plan
