@@ -1,4 +1,27 @@
 /*
+ * Provider brand & chart colors with Light and Dark mode variations.
+ * Unovis SVG and HTML elements consume these variables directly.
+ */
+:root {
+  --pc-plan-cmd-go: #059669;
+  --pc-plan-cmd-goat: #4338ca;
+  --pc-plan-oc-go: #a7bfd6;
+  --pc-plan-od-go: #7e22ce;
+  --pc-plan-th-agent: #ea580c;
+  --pc-plan-th-office: #b45309;
+}
+
+:root.dark,
+.dark {
+  --pc-plan-cmd-go: #10b981;
+  --pc-plan-cmd-goat: #4f46e5;
+  --pc-plan-oc-go: #4e81b1;
+  --pc-plan-od-go: #a855f7;
+  --pc-plan-th-agent: #f97316;
+  --pc-plan-th-office: #f59e0b;
+}
+
+/*
  * Shared Unovis theming for the plan-comparison charts.
  *
  * Unovis writes its own default font size onto every tick tspan as an XML
