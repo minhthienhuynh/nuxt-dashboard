@@ -11,9 +11,9 @@ export interface PlanComparisonPlanMeta {
 // GOAT, OpenCode Go, OpenDesign Go, Token Harbor Agent, Token Harbor Office.
 export const PLAN_COMPARISON_PLANS: PlanComparisonPlanMeta[] = [
   { key: 'cmd', planId: 'cmd-go', label: 'Command Code Go', color: '#10b981' },
-  { key: 'goat', planId: 'cmd-goat', label: 'Command Code GOAT', color: '#2563eb' },
-  { key: 'go', planId: 'oc-go', label: 'OpenCode Go', color: '#a7bfd6' },
-  { key: 'od', planId: 'od-go', label: 'OpenDesign Go', color: '#8b5cf6' },
+  { key: 'goat', planId: 'cmd-goat', label: 'Command Code GOAT', color: '#4f46e5' },
+  { key: 'go', planId: 'oc-go', label: 'OpenCode Go', color: '#4e81b1' },
+  { key: 'od', planId: 'od-go', label: 'OpenDesign Go', color: '#9333ea' },
   { key: 'th', planId: 'th-agent', label: 'Token Harbor Agent', color: '#f97316' },
   { key: 'th-office', planId: 'th-office', label: 'Token Harbor Office', color: '#d97706' }
 ]

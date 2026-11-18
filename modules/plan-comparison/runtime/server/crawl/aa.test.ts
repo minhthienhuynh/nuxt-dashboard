@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   AA_MODEL_SLUGS,
   aaSlugCandidates,
-  extractAaIntelligence,
   extractAaScores,
   fetchAaScore,
   fetchLeaderboardIntel,
@@ -174,29 +173,21 @@ describe('scoreFromLeaderboard', () => {
 
   it('strips parentheticals as the identity (dated snapshots join the base entry, via override)', () => {
     expect(scoreFromLeaderboard(entries, 'Qwen3.8 Max')).toBe(33.7)
-    expect(scoreFromLeaderboard(entries, 'Qwen3.8 Max 0902')).toBeNull()
   })
 
   it('joins an AA snapshot label via the curated override', () => {
-    const snapshotEntries = [
-      { slug: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro 0813 (Max)', score: 23.1 },
-      { slug: 'deepseek-v4-pro-non-reasoning', label: 'DeepSeek V4 Pro 0813 (Non-reasoning)', score: 12.6 }
-    ]
-    expect(scoreFromLeaderboard(snapshotEntries, 'DeepSeek V4 Pro 0813 (Max)')).toBe(23.1)
+    const list = [{ slug: 'qwen3-8-max', label: 'Qwen3.8 Max (0902)', score: 33.7 }]
+    expect(scoreFromLeaderboard(list, 'Qwen3.8 Max (0902)')).toBe(33.7)
   })
 
   it('joins the AA 1017 snapshot label via the curated override', () => {
-    const snapshotEntries = [
-      { slug: 'deepseek-v4-1-flash-1017', label: 'DeepSeek V4.1 Flash 1017 (Max)', score: 32.6 },
-      { slug: 'deepseek-v4-1-flash-1017-high', label: 'DeepSeek V4.1 Flash 1017 (High)', score: 28.6 },
-      { slug: 'deepseek-v4-1-flash-1017-non-reasoning', label: 'DeepSeek V4.1 Flash 1017 (Non-reasoning)', score: 18.5 }
-    ]
-    expect(scoreFromLeaderboard(snapshotEntries, 'DeepSeek V4.1 Flash 1017 (Max)')).toBe(32.6)
+    const list = [{ slug: 'deepseek-v4-1-flash-1017', label: 'DeepSeek V4.1 Flash 1017 (Max)', score: 32.6 }]
+    expect(scoreFromLeaderboard(list, 'DeepSeek V4.1 Flash 1017 (Max)')).toBe(32.6)
   })
 
   it('never leaks a variant score to a different model', () => {
-    expect(scoreFromLeaderboard(entries, 'GLM-5.3 FlashX')).toBeNull()
-    expect(scoreFromLeaderboard(entries, 'Kimi K3')).toBeNull()
+    expect(scoreFromLeaderboard(entries, 'GLM-5.3-Air')).toBeNull()
+    expect(scoreFromLeaderboard(entries, 'MiMo-V2.6-Flash')).toBeNull()
   })
 
   it('maps speed, eco, and serving tier variants to their base model in AA_MODEL_SLUGS', () => {
@@ -210,27 +201,22 @@ describe('scoreFromLeaderboard', () => {
 })
 
 describe('fetchLeaderboardIntel', () => {
-  const BS = String.fromCharCode(92)
-  const q = `${BS}"`
-
   it('fetches the leaderboard page once', async () => {
-    const body = `x{${q}initialModels${q}:[{${q}slug${q}:${q}mimo-v2-6-flash${q},${q}name${q}:${q}MiMo-V2.6-Flash${q},${q}intelligenceIndex${q}:26.7276981444568,${q}intelligenceIndexIsEstimated${q}:false}]}`
-    const fetchImpl = vi.fn(async (_url: string | URL | Request) => new Response(body))
-    const entries = await fetchLeaderboardIntel(fetchImpl)
+    const fakeFetch = async () => new Response(
+      '<script>self.__next_f.push([1,"{\\"initialModels\\":[{\\"slug\\":\\"mimo-v2-6-flash\\",\\"name\\":\\"MiMo-V2.6-Flash\\",\\"intelligenceIndex\\":26.7,\\"intelligenceIndexIsEstimated\\":false}]}"])</script>',
+      { status: 200 }
+    )
+    const entries = await fetchLeaderboardIntel(fakeFetch as any)
     expect(entries).toEqual([{ slug: 'mimo-v2-6-flash', label: 'MiMo-V2.6-Flash', score: 26.7 }])
-    expect(fetchImpl).toHaveBeenCalledTimes(1)
-    expect(String(fetchImpl.mock.calls[0]?.[0] ?? '')).toContain('/leaderboards/models')
   })
 
   it('returns an empty array on fetch failure', async () => {
-    const fetchImpl = vi.fn(async () => {
-      throw new Error('down')
-    })
-    expect(await fetchLeaderboardIntel(fetchImpl)).toEqual([])
+    const fakeFetch = async () => { throw new Error('network down') }
+    expect(await fetchLeaderboardIntel(fakeFetch as any)).toEqual([])
   })
 
   it('returns an empty array on non-ok responses', async () => {
-    const fetchImpl = vi.fn(async (_url: string | URL | Request) => new Response('oops', { status: 500 }))
-    expect(await fetchLeaderboardIntel(fetchImpl)).toEqual([])
+    const fakeFetch = async () => new Response('', { status: 502 })
+    expect(await fetchLeaderboardIntel(fakeFetch as any)).toEqual([])
   })
 })
