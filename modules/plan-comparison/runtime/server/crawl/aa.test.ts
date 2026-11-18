@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   AA_MODEL_SLUGS,
   aaSlugCandidates,
-  extractAaIntelligence,
   extractAaScores,
   fetchAaScore,
   fetchLeaderboardIntel,
