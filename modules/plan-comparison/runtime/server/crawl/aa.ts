@@ -7,6 +7,12 @@ export interface AaScoreEntry {
   score: number
 }
 
+export interface AaIntelEntry {
+  label: string
+  score: number
+  slug: string | null
+}
+
 /**
  * Curated overrides — ONLY for user-mandated proxies that generic resolution
  * must never guess (Qwen3.8-Flash has no AA page; user ordered 2026-09-05 to

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { usePlanComparisonDatabase } from '../composables/usePlanComparisonDatabase'
+import '../plan-chart.css'
 
 const {
   status,
